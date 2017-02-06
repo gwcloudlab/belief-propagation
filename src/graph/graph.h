@@ -44,9 +44,13 @@ int graph_edge_count(Graph);
 /** free space **/
 void graph_destroy(Graph);
 
-Node * get_leaf_nodes(Graph, int);
+void send_from_leaf_nodes(Graph, Node *, int *, int);
+void push_node(Node, Node *, int *);
+Node pop_node(Node *, int *);
 
+Node propagate(Graph, Node *, int *);
 
+void marginalize(Graph);
 
 
 #endif /* GRAPH_H_ */
