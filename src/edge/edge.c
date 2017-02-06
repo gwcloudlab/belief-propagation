@@ -23,6 +23,7 @@ Edge create_edge(Node src, Node dest, double ** joint_probabilities) {
 			e->joint_probabilities[i][j] = joint_probabilities[i][j];
 		}
 	}
+	e->message = (double *)malloc(sizeof(double) * src->num_variables);
 
 	return e;
 }
@@ -34,5 +35,18 @@ void destroy_edge(Edge edge) {
 		free(edge->joint_probabilities[i]);
 	}
 	free(edge->joint_probabilities);
+	free(edge->message);
 	free(edge);
+}
+
+void send_message(Edge edge, double * message) {
+	int i, j, num_src, num_dest;
+	num_src = edge->src->num_variables;
+	num_dest = edge->dest->num_variables;
+	for(i = 0; i < num_src; ++i){
+		edge->message[i] = 0.0;
+		for(j = 0; j < num_dest; ++j){
+			edge->message[i] += edge->joint_probabilities[i][j] * message[j];
+		}
+	}
 }

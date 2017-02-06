@@ -77,9 +77,13 @@ Edge * create_edges(Node * nodes){
 
 int main() {
 	int i;
+	Node n;
 
 	Node * nodes = create_nodes();
 	Edge * edges = create_edges(nodes);
+
+	Node * queue = (Node *)malloc(sizeof(Node) * NUM_NODES);
+	int queue_size = 0;
 
 	Graph g = create_graph(NUM_NODES, NUM_EDGES);
 	for(i = 0; i < NUM_NODES; ++i){
@@ -89,9 +93,24 @@ int main() {
 		graph_add_edge(g, edges[i]);
 	}
 
-	Node * leaf_nodes = get_leaf_nodes(g, 1);
+	send_from_leaf_nodes(g, queue, &queue_size, 1);
 
-	free(leaf_nodes);
+	for(i = 0; i < NUM_NODES; ++i){
+		print_node(nodes[i]);
+	}
+
+	Node root = propagate(g, queue, &queue_size);
+	for(i = 0; i < NUM_NODES; ++i){
+		reset_visited(nodes[i]);
+	}
+	push_node(root, queue, &queue_size);
+	propagate(g, queue, &queue_size);
+	marginalize(g);
+	for(i = 0; i < NUM_NODES; ++i){
+		print_node(nodes[i]);
+	}
+
+	free(queue);
 	graph_destroy(g);
 	for(i = 0; i < NUM_EDGES; ++i){
 		destroy_edge(edges[i]);

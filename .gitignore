@@ -109,3 +109,4 @@ dkms.conf
 *.ptx
 *.cubin
 *.fatbin
+/Debug/

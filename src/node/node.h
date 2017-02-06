@@ -12,6 +12,7 @@ struct node {
 	double * state;
 	int num_variables;
 	char name[50];
+	char visited;
 };
 typedef struct node *Node;
 
@@ -21,6 +22,8 @@ Node create_node(const char * name, int num_variables);
 void initialize_node(Node node, int num_variables, double * initial_state);
 
 void destroy_node(Node);
+void reset_visited(Node);
+void print_node(Node);
 
 
 #endif /* NODE_H_ */

@@ -14,12 +14,13 @@ struct edge {
 	Node src;
 	Node dest;
 	double ** joint_probabilities;
+	double * message;
 };
 typedef struct edge *Edge;
 
 Edge create_edge(Node src, Node dest, double ** joint_probabilities);
 void destroy_edge(Edge);
-
+void send_message(Edge, double *);
 
 
 #endif /* EDGE_H_ */
