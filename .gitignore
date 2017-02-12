@@ -110,3 +110,5 @@ dkms.conf
 *.cubin
 *.fatbin
 /Debug/
+/Debug-example/
+/Release-example/
