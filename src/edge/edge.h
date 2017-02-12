@@ -11,16 +11,20 @@
 #include "../node/node.h"
 
 struct edge {
-	Node src;
-	Node dest;
-	double ** joint_probabilities;
-	double * message;
+	int edge_index;
+	int src_index;
+	int dest_index;
+	int x_dim;
+	int y_dim;
+	double joint_probabilities[MAX_STATES][MAX_STATES];
+	double message[MAX_STATES];
 };
-typedef struct edge *Edge;
+typedef struct edge* Edge_t;
 
-Edge create_edge(Node src, Node dest, double ** joint_probabilities);
-void destroy_edge(Edge);
-void send_message(Edge, double *);
+Edge_t create_edge(int, int, int, int, int, double **);
+void init_edge(Edge_t, int, int, int, int, int, double **);
+void destroy_edge(Edge_t);
+void send_message(Edge_t, double *);
 
 
 #endif /* EDGE_H_ */

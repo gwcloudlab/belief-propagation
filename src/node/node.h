@@ -8,22 +8,20 @@
 #ifndef NODE_H_
 #define NODE_H_
 
+#include "../constants.h"
+
 struct node {
-	double * state;
+	double states[MAX_STATES];
 	int num_variables;
-	char name[50];
-	char visited;
+	int index;
 };
-typedef struct node *Node;
+typedef struct node* Node_t;
 
-static const double DEFAULT_STATE = 1.0;
+Node_t create_node(int index, int num_variables);
+void initialize_node(Node_t node, int index, int num_variables);
+void node_set_state(Node_t node, int num_variables, double * initial_state);
 
-Node create_node(const char * name, int num_variables);
-void initialize_node(Node node, int num_variables, double * initial_state);
-
-void destroy_node(Node);
-void reset_visited(Node);
-void print_node(Node);
+void destroy_node(Node_t);
 
 
 #endif /* NODE_H_ */

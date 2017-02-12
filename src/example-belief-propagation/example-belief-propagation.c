@@ -7,31 +7,19 @@ static const int NUM_NODES = 4;
 static const int NUM_EDGES = 5;
 static const int NUM_VARIABLES = 2;
 
-Node * create_nodes(){
-	int i;
-	Node * nodes;
-	double y2[2];
+void add_nodes(Graph_t graph){
+	double y2[NUM_VARIABLES];
 	y2[0] = 1.0;
 	y2[1] = 0.0;
 
-	nodes = (Node *)malloc(sizeof(Node) * NUM_NODES);
-
-	// set up nodes
-	nodes[0] = create_node("x1", 2);
-	nodes[1] = create_node("x2", 2);
-	nodes[2] = create_node("x3", 2);
-	nodes[3] = create_node("y1", 2);
-
-
-	initialize_node(nodes[3], 2, y2);
-
-	return nodes;
+	graph_add_node(graph, NUM_VARIABLES, "x1");
+	graph_add_node(graph, NUM_VARIABLES, "x2");
+	graph_add_node(graph, NUM_VARIABLES, "x3");
+	graph_add_and_set_node_state(graph, NUM_VARIABLES, "y2", y2);
 }
 
-Edge * create_edges(Node * nodes){
+void add_edges(Graph_t graph){
 	int i;
-	Edge * edges;
-	edges = (Edge *)malloc(sizeof(Edge) * NUM_EDGES);
 
 	double ** phi_1_2 = (double **)malloc(sizeof(double*) * NUM_VARIABLES);
 	double ** phi_2_3 = (double **)malloc(sizeof(double*) * NUM_VARIABLES);
@@ -57,11 +45,11 @@ Edge * create_edges(Node * nodes){
 	phi_2_4[1][0] = 0.1;
 	phi_2_4[1][1] = 1.0;
 
-	edges[0] = create_edge(nodes[0], nodes[1], phi_1_2);
-	edges[1] = create_edge(nodes[1], nodes[0], phi_1_2);
-	edges[2] = create_edge(nodes[1], nodes[2], phi_2_3);
-	edges[3] = create_edge(nodes[2], nodes[1], phi_2_3);
-	edges[4] = create_edge(nodes[3], nodes[1], phi_2_4);
+	graph_add_edge(graph, 0, 1, 2, 2, phi_1_2);
+	graph_add_edge(graph, 1, 0, 2, 2, phi_1_2);
+	graph_add_edge(graph, 1, 2, 2, 2, phi_2_3);
+	graph_add_edge(graph, 2, 1, 2, 2, phi_2_3);
+	graph_add_edge(graph, 3, 1, 2, 2, phi_2_4);
 
 	for(i = 0; i < NUM_VARIABLES; i++){
 		free(phi_1_2[i]);
@@ -71,53 +59,76 @@ Edge * create_edges(Node * nodes){
 	free(phi_1_2);
 	free(phi_2_3);
 	free(phi_2_4);
+}
 
-	return edges;
+void assert_value(double diff){
+	assert(diff > -0.0001);
+	assert(diff < 0.0001);
+}
+
+void validate_nodes(Graph_t graph){
+	Node_t node;
+	double value;
+
+	//x1
+	node = &graph->nodes[0];
+	value = node->states[0] - 0.521531100478469;
+	assert_value(value);
+	value = node->states[1] - 0.47846889952153115;
+	assert_value(value);
+
+	//x2
+	node = &graph->nodes[1];
+	value = node->states[0] - 0.9090909090909091;
+	assert_value(value);
+	value = node->states[1] - 0.09090909090909091;
+	assert_value(value);
+
+	//x3
+	node = &graph->nodes[2];
+	value = node->states[0] - 0.1652892561983471;
+	assert_value(value);
+	value = node->states[1] - 0.8347107438016529;
+	assert_value(value);
+
+	//y2
+	node = &graph->nodes[3];
+	value = node->states[0] - 1.0;
+	assert_value(value);
+	value = node->states[1] - 0.0;
+	assert_value(value);
 }
 
 int main() {
-	int i;
-	Node n;
 
-	Node * nodes = create_nodes();
-	Edge * edges = create_edges(nodes);
+	Graph_t graph;
 
-	Node * queue = (Node *)malloc(sizeof(Node) * NUM_NODES);
-	int queue_size = 0;
+	graph = create_graph(NUM_NODES, NUM_EDGES);
 
-	Graph g = create_graph(NUM_NODES, NUM_EDGES);
-	for(i = 0; i < NUM_NODES; ++i){
-		graph_add_node(g, nodes[i]);
-	}
-	for(i = 0; i < NUM_EDGES; ++i){
-		graph_add_edge(g, edges[i]);
-	}
+	add_nodes(graph);
+	add_edges(graph);
 
-	send_from_leaf_nodes(g, queue, &queue_size, 1);
+	set_up_src_nodes_to_edges(graph);
+	set_up_dest_nodes_to_edges(graph);
 
-	for(i = 0; i < NUM_NODES; ++i){
-		print_node(nodes[i]);
-	}
+	print_nodes(graph);
+	print_edges(graph);
+	//print_src_nodes_to_edges(graph);
+	//print_dest_nodes_to_edges(graph);
 
-	Node root = propagate(g, queue, &queue_size);
-	for(i = 0; i < NUM_NODES; ++i){
-		reset_visited(nodes[i]);
-	}
-	push_node(root, queue, &queue_size);
-	propagate(g, queue, &queue_size);
-	marginalize(g);
-	for(i = 0; i < NUM_NODES; ++i){
-		print_node(nodes[i]);
-	}
+	send_from_leaf_nodes(graph);
+	propagate(graph, graph->forward_queue, &graph->forward_queue_size, graph->backward_queue, &graph->backward_queue_size);
 
-	free(queue);
-	graph_destroy(g);
-	for(i = 0; i < NUM_EDGES; ++i){
-		destroy_edge(edges[i]);
-	}
-	for(i = 0; i < NUM_NODES; ++i){
-		destroy_node(nodes[i]);
-	}
+	reset_visited(graph);
+
+	propagate(graph, graph->backward_queue, &graph->backward_queue_size, graph->forward_queue, &graph->forward_queue_size);
+	marginalize(graph);
+
+	print_nodes(graph);
+
+	validate_nodes(graph);
+
+	graph_destroy(graph);
 
 	return 0;
 }
