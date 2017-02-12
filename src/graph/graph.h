@@ -29,13 +29,16 @@ struct graph {
 	int * dest_nodes_to_edges;
 
 	int * leaf_node_queue;
-	int leaf_node_queue_size;
+	int leaf_node_queue_start;
+	int leaf_node_queue_end;
 
 	int * forward_queue;
-	int forward_queue_size;
+	int forward_queue_start;
+	int forward_queue_end;
 
 	int * backward_queue;
-	int backward_queue_size;
+	int backward_queue_start;
+	int backward_queue_end;
 
 	char * visited;
 	char * node_names;
@@ -62,11 +65,11 @@ int graph_edge_count(Graph_t);
 void graph_destroy(Graph_t);
 
 void fill_forward_buffer_with_leaf_nodes(Graph_t, int);
-void push_node(int, int *, int *);
-int pop_node(int *, int *);
+void push_node(int, int *, int *, int *, int);
+int pop_node(int *, int *, int *, int);
 void send_from_leaf_nodes(Graph_t);
-void propagate_node(Graph_t, int, int *, int *, int *, int *);
-void propagate(Graph_t, int *, int *, int *, int *);
+void propagate_node(Graph_t, int, int *, int *, int *, int *, int *, int *);
+void propagate(Graph_t, int *, int *, int *, int *, int *, int *);
 void reset_visited(Graph_t);
 
 void marginalize(Graph_t);

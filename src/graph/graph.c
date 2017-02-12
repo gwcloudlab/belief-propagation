@@ -23,9 +23,12 @@ create_graph(int num_vertices, int num_edges)
 	g->backward_queue = (int *)malloc(sizeof(int) * num_vertices);
 	g->leaf_node_queue = (int *)malloc(sizeof(int) * num_vertices);
 	g->visited = (char *)calloc(sizeof(char), num_vertices);
-	g->forward_queue_size = 0;
-	g->backward_queue_size = 0;
-	g->leaf_node_queue_size = 0;
+	g->forward_queue_start = 0;
+	g->forward_queue_end = 0;
+	g->backward_queue_start = 0;
+	g->backward_queue_end = 0;
+	g->leaf_node_queue_start = 0;
+	g->leaf_node_queue_end = 0;
 	g->total_num_vertices = num_vertices;
 	g->total_num_edges = num_edges;
 	g->current_num_vertices = 0;
@@ -155,36 +158,33 @@ void fill_forward_buffer_with_leaf_nodes(Graph_t g, int max_count){
 			end_index = dest_nodes_to_edges[i+1];
 		}
 		if(end_index - start_index <= max_count){
-			push_node(i, g->leaf_node_queue, &g->leaf_node_queue_size);
+			push_node(i, g->leaf_node_queue, &g->leaf_node_queue_start, &g->leaf_node_queue_end, g->current_num_vertices);
 		}
 	}
 }
 
 
-void push_node(int n, int * queue, int * num_elements){
+void push_node(int n, int * queue, int * start_index, int * end_index, int mod){
 	int i;
 
-	for(i = 0; i < *num_elements; ++i){
-		if(queue[i] == n){
+	for(i = *start_index; i < *end_index; ++i){
+		if(queue[i % mod] == n){
 
 			return;
 		}
 	}
 
-	queue[*num_elements] = n;
-	*num_elements += 1;
+	queue[*end_index % mod] = n;
+	*end_index += 1;
 }
 
-int pop_node(int * queue, int * num_elements){
+int pop_node(int * queue, int * start_index, int * end_index, int mod){
 	int i, n;
-	if(num_elements == 0){
+	if(*start_index == *end_index){
 		return -1;
 	}
-	n = queue[0];
-	for(i = 1; i < *num_elements; ++i){
-		queue[i-1] = queue[i];
-	}
-	*num_elements -= 1;
+	n = queue[*start_index % mod];
+	*start_index += 1;
 	return n;
 }
 
@@ -197,8 +197,8 @@ void send_from_leaf_nodes(Graph_t g) {
 
 	fill_forward_buffer_with_leaf_nodes(g, 1);
 
-	while(g->leaf_node_queue_size > 0){
-		node_index = pop_node(g->leaf_node_queue, &g->leaf_node_queue_size);
+	while(g->leaf_node_queue_start != g->leaf_node_queue_end){
+		node_index = pop_node(g->leaf_node_queue, &g->leaf_node_queue_start, &g->leaf_node_queue_end, g->current_num_vertices);
 		node = &g->nodes[node_index];
 		//set as visited
 		g->visited[node_index] = 1;
@@ -223,19 +223,19 @@ void send_from_leaf_nodes(Graph_t g) {
 			}
 			printf("]\n");*/
 			send_message(edge, node->states);
-			push_node(edge->dest_index, g->forward_queue, &g->forward_queue_size);
+			push_node(edge->dest_index, g->forward_queue, &g->forward_queue_start, &g->forward_queue_end, g->current_num_vertices);
 		}
 	}
 }
 
-void propagate(Graph_t g, int * src_queue, int * src_queue_size, int * dest_queue, int * dest_queue_size){
+void propagate(Graph_t g, int * src_queue, int * src_queue_start, int * src_queue_end, int * dest_queue, int * dest_queue_start, int * dest_queue_end){
 	int current_node_index;
 
-	while(*src_queue_size > 0){
-		current_node_index = pop_node(src_queue, src_queue_size);
+	while(*src_queue_start != *src_queue_end){
+		current_node_index = pop_node(src_queue, src_queue_start, src_queue_end, g->current_num_vertices);
 		//printf("Visiting node:\n");
 		//print_node(g, current_node_index);
-		propagate_node(g, current_node_index, src_queue, src_queue_size, dest_queue, dest_queue_size);
+		propagate_node(g, current_node_index, src_queue, src_queue_start, src_queue_end, dest_queue, dest_queue_start, dest_queue_end);
 	}
 	//printf("All done\n");
 }
@@ -247,7 +247,7 @@ static void combine_message(double * dest, double * src, int length){
 	}
 }
 
-void propagate_node(Graph_t g, int current_node_index, int * src_queue, int * src_queue_size, int * dest_queue, int * dest_queue_size){
+void propagate_node(Graph_t g, int current_node_index, int * src_queue, int * src_queue_start, int * src_queue_end, int * dest_queue, int * dest_queue_start, int * dest_queue_end){
 	double message_buffer[MAX_STATES];
 	int i, j, num_variables, start_index, end_index, num_vertices, num_sent, edge_index;
 	Node_t node;
@@ -309,13 +309,13 @@ void propagate_node(Graph_t g, int current_node_index, int * src_queue, int * sr
 			}
 			printf("]\n");*/
 			send_message(edge, message_buffer);
-			push_node(edge->dest_index, src_queue, src_queue_size);
+			push_node(edge->dest_index, src_queue, src_queue_start, src_queue_end, g->current_num_vertices);
 			num_sent += 1;
 		}
 	}
 
 	if(num_sent == 0){
-		push_node(current_node_index, dest_queue, dest_queue_size);
+		push_node(current_node_index, dest_queue, dest_queue_start, dest_queue_end, g->current_num_vertices);
 	}
 }
 

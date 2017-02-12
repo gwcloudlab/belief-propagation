@@ -117,11 +117,11 @@ int main() {
 	//print_dest_nodes_to_edges(graph);
 
 	send_from_leaf_nodes(graph);
-	propagate(graph, graph->forward_queue, &graph->forward_queue_size, graph->backward_queue, &graph->backward_queue_size);
+	propagate(graph, graph->forward_queue, &graph->forward_queue_start, &graph->forward_queue_end, graph->backward_queue, &graph->backward_queue_start, &graph->backward_queue_end);
 
 	reset_visited(graph);
 
-	propagate(graph, graph->backward_queue, &graph->backward_queue_size, graph->forward_queue, &graph->forward_queue_size);
+	propagate(graph, graph->backward_queue, &graph->backward_queue_start, &graph->backward_queue_end, graph->forward_queue, &graph->forward_queue_start, &graph->forward_queue_end);
 	marginalize(graph);
 
 	print_nodes(graph);
