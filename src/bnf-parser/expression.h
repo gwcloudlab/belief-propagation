@@ -27,7 +27,19 @@ typedef enum expressionType
 	VARIABLE_DECLARATION,
 	VARIABLE_CONTENT,
 	VARIABLE_DISCRETE,
-	VARIABLE_VALUES_LIST
+	VARIABLE_VALUES_LIST,
+	PROBABILITY_DECLARATION,
+	PROBABILITY_VARIABLES_LIST,
+	PROBABILITY_VARIABLE_NAMES,
+	PROBABILITY_CONTENT,
+	PROBABILITY_CONTENT_LIST,
+	PROBABILITY_DEFAULT_ENTRY,
+	PROBABILITY_ENTRY,
+	PROBABILITY_VALUES_LIST,
+	PROBABILITY_VALUES,
+	PROBABILITY_TABLE,
+	FLOATING_POINT_LIST_FLOAT,
+	FLOATING_POINT_LIST_INT
 } eType;
 
 struct expression {
@@ -35,13 +47,13 @@ struct expression {
 
 	char value[CHAR_BUFFER_SIZE];
 	double double_value;
+	int int_value;
 	struct expression *left;
 	struct expression *right;
 };
 
 struct expression * create_expression(eType, struct expression * left, struct expression * right);
-struct expression * create_word_expression(eType, char *);
 void delete_expression(struct expression *);
-
+void print_expression(struct expression *);
 
 #endif /* EXPRESSION_H_ */

@@ -48,8 +48,10 @@ typedef void* yyscan_t;
 %token TOKEN_R_CURLY_BRACE
 %token TOKEN_L_BRACKET
 %token TOKEN_R_BRACKET
+%token TOKEN_L_PARENS
+%token TOKEN_R_PARENS
 %token TOKEN_SEMICOLON
-%token <double_value> TOKEN_DECIMAL_LITERAL
+%token <int_value> TOKEN_DECIMAL_LITERAL
 %token <double_value> TOKEN_FLOATING_POINT_LITERAL
 %token <word> TOKEN_WORD
 %token <word> TOKEN_PROPERTY
@@ -66,6 +68,17 @@ typedef void* yyscan_t;
 %type <expression> variable_values_list
 %type <expression> variable_discrete
 %type <expression> property_or_variable_discrete
+%type <expression> probability_names_list
+%type <expression> probability_declaration
+%type <expression> probability_variables_list
+%type <expression> probability_content
+%type <expression> probability_content_entries
+%type <expression> probability_default_entry
+%type <expression> probability_entry
+%type <expression> probability_table
+%type <expression> floating_point_list
+%type <expression> probability_values_list
+%type <expression> probability_values
 
 %%
 
@@ -81,11 +94,14 @@ compilation_unit
 	;
 	
 network_declaration	
-	: TOKEN_NETWORK TOKEN_WORD network_content { $$ = create_expression(NETWORK_DECLARATION, $3, NULL); }
+	: TOKEN_NETWORK TOKEN_WORD network_content { struct expression * network_expr = create_expression(NETWORK_DECLARATION, $3, NULL);
+												strncpy(network_expr->value, $2, CHAR_BUFFER_SIZE);
+												$$ =  network_expr;
+												}
 	;
 	
 network_content
-	: TOKEN_L_CURLY_BRACE TOKEN_R_CURLY_BRACE { }
+	: TOKEN_L_CURLY_BRACE TOKEN_R_CURLY_BRACE { $$ = create_expression( NETWORK_CONTENT, NULL, NULL); }
 	| TOKEN_L_CURLY_BRACE property_list TOKEN_R_CURLY_BRACE { $$ = create_expression( NETWORK_CONTENT, $2, NULL ); }
 	;
 	
@@ -101,8 +117,10 @@ property
 						} 
 	
 variable_or_probability_declaration
-	: variable_declaration { $$ = create_expression(VARIABLE_DECLARATION, $1, NULL); }
+	: variable_declaration { $$ = create_expression(VARIABLE_OR_PROBABILITY_DECLARATION, $1, NULL); }
+	| probability_declaration { $$ = create_expression(VARIABLE_OR_PROBABILITY_DECLARATION, $1, NULL); }
 	| variable_or_probability_declaration variable_declaration { $$ = create_expression(VARIABLE_OR_PROBABILITY_DECLARATION, $1, $2); }
+	| variable_or_probability_declaration probability_declaration { $$ = create_expression(VARIABLE_OR_PROBABILITY_DECLARATION, $1, $2); } 
 	| %empty { }
 	
 variable_declaration
@@ -114,14 +132,14 @@ variable_content
 	
 property_or_variable_discrete
 	: property { $$ = create_expression(VARIABLE_OR_PROBABILITY, $1, NULL); }
-	| variable_discrete { $$ = create_expression(VARIABLE_DISCRETE, $1, NULL); }
+	| variable_discrete { $$ = create_expression(VARIABLE_OR_PROBABILITY, $1, NULL); }
 	| property_or_variable_discrete property { $$ = create_expression(VARIABLE_OR_PROBABILITY, $1, $2); }
 	| property_or_variable_discrete variable_discrete { $$ = create_expression(VARIABLE_OR_PROBABILITY, $1, $2); }
 	
 variable_discrete
-	: TOKEN_VARIABLETYPE TOKEN_DISCRETE TOKEN_L_BRACKET TOKEN_DECIMAL_LITERAL TOKEN_R_BRACKET TOKEN_L_CURLY_BRACE variable_values_list TOKEN_R_CURLY_BRACE {
+	: TOKEN_VARIABLETYPE TOKEN_DISCRETE TOKEN_L_BRACKET TOKEN_DECIMAL_LITERAL TOKEN_R_BRACKET TOKEN_L_CURLY_BRACE variable_values_list TOKEN_R_CURLY_BRACE TOKEN_SEMICOLON {
 																																								struct expression * variable_discrete = create_expression(VARIABLE_DISCRETE, $7, NULL);
-																																								variable_discrete->double_value = $4;
+																																								variable_discrete->int_value = $4;
 																																								$$ = variable_discrete;
 																																							}
 variable_values_list
@@ -132,4 +150,68 @@ variable_values_list
 	| variable_values_list TOKEN_WORD { struct expression * values_list = create_expression(VARIABLE_VALUES_LIST, $1, NULL);
 										strncpy(values_list->value, $2, CHAR_BUFFER_SIZE);
 										$$ = values_list;
-										}																																							
+										}
+										
+probability_declaration
+	: TOKEN_PROBABILITY probability_variables_list probability_content { $$ = create_expression(PROBABILITY_DECLARATION, $2, $3); }
+	
+probability_variables_list		
+	: TOKEN_L_PARENS probability_names_list TOKEN_R_PARENS { $$ = create_expression(PROBABILITY_VARIABLES_LIST, $2, NULL); }
+	
+probability_names_list
+	: TOKEN_WORD { struct expression * names_list = create_expression(PROBABILITY_VARIABLE_NAMES, NULL, NULL);
+				   strncpy(names_list->value, $1, CHAR_BUFFER_SIZE);
+				   $$ = names_list;
+				   }
+	| probability_names_list TOKEN_WORD {struct expression * names_list = create_expression(PROBABILITY_VARIABLE_NAMES, NULL, NULL);
+										   strncpy(names_list->value, $2, CHAR_BUFFER_SIZE);
+										   $$ = names_list;
+										}
+										
+probability_content
+	: TOKEN_L_CURLY_BRACE TOKEN_R_CURLY_BRACE {}
+	| TOKEN_L_CURLY_BRACE probability_content_entries TOKEN_R_CURLY_BRACE { $$ = create_expression(PROBABILITY_CONTENT, $2, NULL); } 
+	
+probability_content_entries
+	: property_list { $$ = create_expression(PROBABILITY_CONTENT_LIST, $1, NULL); }
+	| probability_content_entries property_list { $$ = create_expression(PROBABILITY_CONTENT_LIST, $1, $2); }
+	| probability_default_entry { $$ = create_expression(PROBABILITY_CONTENT_LIST, $1, NULL); }
+	| probability_content_entries probability_default_entry { $$ = create_expression(PROBABILITY_CONTENT_LIST, $1, $2); }
+	| probability_entry { $$ = create_expression(PROBABILITY_CONTENT_LIST, $1, NULL); }
+	| probability_content_entries probability_entry { $$ = create_expression(PROBABILITY_CONTENT_LIST, $1, $2); }
+	| probability_table { $$ = create_expression(PROBABILITY_CONTENT_LIST, $1, NULL); }
+	| probability_content_entries probability_table { $$ = create_expression(PROBABILITY_CONTENT_LIST, $1, $2); }
+
+probability_default_entry
+	: TOKEN_DEFAULTVALUE floating_point_list TOKEN_SEMICOLON { $$ = create_expression(PROBABILITY_DEFAULT_ENTRY, $2, NULL); }
+
+probability_entry
+	: probability_values_list floating_point_list TOKEN_SEMICOLON { $$ = create_expression(PROBABILITY_ENTRY, $1, $2); }
+
+probability_values_list
+	: TOKEN_L_PARENS probability_values TOKEN_R_PARENS { $$ = create_expression(PROBABILITY_VALUES_LIST, $2, NULL); }
+	
+probability_values
+	: TOKEN_WORD { struct expression * values_list = create_expression(PROBABILITY_VALUES, NULL, NULL); strncpy(values_list->value, $1, CHAR_BUFFER_SIZE); $$ = values_list; }
+	| probability_values TOKEN_WORD { struct expression * values_list = create_expression(PROBABILITY_VALUES, $1, NULL); strncpy(values_list->value, $2, CHAR_BUFFER_SIZE); $$ = values_list; }
+
+probability_table
+	: TOKEN_TABLEVALUES floating_point_list TOKEN_SEMICOLON { $$ = create_expression(PROBABILITY_TABLE, $2, NULL); }
+
+floating_point_list
+	: TOKEN_FLOATING_POINT_LITERAL { struct expression * fp_list = create_expression(FLOATING_POINT_LIST_FLOAT, NULL, NULL);
+									 fp_list->double_value = $1;
+									 $$ = fp_list;
+									}
+	| TOKEN_DECIMAL_LITERAL { struct expression * fp_list = create_expression(FLOATING_POINT_LIST_INT, NULL, NULL);
+									 fp_list->int_value = $1;
+									 $$ = fp_list;
+									}
+	| floating_point_list TOKEN_FLOATING_POINT_LITERAL {struct expression * fp_list = create_expression(FLOATING_POINT_LIST_FLOAT, $1, NULL);
+														 fp_list->double_value = $2;
+														 $$ = fp_list;
+														}
+	| floating_point_list TOKEN_DECIMAL_LITERAL {struct expression * fp_list = create_expression(FLOATING_POINT_LIST_INT, $1, NULL);
+														 fp_list->int_value = $2;
+														 $$ = fp_list;
+														}			  																																															

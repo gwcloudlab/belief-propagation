@@ -7,7 +7,7 @@
 
 int yyparse(struct expression ** expr, yyscan_t scanner);
 
-struct expression * get_ast(const char * expr)
+void test_ast(const char * expr)
 {
 	struct expression * expression;
 	yyscan_t scanner;
@@ -18,11 +18,36 @@ struct expression * get_ast(const char * expr)
 	state = yy_scan_string(expr, scanner);
 
 	assert(yyparse(&expression, scanner) == 0);
-
 	yy_delete_buffer(state, scanner);
 	yylex_destroy(scanner);
 
-	return expression;
+	assert(expression != NULL);
+
+	delete_expression(expression);
+}
+
+void test_file(const char * file_path)
+{
+	struct expression * expression;
+	yyscan_t scanner;
+	YY_BUFFER_STATE state;
+	FILE * in;
+
+	assert(yylex_init(&scanner) == 0);
+
+	in = fopen(file_path, "r");
+
+	yyset_in(in, scanner);
+
+	assert(yyparse(&expression, scanner) == 0);
+	//yy_delete_buffer(state, scanner);
+	yylex_destroy(scanner);
+
+	fclose(in);
+
+	assert(expression != NULL);
+
+	delete_expression(expression);
 }
 
 int main(void)
@@ -31,6 +56,17 @@ int main(void)
 	yydebug = 1;
 
 	struct expression * expression = NULL;
-	const char test[] = "// Bayesian Network in the Interchange Format\n// Produced by BayesianNetworks package in JavaBayes\n// Output created Sun Nov 02 17:49:49 GMT+00:00 1997\n// Bayesian network \nnetwork \"Dog-Problem\" { //5 variables and 5 probability distributions\nproperty \"credal-set constant-density-bounded 1.1\" ;\n}variable  \"light-on\" { //2 values\ntype discrete[2] {  \"true\"  \"false\" };\nproperty \"position = (218, 195)\" ;\n}";
-	expression = get_ast(test);
+	const char test[] = "// Bayesian Network in the Interchange Format\n// Produced by BayesianNetworks package in JavaBayes\n// Output created Sun Nov 02 17:49:49 GMT+00:00 1997\n// Bayesian network \nnetwork \"Dog-Problem\" { //5 variables and 5 probability distributions\nproperty \"credal-set constant-density-bounded 1.1\" ;\n}variable  \"light-on\" { //2 values\ntype discrete[2] {  \"true\"  \"false\" };\nproperty \"position = (218, 195)\" ;\n}\nvariable  \"bowel-problem\" { //2 values\ntype discrete[2] {  \"true\"  \"false\" };\nproperty \"position = (335, 99)\" ;\n}";
+	test_ast(test);
+
+	test_file("dog.bif");
+	test_file("alarm.bif");
+
+	/*expression = read_file("alarm.bif");
+
+	assert(expression != NULL);
+
+	delete_expression(expression);*/
+
+	return 0;
 }
