@@ -4,14 +4,20 @@
 
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS += \
+../src/bnf-parser/Lexer.c \
+../src/bnf-parser/Parser.c \
 ../src/bnf-parser/expression.c \
 ../src/bnf-parser/main.c 
 
 OBJS += \
+./src/bnf-parser/Lexer.o \
+./src/bnf-parser/Parser.o \
 ./src/bnf-parser/expression.o \
 ./src/bnf-parser/main.o 
 
 C_DEPS += \
+./src/bnf-parser/Lexer.d \
+./src/bnf-parser/Parser.d \
 ./src/bnf-parser/expression.d \
 ./src/bnf-parser/main.d 
 

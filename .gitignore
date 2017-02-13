@@ -112,3 +112,4 @@ dkms.conf
 /Debug/
 /Debug-example/
 /Release-example/
+/Debug-parser/

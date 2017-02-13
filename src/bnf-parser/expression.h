@@ -12,6 +12,8 @@
  https://en.wikipedia.org/wiki/GNU_bison
 */
 
+#include "../constants.h"
+
 typedef enum expressionType
 {
 	COMPILATION_UNIT,
@@ -19,13 +21,20 @@ typedef enum expressionType
 	NETWORK_CONTENT,
 	PROPERTY_LIST,
 	PROPERTY,
-	BLANK
+	BLANK,
+	VARIABLE_OR_PROBABILITY_DECLARATION,
+	VARIABLE_OR_PROBABILITY,
+	VARIABLE_DECLARATION,
+	VARIABLE_CONTENT,
+	VARIABLE_DISCRETE,
+	VARIABLE_VALUES_LIST
 } eType;
 
 struct expression {
 	eType type;
 
-	char value[20];
+	char value[CHAR_BUFFER_SIZE];
+	double double_value;
 	struct expression *left;
 	struct expression *right;
 };

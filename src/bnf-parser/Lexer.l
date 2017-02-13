@@ -25,6 +25,8 @@ TABLEVALUES "table"
 
 L_CURLY_BRACE "{"
 R_CURLY_BRACE "}"
+L_BRACKET "["
+R_BRACKET "]"
 SEMICOLON ";"
 
 WS [ \n\t\r]+
@@ -51,16 +53,18 @@ FLOATING_POINT_LITERAL ([0-9]+\.(EXPONENT)?)|(\.[0-9]+(EXPONENT)?)|([0-9]+(EXPON
 {NETWORK} { return TOKEN_NETWORK; }
 {VARIABLE} { return TOKEN_VARIABLE; }
 {PROBABILITY} {return TOKEN_PROBABILITY; }
-{PROPERTY} { return TOKEN_PROPERTY; }
+{PROPERTY} { strncpy(yylval->word, yytext, CHAR_BUFFER_SIZE); return TOKEN_PROPERTY; }
 {VARIABLETYPE} { return TOKEN_VARIABLETYPE; }
 {DISCRETE} { return TOKEN_DISCRETE; }
 {DEFAULTVALUE} { return TOKEN_DEFAULTVALUE; }
 {TABLEVALUES} {return TOKEN_TABLEVALUES; }
 {L_CURLY_BRACE} {return TOKEN_L_CURLY_BRACE; }
 {R_CURLY_BRACE} {return TOKEN_R_CURLY_BRACE; }
+{L_BRACKET} {return TOKEN_L_BRACKET; }
+{R_BRACKET} {return TOKEN_R_BRACKET; }
 {DECIMAL_LITERAL} { sscanf(yytext, "%d", &yylval->int_value); return TOKEN_DECIMAL_LITERAL; }
 {FLOATING_POINT_LITERAL} { sscanf(yytext, "%lf", &yylval->double_value); return TOKEN_FLOATING_POINT_LITERAL; }
-{WORD} { strncpy(yylval->word, yytext, 20); return TOKEN_WORD; }
+{WORD} { strncpy(yylval->word, yytext, CHAR_BUFFER_SIZE); return TOKEN_WORD; }
 . { }
 
 %%
