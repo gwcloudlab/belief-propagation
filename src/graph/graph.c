@@ -14,6 +14,8 @@ create_graph(int num_vertices, int num_edges)
 	assert(g);
 	g->edges = (Edge_t)malloc(sizeof(struct edge) * num_edges);
 	assert(g->edges);
+	g->prev_edges = (Edge_t)malloc(sizeof(struct edge) * num_edges);
+	assert(g->prev_edges);
 	g->nodes = (Node_t)malloc(sizeof(struct node) * num_vertices);
 	assert(g->nodes);
 	g->src_nodes_to_edges = (int *)malloc(sizeof(int) * (num_vertices + num_edges));
@@ -33,6 +35,8 @@ create_graph(int num_vertices, int num_edges)
 	g->total_num_edges = num_edges;
 	g->current_num_vertices = 0;
 	g->current_num_edges = 0;
+	g->previous = &g->prev_edges;
+	g->current = &g->edges;
 
 	return g;
 }
@@ -67,6 +71,7 @@ void graph_add_edge(Graph_t graph, int src_index, int dest_index, int dim_x, int
 
 
 	init_edge(&graph->edges[edge_index], edge_index, src_index, dest_index, dim_x, dim_y, joint_probabilities);
+	init_edge(&graph->prev_edges[edge_index], edge_index, src_index, dest_index, dim_x, dim_y, joint_probabilities);
 
 	graph->current_num_edges += 1;
 }
@@ -240,8 +245,11 @@ void propagate(Graph_t g, int * src_queue, int * src_queue_start, int * src_queu
 	//printf("All done\n");
 }
 
-static void combine_message(double * dest, double * src, int length){
+static void combine_message(double * dest, Edge_t src_edge, int length){
 	int i;
+	double * src;
+
+	src = src_edge->message;
 	for(i = 0; i < length; ++i){
 		dest[i] = dest[i] * src[i];
 	}
@@ -282,7 +290,7 @@ void propagate_node(Graph_t g, int current_node_index, int * src_queue, int * sr
 		edge_index = dest_nodes_to_edges[i];
 		edge = &g->edges[edge_index];
 
-		combine_message(message_buffer, edge->message, num_variables);
+		combine_message(message_buffer, edge, num_variables);
 	}
 
 	//send message
@@ -319,7 +327,7 @@ void propagate_node(Graph_t g, int current_node_index, int * src_queue, int * sr
 	}
 }
 
-static void marginalize_node(Graph_t g, int node_index){
+static void marginalize_node(Graph_t g, int node_index, Edge_t edges){
 	int i, num_variables, start_index, end_index, edge_index;
 	char has_incoming;
 	Edge_t edge;
@@ -352,9 +360,9 @@ static void marginalize_node(Graph_t g, int node_index){
 
 	for(i = start_index; i < end_index; ++i){
 		edge_index = dest_nodes_to_edges[i];
-		edge = &g->edges[edge_index];
+		edge = &edges[edge_index];
 
-		combine_message(new_message, edge->message, num_variables);
+		combine_message(new_message, edge, num_variables);
 		has_incoming = 1;
 
 	}
@@ -378,11 +386,13 @@ static void marginalize_node(Graph_t g, int node_index){
 
 void marginalize(Graph_t g){
 	int i, num_nodes;
+	Edge_t edges;
 
 	num_nodes = g->current_num_vertices;
+	edges = g->edges;
 
 	for(i = 0; i < num_nodes; ++i){
-		marginalize_node(g, i);
+		marginalize_node(g, i, edges);
 	}
 }
 
@@ -504,4 +514,112 @@ void print_dest_nodes_to_edges(Graph_t g){
 		}
 		printf("---------\n");
 	}
+}
+
+void init_previous_edge(Graph_t graph){
+	int i, j, num_vertices, start_index, end_index, edge_index;
+	int * src_node_to_edges;
+	Edge_t edge, previous;
+	Node_t node;
+
+	num_vertices = graph->current_num_vertices;
+	src_node_to_edges = graph->src_nodes_to_edges;
+	previous = *graph->previous;
+
+	for(i = 0; i < num_vertices; ++i){
+		node = &graph->nodes[i];
+		start_index = src_node_to_edges[i];
+		if(i + 1 >= num_vertices){
+			end_index = num_vertices + graph->current_num_edges;
+		}
+		else
+		{
+			end_index = src_node_to_edges[i + 1];
+		}
+		for(j = start_index; j < end_index; ++j){
+			edge_index = src_node_to_edges[j];
+
+			edge = &previous[edge_index];
+
+			send_message(edge, node->states);
+		}
+	}
+}
+
+void loopy_propagate(Graph_t graph){
+	int i, j, num_variables, num_vertices, start_index, end_index, edge_index;
+	int * dest_node_to_edges;
+	int * src_node_to_edges;
+	Node_t node;
+	Edge_t edge, previous, current;
+	Edge_t * temp;
+
+	previous = *graph->previous;
+	current = *graph->current;
+
+	double message_buffer[MAX_STATES];
+
+	num_vertices = graph->current_num_vertices;
+	dest_node_to_edges = graph->dest_nodes_to_edges;
+	src_node_to_edges = graph->src_nodes_to_edges;
+
+	for(i = 0; i < num_vertices; ++i){
+		node = &graph->nodes[i];
+		num_variables = node->num_variables;
+		//clear buffer
+		for(j = 0; j < num_variables; ++j){
+			message_buffer[j] = node->states[j];
+		}
+
+		//read incoming messages
+		start_index = dest_node_to_edges[i];
+		if(i + 1 >= num_vertices){
+			end_index = num_vertices + graph->current_num_edges;
+		}
+		else{
+			end_index = dest_node_to_edges[i + 1];
+		}
+
+		for(j = start_index; j < end_index; ++j){
+			edge_index = dest_node_to_edges[j];
+			edge = &previous[edge_index];
+
+			combine_message(message_buffer, edge, num_variables);
+		}
+
+		printf("Message at node\n");
+		print_node(graph, i);
+		printf("[\t");
+		for(j = 0; j < num_variables; ++j){
+			printf("%.6lf\t", message_buffer[j]);
+		}
+		printf("\t]\n");
+
+
+		//send message
+		start_index = src_node_to_edges[i];
+		if(i + 1 >= num_vertices){
+			end_index = num_vertices + graph->current_num_edges;
+		}
+		else {
+			end_index = src_node_to_edges[i + 1];
+		}
+		for(j = start_index; j < end_index; ++j){
+			edge_index = src_node_to_edges[j];
+			edge = &current[edge_index];
+			printf("Sending on edge\n");
+			print_edge(graph, edge_index);
+			send_message(edge, message_buffer);
+		}
+
+	}
+
+	for(i = 0; i < num_vertices; ++i){
+		marginalize_node(graph, i, *graph->current);
+	}
+
+	//swap previous and current
+	temp = &previous;
+	graph->previous = &current;
+	graph->current = temp;
 }

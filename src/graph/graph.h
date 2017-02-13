@@ -23,6 +23,11 @@ struct graph {
 	int current_num_edges;
 
 	Edge_t edges;
+	Edge_t prev_edges;
+
+	Edge_t * current;
+	Edge_t * previous;
+
 	Node_t nodes;
 
 	int * src_nodes_to_edges;
@@ -71,6 +76,9 @@ void send_from_leaf_nodes(Graph_t);
 void propagate_node(Graph_t, int, int *, int *, int *, int *, int *, int *);
 void propagate(Graph_t, int *, int *, int *, int *, int *, int *);
 void reset_visited(Graph_t);
+
+void init_previous_edge(Graph_t);
+void loopy_propagate(Graph_t);
 
 void marginalize(Graph_t);
 
