@@ -2,7 +2,7 @@
 
 FILES = Lexer.c Parser.c expression.c main.c
 CC = gcc
-CFLAGS = -g
+CFLAGS = -g3
 
 test: $(FILES)
 	$(CC) $(CFLAGS) $(FILES) -o test

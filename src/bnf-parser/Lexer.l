@@ -27,6 +27,8 @@ L_CURLY_BRACE "{"
 R_CURLY_BRACE "}"
 L_BRACKET "["
 R_BRACKET "]"
+L_PARENS "("
+R_PARENS ")"
 SEMICOLON ";"
 
 WS [ \n\t\r]+
@@ -40,7 +42,7 @@ WORD [a-zA-Z_-][a-zA-Z0-9_-]*
 
 DECIMAL_LITERAL [1-9][0-9]*
 EXPONENT [eE][+-]?[0-9]+
-FLOATING_POINT_LITERAL ([0-9]+\.(EXPONENT)?)|(\.[0-9]+(EXPONENT)?)|([0-9]+(EXPONENT)?)
+FLOATING_POINT_LITERAL ([0-9]+\.[0-9]*(EXPONENT)?)|(\.[0-9]+(EXPONENT)?)|([0-9]+(EXPONENT))
 
 %%
 
@@ -62,8 +64,11 @@ FLOATING_POINT_LITERAL ([0-9]+\.(EXPONENT)?)|(\.[0-9]+(EXPONENT)?)|([0-9]+(EXPON
 {R_CURLY_BRACE} {return TOKEN_R_CURLY_BRACE; }
 {L_BRACKET} {return TOKEN_L_BRACKET; }
 {R_BRACKET} {return TOKEN_R_BRACKET; }
-{DECIMAL_LITERAL} { sscanf(yytext, "%d", &yylval->int_value); return TOKEN_DECIMAL_LITERAL; }
+{L_PARENS} { return TOKEN_L_PARENS; }
+{R_PARENS} { return TOKEN_R_PARENS; }
+{SEMICOLON} { return TOKEN_SEMICOLON; }
 {FLOATING_POINT_LITERAL} { sscanf(yytext, "%lf", &yylval->double_value); return TOKEN_FLOATING_POINT_LITERAL; }
+{DECIMAL_LITERAL} { sscanf(yytext, "%d", &yylval->int_value); return TOKEN_DECIMAL_LITERAL; }
 {WORD} { strncpy(yylval->word, yytext, CHAR_BUFFER_SIZE); return TOKEN_WORD; }
 . { }
 
