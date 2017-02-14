@@ -39,6 +39,10 @@ struct graph {
 
 	char * visited;
 	char * node_names;
+
+	char * variable_names;
+
+	char graph_name[CHAR_BUFFER_SIZE];
 };
 typedef struct graph* Graph_t;
 

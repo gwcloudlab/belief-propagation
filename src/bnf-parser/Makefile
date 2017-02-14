@@ -1,6 +1,6 @@
 # Makefile
 
-FILES = Lexer.c Parser.c expression.c main.c
+FILES = Lexer.c Parser.c expression.c main.c ../graph/graph.c ../edge/edge.c ../node/node.c
 CC = gcc
 CFLAGS = -g3
 
