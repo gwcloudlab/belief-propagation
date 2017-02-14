@@ -135,8 +135,11 @@ void graph_destroy(Graph_t g) {
 	free(g->src_nodes_to_edges);
 	free(g->dest_nodes_to_edges);
 	free(g->node_names);
-	free(g->visited);
+	free(g->forward_queue);
+	free(g->backward_queue);
+	free(g->leaf_node_queue);
 	free(g->variable_names);
+	free(g->visited);
 	free(g);
 }
 
