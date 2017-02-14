@@ -226,6 +226,9 @@ static void add_nodes_to_graph(struct expression * expr, Graph_t graph){
 		add_node_to_graph(expr, graph);
 		return;
 	}
+	if(expr->type == PROBABILITY_DECLARATION){
+		return;
+	}
 	add_nodes_to_graph(expr->left, graph);
 	add_nodes_to_graph(expr->right, graph);
 }
