@@ -78,7 +78,7 @@ void test_dog_file(){
 
 	delete_expression(expression);
 
-	//graph_destroy(graph);
+	graph_destroy(graph);
 }
 
 int main(void)
