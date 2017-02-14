@@ -13,6 +13,7 @@
 */
 
 #include "../constants.h"
+#include "../graph/graph.h"
 
 typedef enum expressionType
 {
@@ -55,5 +56,7 @@ struct expression {
 struct expression * create_expression(eType, struct expression * left, struct expression * right);
 void delete_expression(struct expression *);
 void print_expression(struct expression *);
+
+Graph_t build_graph(struct expression *);
 
 #endif /* EXPRESSION_H_ */

@@ -30,6 +30,7 @@ create_graph(int num_vertices, int num_edges)
 	g->total_num_edges = num_edges;
 	g->current_num_vertices = 0;
 	g->current_num_edges = 0;
+	g->variable_names = (char *)calloc(sizeof(char), num_vertices * CHAR_BUFFER_SIZE * MAX_STATES);
 
 	return g;
 }
@@ -135,6 +136,7 @@ void graph_destroy(Graph_t g) {
 	free(g->dest_nodes_to_edges);
 	free(g->node_names);
 	free(g->visited);
+	free(g->variable_names);
 	free(g);
 }
 
@@ -397,7 +399,7 @@ void reset_visited(Graph_t g){
 
 
 void print_node(Graph_t graph, int node_index){
-	int i, num_vars;
+	int i, num_vars, variable_name_index;
 	double * states;
 	Node_t n;
 
@@ -407,7 +409,8 @@ void print_node(Graph_t graph, int node_index){
 
 	printf("Node %s [\n", &graph->node_names[node_index * CHAR_BUFFER_SIZE]);
 	for(i = 0; i < num_vars; ++i){
-		printf("\t%.6lf\n", states[i]);
+		variable_name_index = node_index * CHAR_BUFFER_SIZE * MAX_STATES + i * CHAR_BUFFER_SIZE;
+		printf("%s:\t%.6lf\n", &graph->variable_names[variable_name_index], states[i]);
 	}
 	printf("]\n");
 }

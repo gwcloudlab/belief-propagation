@@ -414,16 +414,16 @@ union yyalloc
 /* YYFINAL -- State number of the termination state.  */
 #define YYFINAL  7
 /* YYLAST -- Last index in YYTABLE.  */
-#define YYLAST   72
+#define YYLAST   73
 
 /* YYNTOKENS -- Number of terminals.  */
 #define YYNTOKENS  21
 /* YYNNTS -- Number of nonterminals.  */
 #define YYNNTS  25
 /* YYNRULES -- Number of rules.  */
-#define YYNRULES  49
+#define YYNRULES  47
 /* YYNSTATES -- Number of states.  */
-#define YYNSTATES  81
+#define YYNSTATES  79
 
 /* YYTRANSLATE[YYX] -- Symbol number corresponding to YYX as returned
    by yylex, with out-of-bounds checking.  */
@@ -472,10 +472,10 @@ static const yytype_uint8 yytranslate[] =
 static const yytype_uint8 yyrline[] =
 {
        0,    86,    86,    89,    93,    97,   104,   105,   109,   110,
-     113,   120,   121,   122,   123,   124,   127,   130,   131,   134,
-     135,   136,   137,   140,   146,   150,   156,   159,   162,   166,
-     172,   173,   176,   177,   178,   179,   180,   181,   182,   183,
-     186,   189,   192,   195,   196,   199,   202,   206,   210,   214
+     113,   120,   121,   122,   123,   124,   127,   133,   134,   137,
+     138,   139,   140,   143,   149,   153,   160,   163,   166,   170,
+     177,   178,   181,   182,   183,   184,   185,   186,   187,   188,
+     191,   194,   197,   200,   204,   211,   214,   218
 };
 #endif
 
@@ -528,15 +528,14 @@ static const yytype_uint16 yytoknum[] =
      STATE-NUM.  */
 static const yytype_int8 yypact[] =
 {
-       8,     7,    33,   -34,   -34,    35,    41,   -34,    34,    38,
-      35,   -34,   -34,    -8,   -34,    44,    36,    46,   -34,   -34,
+       8,    11,    33,   -34,   -34,    42,    26,   -34,    25,    34,
+      42,   -34,   -34,    -8,   -34,    39,    31,    41,   -34,   -34,
      -34,   -34,    -5,   -34,    -2,   -34,   -34,     5,    14,   -34,
-     -34,   -34,    50,   -34,   -34,    -1,   -34,   -34,   -34,    19,
-      19,   -34,    39,    40,    21,   -34,   -34,    19,   -34,    47,
-     -34,   -34,   -34,   -34,   -34,    26,    29,   -34,    12,   -34,
-      40,   -34,   -34,   -34,    32,    45,   -34,   -34,   -34,   -34,
-     -34,   -34,   -34,    48,    53,    49,   -34,    -3,    51,   -34,
-     -34
+     -34,   -34,    45,   -34,   -34,    -1,   -34,   -34,   -34,    35,
+      35,   -34,    36,    37,    18,   -34,   -34,    35,   -34,    44,
+     -34,   -34,   -34,   -34,    23,    24,   -34,    16,   -34,    37,
+     -34,   -34,   -34,    27,    43,   -34,   -34,   -34,   -34,   -34,
+     -34,    46,    48,    47,   -34,    -3,    38,   -34,   -34
 };
 
   /* YYDEFACT[STATE-NUM] -- Default reduction number in state STATE-NUM.
@@ -549,26 +548,25 @@ static const yytype_uint8 yydefact[] =
        6,    10,     0,     8,     0,    16,    28,     0,     0,    26,
        7,     9,     0,    17,    19,     0,    20,    27,    29,     0,
        0,    30,     0,    32,     0,    34,    36,     0,    38,     0,
-      18,    21,    22,    47,    46,     0,     0,    43,     0,    31,
-      33,    35,    37,    39,     0,     0,    40,    49,    48,    45,
-      42,    44,    41,     0,     0,     0,    24,     0,     0,    25,
-      23
+      18,    21,    22,    46,     0,     0,    43,     0,    31,    33,
+      35,    37,    39,     0,     0,    40,    47,    45,    42,    44,
+      41,     0,     0,     0,    24,     0,     0,    25,    23
 };
 
   /* YYPGOTO[NTERM-NUM].  */
 static const yytype_int8 yypgoto[] =
 {
-     -34,   -34,   -34,   -34,   -34,   -34,   -27,   -22,   -34,    54,
-     -34,   -34,    30,   -34,    56,   -34,   -34,   -34,   -34,    25,
-      27,   -34,   -34,    28,   -33
+     -34,   -34,   -34,   -34,   -34,   -34,   -27,   -22,   -34,    51,
+     -34,   -34,    28,   -34,    52,   -34,   -34,   -34,   -34,    20,
+      21,   -34,   -34,    29,   -33
 };
 
   /* YYDEFGOTO[NTERM-NUM].  */
 static const yytype_int8 yydefgoto[] =
 {
       -1,     2,     3,     4,     5,    14,    22,    23,    10,    11,
-      25,    35,    36,    77,    12,    17,    27,    29,    44,    45,
-      46,    47,    58,    48,    55
+      25,    35,    36,    75,    12,    17,    27,    29,    44,    45,
+      46,    47,    57,    48,    54
 };
 
   /* YYTABLE[YYPACT[STATE-NUM]] -- What to do in state STATE-NUM.  If
@@ -576,26 +574,26 @@ static const yytype_int8 yydefgoto[] =
      number is the opposite.  If YYTABLE_NINF, syntax error.  */
 static const yytype_uint8 yytable[] =
 {
-      31,    43,    34,    20,    32,    32,    30,    56,    78,    33,
-      50,     1,    21,    51,    64,    21,    79,    60,    21,    21,
-      37,    31,    39,    40,    38,    41,     6,    70,    42,    39,
-      40,    71,    59,     7,    21,    42,    53,    54,    31,     8,
-       9,    21,    66,    67,    68,    69,    67,    68,    72,    67,
-      68,    13,    16,    15,    24,    26,    28,    49,    57,    65,
-      21,    74,    73,    75,    18,    52,    19,    80,    76,    61,
-       0,    62,    63
+      31,    43,    34,    20,    32,    32,    30,    55,    76,    33,
+      50,     1,    21,    51,    63,    21,    77,    59,    21,    21,
+      37,    31,    39,    40,    38,    41,    39,    40,    42,    58,
+       6,    68,    42,     7,    21,    69,    13,    31,    21,    65,
+      67,    66,    66,    70,    15,    66,     8,     9,    16,    24,
+      26,    28,    49,    53,    78,    56,    64,    21,    73,    72,
+      71,    18,    19,    52,    60,    61,    74,     0,     0,     0,
+       0,     0,     0,    62
 };
 
 static const yytype_int8 yycheck[] =
 {
       22,    28,    24,    11,     6,     6,    11,    40,    11,    11,
       11,     3,    20,    35,    47,    20,    19,    44,    20,    20,
-      15,    43,     8,     9,    19,    11,    19,    15,    14,     8,
-       9,    19,    11,     0,    20,    14,    17,    18,    60,     4,
-       5,    20,    16,    17,    18,    16,    17,    18,    16,    17,
-      18,    10,    14,    19,    10,    19,    10,     7,    19,    12,
-      20,    13,    17,    10,    10,    35,    10,    16,    19,    44,
-      -1,    44,    44
+      15,    43,     8,     9,    19,    11,     8,     9,    14,    11,
+      19,    15,    14,     0,    20,    19,    10,    59,    20,    16,
+      16,    18,    18,    16,    19,    18,     4,     5,    14,    10,
+      19,    10,     7,    18,    16,    19,    12,    20,    10,    13,
+      17,    10,    10,    35,    44,    44,    19,    -1,    -1,    -1,
+      -1,    -1,    -1,    44
 };
 
   /* YYSTOS[STATE-NUM] -- The (internal number of the) accessing
@@ -607,10 +605,9 @@ static const yytype_uint8 yystos[] =
       11,    20,    27,    28,    10,    31,    19,    37,    10,    38,
       11,    28,     6,    11,    28,    32,    33,    15,    19,     8,
        9,    11,    14,    27,    39,    40,    41,    42,    44,     7,
-      11,    28,    33,    17,    18,    45,    45,    19,    43,    11,
-      27,    40,    41,    44,    45,    12,    16,    17,    18,    16,
-      15,    19,    16,    17,    13,    10,    19,    34,    11,    19,
-      16
+      11,    28,    33,    18,    45,    45,    19,    43,    11,    27,
+      40,    41,    44,    45,    12,    16,    18,    16,    15,    19,
+      16,    17,    13,    10,    19,    34,    11,    19,    16
 };
 
   /* YYR1[YYN] -- Symbol number of symbol that rule YYN derives.  */
@@ -620,7 +617,7 @@ static const yytype_uint8 yyr1[] =
       28,    29,    29,    29,    29,    29,    30,    31,    31,    32,
       32,    32,    32,    33,    34,    34,    35,    36,    37,    37,
       38,    38,    39,    39,    39,    39,    39,    39,    39,    39,
-      40,    41,    42,    43,    43,    44,    45,    45,    45,    45
+      40,    41,    42,    43,    43,    44,    45,    45
 };
 
   /* YYR2[YYN] -- Number of symbols on the right hand side of rule YYN.  */
@@ -630,7 +627,7 @@ static const yytype_uint8 yyr2[] =
        1,     1,     1,     2,     2,     0,     3,     2,     3,     1,
        1,     2,     2,     9,     1,     2,     3,     3,     1,     2,
        2,     3,     1,     2,     1,     2,     1,     2,     1,     2,
-       3,     3,     3,     1,     2,     3,     1,     1,     2,     2
+       3,     3,     3,     1,     2,     3,     1,     2
 };
 
 
@@ -1317,19 +1314,19 @@ yyreduce:
         case 2:
 #line 86 "Parser.y" /* yacc.c:1646  */
     { *expression = (yyvsp[0].expression); }
-#line 1321 "Parser.c" /* yacc.c:1646  */
+#line 1318 "Parser.c" /* yacc.c:1646  */
     break;
 
   case 3:
 #line 89 "Parser.y" /* yacc.c:1646  */
     { (yyval.expression) = (yyvsp[0].expression); }
-#line 1327 "Parser.c" /* yacc.c:1646  */
+#line 1324 "Parser.c" /* yacc.c:1646  */
     break;
 
   case 4:
 #line 93 "Parser.y" /* yacc.c:1646  */
     { (yyval.expression) = create_expression(COMPILATION_UNIT, (yyvsp[-1].expression), (yyvsp[0].expression)); }
-#line 1333 "Parser.c" /* yacc.c:1646  */
+#line 1330 "Parser.c" /* yacc.c:1646  */
     break;
 
   case 5:
@@ -1338,31 +1335,31 @@ yyreduce:
 												strncpy(network_expr->value, (yyvsp[-1].word), CHAR_BUFFER_SIZE);
 												(yyval.expression) =  network_expr;
 												}
-#line 1342 "Parser.c" /* yacc.c:1646  */
+#line 1339 "Parser.c" /* yacc.c:1646  */
     break;
 
   case 6:
 #line 104 "Parser.y" /* yacc.c:1646  */
     { (yyval.expression) = create_expression( NETWORK_CONTENT, NULL, NULL); }
-#line 1348 "Parser.c" /* yacc.c:1646  */
+#line 1345 "Parser.c" /* yacc.c:1646  */
     break;
 
   case 7:
 #line 105 "Parser.y" /* yacc.c:1646  */
     { (yyval.expression) = create_expression( NETWORK_CONTENT, (yyvsp[-1].expression), NULL ); }
-#line 1354 "Parser.c" /* yacc.c:1646  */
+#line 1351 "Parser.c" /* yacc.c:1646  */
     break;
 
   case 8:
 #line 109 "Parser.y" /* yacc.c:1646  */
     { (yyval.expression) = create_expression(PROPERTY_LIST, (yyvsp[0].expression), NULL); }
-#line 1360 "Parser.c" /* yacc.c:1646  */
+#line 1357 "Parser.c" /* yacc.c:1646  */
     break;
 
   case 9:
 #line 110 "Parser.y" /* yacc.c:1646  */
     { (yyval.expression) = create_expression(PROPERTY_LIST, (yyvsp[-1].expression), (yyvsp[0].expression)); }
-#line 1366 "Parser.c" /* yacc.c:1646  */
+#line 1363 "Parser.c" /* yacc.c:1646  */
     break;
 
   case 10:
@@ -1372,83 +1369,86 @@ yyreduce:
 							strncpy(property_expression->value, (yyvsp[0].word), CHAR_BUFFER_SIZE);
 							(yyval.expression) =  property_expression;
 						}
-#line 1376 "Parser.c" /* yacc.c:1646  */
+#line 1373 "Parser.c" /* yacc.c:1646  */
     break;
 
   case 11:
 #line 120 "Parser.y" /* yacc.c:1646  */
     { (yyval.expression) = create_expression(VARIABLE_OR_PROBABILITY_DECLARATION, (yyvsp[0].expression), NULL); }
-#line 1382 "Parser.c" /* yacc.c:1646  */
+#line 1379 "Parser.c" /* yacc.c:1646  */
     break;
 
   case 12:
 #line 121 "Parser.y" /* yacc.c:1646  */
     { (yyval.expression) = create_expression(VARIABLE_OR_PROBABILITY_DECLARATION, (yyvsp[0].expression), NULL); }
-#line 1388 "Parser.c" /* yacc.c:1646  */
+#line 1385 "Parser.c" /* yacc.c:1646  */
     break;
 
   case 13:
 #line 122 "Parser.y" /* yacc.c:1646  */
     { (yyval.expression) = create_expression(VARIABLE_OR_PROBABILITY_DECLARATION, (yyvsp[-1].expression), (yyvsp[0].expression)); }
-#line 1394 "Parser.c" /* yacc.c:1646  */
+#line 1391 "Parser.c" /* yacc.c:1646  */
     break;
 
   case 14:
 #line 123 "Parser.y" /* yacc.c:1646  */
     { (yyval.expression) = create_expression(VARIABLE_OR_PROBABILITY_DECLARATION, (yyvsp[-1].expression), (yyvsp[0].expression)); }
-#line 1400 "Parser.c" /* yacc.c:1646  */
+#line 1397 "Parser.c" /* yacc.c:1646  */
     break;
 
   case 15:
 #line 124 "Parser.y" /* yacc.c:1646  */
     { }
-#line 1406 "Parser.c" /* yacc.c:1646  */
+#line 1403 "Parser.c" /* yacc.c:1646  */
     break;
 
   case 16:
 #line 127 "Parser.y" /* yacc.c:1646  */
-    { (yyval.expression) = create_expression(VARIABLE_DECLARATION, (yyvsp[0].expression), NULL); }
+    { struct expression * expr = create_expression(VARIABLE_DECLARATION, (yyvsp[0].expression), NULL);
+													strncpy(expr->value, (yyvsp[-1].word), CHAR_BUFFER_SIZE);
+													(yyval.expression) = expr; 
+													}
 #line 1412 "Parser.c" /* yacc.c:1646  */
     break;
 
   case 17:
-#line 130 "Parser.y" /* yacc.c:1646  */
+#line 133 "Parser.y" /* yacc.c:1646  */
     {}
 #line 1418 "Parser.c" /* yacc.c:1646  */
     break;
 
   case 18:
-#line 131 "Parser.y" /* yacc.c:1646  */
+#line 134 "Parser.y" /* yacc.c:1646  */
     { (yyval.expression) = create_expression(VARIABLE_CONTENT, (yyvsp[-1].expression), NULL);  }
 #line 1424 "Parser.c" /* yacc.c:1646  */
     break;
 
   case 19:
-#line 134 "Parser.y" /* yacc.c:1646  */
+#line 137 "Parser.y" /* yacc.c:1646  */
     { (yyval.expression) = create_expression(VARIABLE_OR_PROBABILITY, (yyvsp[0].expression), NULL); }
 #line 1430 "Parser.c" /* yacc.c:1646  */
     break;
 
   case 20:
-#line 135 "Parser.y" /* yacc.c:1646  */
+#line 138 "Parser.y" /* yacc.c:1646  */
     { (yyval.expression) = create_expression(VARIABLE_OR_PROBABILITY, (yyvsp[0].expression), NULL); }
 #line 1436 "Parser.c" /* yacc.c:1646  */
     break;
 
   case 21:
-#line 136 "Parser.y" /* yacc.c:1646  */
+#line 139 "Parser.y" /* yacc.c:1646  */
     { (yyval.expression) = create_expression(VARIABLE_OR_PROBABILITY, (yyvsp[-1].expression), (yyvsp[0].expression)); }
 #line 1442 "Parser.c" /* yacc.c:1646  */
     break;
 
   case 22:
-#line 137 "Parser.y" /* yacc.c:1646  */
+#line 140 "Parser.y" /* yacc.c:1646  */
     { (yyval.expression) = create_expression(VARIABLE_OR_PROBABILITY, (yyvsp[-1].expression), (yyvsp[0].expression)); }
 #line 1448 "Parser.c" /* yacc.c:1646  */
     break;
 
   case 23:
-#line 140 "Parser.y" /* yacc.c:1646  */
+#line 143 "Parser.y" /* yacc.c:1646  */
     {
 																																								struct expression * variable_discrete = create_expression(VARIABLE_DISCRETE, (yyvsp[-2].expression), NULL);
 																																								variable_discrete->int_value = (yyvsp[-5].int_value);
@@ -1458,7 +1458,7 @@ yyreduce:
     break;
 
   case 24:
-#line 146 "Parser.y" /* yacc.c:1646  */
+#line 149 "Parser.y" /* yacc.c:1646  */
     { struct expression * values_list = create_expression(VARIABLE_VALUES_LIST, NULL, NULL);
 					strncpy(values_list->value, (yyvsp[0].word), CHAR_BUFFER_SIZE);
 					(yyval.expression) = values_list;
@@ -1467,178 +1467,170 @@ yyreduce:
     break;
 
   case 25:
-#line 150 "Parser.y" /* yacc.c:1646  */
-    { struct expression * values_list = create_expression(VARIABLE_VALUES_LIST, (yyvsp[-1].expression), NULL);
+#line 153 "Parser.y" /* yacc.c:1646  */
+    { struct expression * values_list = create_expression(VARIABLE_VALUES_LIST, NULL, NULL);
 										strncpy(values_list->value, (yyvsp[0].word), CHAR_BUFFER_SIZE);
-										(yyval.expression) = values_list;
+										(yyvsp[-1].expression)->right = values_list;
+										(yyval.expression) = (yyvsp[-1].expression);
 										}
-#line 1476 "Parser.c" /* yacc.c:1646  */
+#line 1477 "Parser.c" /* yacc.c:1646  */
     break;
 
   case 26:
-#line 156 "Parser.y" /* yacc.c:1646  */
+#line 160 "Parser.y" /* yacc.c:1646  */
     { (yyval.expression) = create_expression(PROBABILITY_DECLARATION, (yyvsp[-1].expression), (yyvsp[0].expression)); }
-#line 1482 "Parser.c" /* yacc.c:1646  */
+#line 1483 "Parser.c" /* yacc.c:1646  */
     break;
 
   case 27:
-#line 159 "Parser.y" /* yacc.c:1646  */
+#line 163 "Parser.y" /* yacc.c:1646  */
     { (yyval.expression) = create_expression(PROBABILITY_VARIABLES_LIST, (yyvsp[-1].expression), NULL); }
-#line 1488 "Parser.c" /* yacc.c:1646  */
+#line 1489 "Parser.c" /* yacc.c:1646  */
     break;
 
   case 28:
-#line 162 "Parser.y" /* yacc.c:1646  */
+#line 166 "Parser.y" /* yacc.c:1646  */
     { struct expression * names_list = create_expression(PROBABILITY_VARIABLE_NAMES, NULL, NULL);
 				   strncpy(names_list->value, (yyvsp[0].word), CHAR_BUFFER_SIZE);
 				   (yyval.expression) = names_list;
 				   }
-#line 1497 "Parser.c" /* yacc.c:1646  */
+#line 1498 "Parser.c" /* yacc.c:1646  */
     break;
 
   case 29:
-#line 166 "Parser.y" /* yacc.c:1646  */
+#line 170 "Parser.y" /* yacc.c:1646  */
     {struct expression * names_list = create_expression(PROBABILITY_VARIABLE_NAMES, NULL, NULL);
 										   strncpy(names_list->value, (yyvsp[0].word), CHAR_BUFFER_SIZE);
-										   (yyval.expression) = names_list;
+										   (yyvsp[-1].expression)->right = names_list;
+										   (yyval.expression) = (yyvsp[-1].expression);
 										}
-#line 1506 "Parser.c" /* yacc.c:1646  */
+#line 1508 "Parser.c" /* yacc.c:1646  */
     break;
 
   case 30:
-#line 172 "Parser.y" /* yacc.c:1646  */
+#line 177 "Parser.y" /* yacc.c:1646  */
     {}
-#line 1512 "Parser.c" /* yacc.c:1646  */
+#line 1514 "Parser.c" /* yacc.c:1646  */
     break;
 
   case 31:
-#line 173 "Parser.y" /* yacc.c:1646  */
+#line 178 "Parser.y" /* yacc.c:1646  */
     { (yyval.expression) = create_expression(PROBABILITY_CONTENT, (yyvsp[-1].expression), NULL); }
-#line 1518 "Parser.c" /* yacc.c:1646  */
+#line 1520 "Parser.c" /* yacc.c:1646  */
     break;
 
   case 32:
-#line 176 "Parser.y" /* yacc.c:1646  */
+#line 181 "Parser.y" /* yacc.c:1646  */
     { (yyval.expression) = create_expression(PROBABILITY_CONTENT_LIST, (yyvsp[0].expression), NULL); }
-#line 1524 "Parser.c" /* yacc.c:1646  */
+#line 1526 "Parser.c" /* yacc.c:1646  */
     break;
 
   case 33:
-#line 177 "Parser.y" /* yacc.c:1646  */
+#line 182 "Parser.y" /* yacc.c:1646  */
     { (yyval.expression) = create_expression(PROBABILITY_CONTENT_LIST, (yyvsp[-1].expression), (yyvsp[0].expression)); }
-#line 1530 "Parser.c" /* yacc.c:1646  */
+#line 1532 "Parser.c" /* yacc.c:1646  */
     break;
 
   case 34:
-#line 178 "Parser.y" /* yacc.c:1646  */
+#line 183 "Parser.y" /* yacc.c:1646  */
     { (yyval.expression) = create_expression(PROBABILITY_CONTENT_LIST, (yyvsp[0].expression), NULL); }
-#line 1536 "Parser.c" /* yacc.c:1646  */
+#line 1538 "Parser.c" /* yacc.c:1646  */
     break;
 
   case 35:
-#line 179 "Parser.y" /* yacc.c:1646  */
+#line 184 "Parser.y" /* yacc.c:1646  */
     { (yyval.expression) = create_expression(PROBABILITY_CONTENT_LIST, (yyvsp[-1].expression), (yyvsp[0].expression)); }
-#line 1542 "Parser.c" /* yacc.c:1646  */
+#line 1544 "Parser.c" /* yacc.c:1646  */
     break;
 
   case 36:
-#line 180 "Parser.y" /* yacc.c:1646  */
+#line 185 "Parser.y" /* yacc.c:1646  */
     { (yyval.expression) = create_expression(PROBABILITY_CONTENT_LIST, (yyvsp[0].expression), NULL); }
-#line 1548 "Parser.c" /* yacc.c:1646  */
+#line 1550 "Parser.c" /* yacc.c:1646  */
     break;
 
   case 37:
-#line 181 "Parser.y" /* yacc.c:1646  */
+#line 186 "Parser.y" /* yacc.c:1646  */
     { (yyval.expression) = create_expression(PROBABILITY_CONTENT_LIST, (yyvsp[-1].expression), (yyvsp[0].expression)); }
-#line 1554 "Parser.c" /* yacc.c:1646  */
+#line 1556 "Parser.c" /* yacc.c:1646  */
     break;
 
   case 38:
-#line 182 "Parser.y" /* yacc.c:1646  */
+#line 187 "Parser.y" /* yacc.c:1646  */
     { (yyval.expression) = create_expression(PROBABILITY_CONTENT_LIST, (yyvsp[0].expression), NULL); }
-#line 1560 "Parser.c" /* yacc.c:1646  */
+#line 1562 "Parser.c" /* yacc.c:1646  */
     break;
 
   case 39:
-#line 183 "Parser.y" /* yacc.c:1646  */
+#line 188 "Parser.y" /* yacc.c:1646  */
     { (yyval.expression) = create_expression(PROBABILITY_CONTENT_LIST, (yyvsp[-1].expression), (yyvsp[0].expression)); }
-#line 1566 "Parser.c" /* yacc.c:1646  */
+#line 1568 "Parser.c" /* yacc.c:1646  */
     break;
 
   case 40:
-#line 186 "Parser.y" /* yacc.c:1646  */
+#line 191 "Parser.y" /* yacc.c:1646  */
     { (yyval.expression) = create_expression(PROBABILITY_DEFAULT_ENTRY, (yyvsp[-1].expression), NULL); }
-#line 1572 "Parser.c" /* yacc.c:1646  */
+#line 1574 "Parser.c" /* yacc.c:1646  */
     break;
 
   case 41:
-#line 189 "Parser.y" /* yacc.c:1646  */
+#line 194 "Parser.y" /* yacc.c:1646  */
     { (yyval.expression) = create_expression(PROBABILITY_ENTRY, (yyvsp[-2].expression), (yyvsp[-1].expression)); }
-#line 1578 "Parser.c" /* yacc.c:1646  */
+#line 1580 "Parser.c" /* yacc.c:1646  */
     break;
 
   case 42:
-#line 192 "Parser.y" /* yacc.c:1646  */
+#line 197 "Parser.y" /* yacc.c:1646  */
     { (yyval.expression) = create_expression(PROBABILITY_VALUES_LIST, (yyvsp[-1].expression), NULL); }
-#line 1584 "Parser.c" /* yacc.c:1646  */
+#line 1586 "Parser.c" /* yacc.c:1646  */
     break;
 
   case 43:
-#line 195 "Parser.y" /* yacc.c:1646  */
-    { struct expression * values_list = create_expression(PROBABILITY_VALUES, NULL, NULL); strncpy(values_list->value, (yyvsp[0].word), CHAR_BUFFER_SIZE); (yyval.expression) = values_list; }
-#line 1590 "Parser.c" /* yacc.c:1646  */
+#line 200 "Parser.y" /* yacc.c:1646  */
+    { struct expression * values_list = create_expression(PROBABILITY_VALUES, NULL, NULL); 
+					strncpy(values_list->value, (yyvsp[0].word), CHAR_BUFFER_SIZE); 
+					(yyval.expression) = values_list; 
+					}
+#line 1595 "Parser.c" /* yacc.c:1646  */
     break;
 
   case 44:
-#line 196 "Parser.y" /* yacc.c:1646  */
-    { struct expression * values_list = create_expression(PROBABILITY_VALUES, (yyvsp[-1].expression), NULL); strncpy(values_list->value, (yyvsp[0].word), CHAR_BUFFER_SIZE); (yyval.expression) = values_list; }
-#line 1596 "Parser.c" /* yacc.c:1646  */
+#line 204 "Parser.y" /* yacc.c:1646  */
+    { struct expression * values_list = create_expression(PROBABILITY_VALUES, NULL, NULL); 
+										strncpy(values_list->value, (yyvsp[0].word), CHAR_BUFFER_SIZE); 
+										(yyvsp[-1].expression)->right = values_list;
+										(yyval.expression) = (yyvsp[-1].expression); 
+										}
+#line 1605 "Parser.c" /* yacc.c:1646  */
     break;
 
   case 45:
-#line 199 "Parser.y" /* yacc.c:1646  */
+#line 211 "Parser.y" /* yacc.c:1646  */
     { (yyval.expression) = create_expression(PROBABILITY_TABLE, (yyvsp[-1].expression), NULL); }
-#line 1602 "Parser.c" /* yacc.c:1646  */
-    break;
-
-  case 46:
-#line 202 "Parser.y" /* yacc.c:1646  */
-    { struct expression * fp_list = create_expression(FLOATING_POINT_LIST_FLOAT, NULL, NULL);
-									 fp_list->double_value = (yyvsp[0].double_value);
-									 (yyval.expression) = fp_list;
-									}
 #line 1611 "Parser.c" /* yacc.c:1646  */
     break;
 
-  case 47:
-#line 206 "Parser.y" /* yacc.c:1646  */
-    { struct expression * fp_list = create_expression(FLOATING_POINT_LIST_INT, NULL, NULL);
-									 fp_list->int_value = (yyvsp[0].int_value);
+  case 46:
+#line 214 "Parser.y" /* yacc.c:1646  */
+    { struct expression * fp_list = create_expression(FLOATING_POINT_LIST_FLOAT, NULL, NULL);
+									 fp_list->double_value = (yyvsp[0].double_value);
 									 (yyval.expression) = fp_list;
 									}
 #line 1620 "Parser.c" /* yacc.c:1646  */
     break;
 
-  case 48:
-#line 210 "Parser.y" /* yacc.c:1646  */
-    {struct expression * fp_list = create_expression(FLOATING_POINT_LIST_FLOAT, (yyvsp[-1].expression), NULL);
+  case 47:
+#line 218 "Parser.y" /* yacc.c:1646  */
+    {struct expression * fp_list = create_expression(FLOATING_POINT_LIST_FLOAT, NULL, NULL);
 														 fp_list->double_value = (yyvsp[0].double_value);
-														 (yyval.expression) = fp_list;
+														 (yyvsp[-1].expression)->right = fp_list;
+														 (yyval.expression) = (yyvsp[-1].expression);
 														}
-#line 1629 "Parser.c" /* yacc.c:1646  */
-    break;
-
-  case 49:
-#line 214 "Parser.y" /* yacc.c:1646  */
-    {struct expression * fp_list = create_expression(FLOATING_POINT_LIST_INT, (yyvsp[-1].expression), NULL);
-														 fp_list->int_value = (yyvsp[0].int_value);
-														 (yyval.expression) = fp_list;
-														}
-#line 1638 "Parser.c" /* yacc.c:1646  */
+#line 1630 "Parser.c" /* yacc.c:1646  */
     break;
 
 
-#line 1642 "Parser.c" /* yacc.c:1646  */
+#line 1634 "Parser.c" /* yacc.c:1646  */
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires
