@@ -82,7 +82,8 @@ void propagate(Graph_t, int *, int *, int *, int *, int *, int *);
 void reset_visited(Graph_t);
 
 void init_previous_edge(Graph_t);
-void loopy_propagate(Graph_t);
+void loopy_propagate_one_iteration(Graph_t);
+void loopy_propagate_until(Graph_t, double convergence, int max_iterations);
 
 void marginalize(Graph_t);
 
