@@ -99,8 +99,7 @@ void validate_nodes(Graph_t graph){
 	assert_value(value);
 }
 
-int main() {
-
+void forward_backward_belief_propagation() {
 	Graph_t graph;
 
 	graph = create_graph(NUM_NODES, NUM_EDGES);
@@ -117,11 +116,11 @@ int main() {
 	//print_dest_nodes_to_edges(graph);
 
 	send_from_leaf_nodes(graph);
-	propagate(graph, graph->forward_queue, &graph->forward_queue_size, graph->backward_queue, &graph->backward_queue_size);
+	propagate(graph, graph->forward_queue, &graph->forward_queue_start, &graph->forward_queue_end, graph->backward_queue, &graph->backward_queue_start, &graph->backward_queue_end);
 
 	reset_visited(graph);
 
-	propagate(graph, graph->backward_queue, &graph->backward_queue_size, graph->forward_queue, &graph->forward_queue_size);
+	propagate(graph, graph->backward_queue, &graph->backward_queue_start, &graph->backward_queue_end, graph->forward_queue, &graph->forward_queue_start, &graph->forward_queue_end);
 	marginalize(graph);
 
 	print_nodes(graph);
@@ -129,6 +128,35 @@ int main() {
 	validate_nodes(graph);
 
 	graph_destroy(graph);
+
+}
+
+void loopy_belief_propagation() {
+	Graph_t graph;
+
+	graph = create_graph(NUM_NODES, NUM_EDGES);
+
+	add_nodes(graph);
+	add_edges(graph);
+
+	set_up_src_nodes_to_edges(graph);
+	set_up_dest_nodes_to_edges(graph);
+
+	print_nodes(graph);
+	print_edges(graph);
+
+	init_previous_edge(graph);
+
+	loopy_propagate(graph);
+	print_nodes(graph);
+	loopy_propagate(graph);
+	print_nodes(graph);
+}
+
+int main() {
+	//forward_backward_belief_propagation();
+
+	loopy_belief_propagation();
 
 	return 0;
 }
