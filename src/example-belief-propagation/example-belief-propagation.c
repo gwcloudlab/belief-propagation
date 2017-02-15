@@ -147,19 +147,19 @@ void loopy_belief_propagation() {
 
 	init_previous_edge(graph);
 
-	loopy_propagate(graph);
-	print_nodes(graph);
-	loopy_propagate(graph);
-	print_nodes(graph);
+    loopy_propagate_until(graph, 1E-9, 10000);
+
+
+    print_nodes(graph);
 
 
 	graph_destroy(graph);
 }
 
 int main() {
-	//forward_backward_belief_propagation();
+	forward_backward_belief_propagation();
 
-	loopy_belief_propagation();
+	//loopy_belief_propagation();
 
 	return 0;
 }
