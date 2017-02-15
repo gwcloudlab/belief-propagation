@@ -113,3 +113,7 @@ dkms.conf
 /Debug-example/
 /Release-example/
 /Debug-parser/
+
+*.iml
+*.iws
+.idea/
