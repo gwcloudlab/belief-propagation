@@ -151,6 +151,9 @@ void loopy_belief_propagation() {
 	print_nodes(graph);
 	loopy_propagate(graph);
 	print_nodes(graph);
+
+
+	graph_destroy(graph);
 }
 
 int main() {

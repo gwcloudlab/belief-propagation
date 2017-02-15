@@ -624,7 +624,7 @@ void loopy_propagate(Graph_t graph){
 	}
 
 	//swap previous and current
-	temp = &previous;
-	graph->previous = &current;
+	temp = graph->previous;
+	graph->previous = graph->current;
 	graph->current = temp;
 }
