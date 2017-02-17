@@ -211,11 +211,11 @@ probability_table
 	: TOKEN_TABLEVALUES floating_point_list TOKEN_SEMICOLON { $$ = create_expression(PROBABILITY_TABLE, $2, NULL); }
 
 floating_point_list
-	: TOKEN_FLOATING_POINT_LITERAL { struct expression * fp_list = create_expression(FLOATING_POINT_LIST_FLOAT, NULL, NULL);
+	: TOKEN_FLOATING_POINT_LITERAL { struct expression * fp_list = create_expression(FLOATING_POINT_LIST, NULL, NULL);
 									 fp_list->double_value = $1;
 									 $$ = fp_list;
 									}
-	| floating_point_list TOKEN_FLOATING_POINT_LITERAL {struct expression * fp_list = create_expression(FLOATING_POINT_LIST_FLOAT, NULL, NULL);
+	| floating_point_list TOKEN_FLOATING_POINT_LITERAL {struct expression * fp_list = create_expression(FLOATING_POINT_LIST, NULL, NULL);
 														 fp_list->double_value = $2;
 														 $1->right = fp_list;
 														 $$ = $1;

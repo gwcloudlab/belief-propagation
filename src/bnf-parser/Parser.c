@@ -1612,7 +1612,7 @@ yyreduce:
 
   case 46:
 #line 214 "Parser.y" /* yacc.c:1646  */
-    { struct expression * fp_list = create_expression(FLOATING_POINT_LIST_FLOAT, NULL, NULL);
+    { struct expression * fp_list = create_expression(FLOATING_POINT_LIST, NULL, NULL);
 									 fp_list->double_value = (yyvsp[0].double_value);
 									 (yyval.expression) = fp_list;
 									}
@@ -1621,7 +1621,7 @@ yyreduce:
 
   case 47:
 #line 218 "Parser.y" /* yacc.c:1646  */
-    {struct expression * fp_list = create_expression(FLOATING_POINT_LIST_FLOAT, NULL, NULL);
+    {struct expression * fp_list = create_expression(FLOATING_POINT_LIST, NULL, NULL);
 														 fp_list->double_value = (yyvsp[0].double_value);
 														 (yyvsp[-1].expression)->right = fp_list;
 														 (yyval.expression) = (yyvsp[-1].expression);

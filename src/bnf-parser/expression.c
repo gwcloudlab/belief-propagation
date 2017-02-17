@@ -72,8 +72,7 @@ void print_expression(struct expression * expr){
 		case PROBABILITY_VALUES_LIST: printf("Probability Values List"); break;
 		case PROBABILITY_VALUES: printf("Probability Values"); break;
 		case PROBABILITY_TABLE: printf("Probability Table"); break;
-		case FLOATING_POINT_LIST_FLOAT: printf("Floating Point List (Float)"); break;
-		case FLOATING_POINT_LIST_INT: printf("Floating Point List (Int)"); break;
+		case FLOATING_POINT_LIST: printf("Floating Point List"); break;
 	}
 	printf("\n");
 
@@ -89,14 +88,13 @@ void print_expression(struct expression * expr){
 	}
 
 	switch(expr->type){
-		case FLOATING_POINT_LIST_FLOAT:
+		case FLOATING_POINT_LIST:
 			printf("Double value: %lf\n", expr->double_value);
 			break;
 	}
 
 	switch(expr->type){
 	case VARIABLE_DISCRETE:
-	case FLOATING_POINT_LIST_INT:
 		printf("Int value: %d\n", expr->int_value);
 		break;
 	}
@@ -231,6 +229,14 @@ static void add_nodes_to_graph(struct expression * expr, Graph_t graph){
 	}
 	add_nodes_to_graph(expr->left, graph);
 	add_nodes_to_graph(expr->right, graph);
+}
+
+static void add_edges_to_graph(struct expression * expr, Graph_t graph){
+	if(expr == NULL){
+		return;
+	}
+
+
 }
 
 Graph_t build_graph(struct expression * root){
