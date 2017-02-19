@@ -50,6 +50,8 @@ struct graph {
 
 	char * variable_names;
 
+    char * observed_nodes;
+
 	char graph_name[CHAR_BUFFER_SIZE];
 };
 typedef struct graph* Graph_t;
@@ -59,6 +61,7 @@ Graph_t create_graph(int, int);
 
 void graph_add_node(Graph_t, int, const char *);
 void graph_add_and_set_node_state(Graph_t, int, const char *, double *);
+void graph_set_node_state(Graph_t, int, int, double *);
 
 void graph_add_edge(Graph_t, int, int, int, int, double **);
 
