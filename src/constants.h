@@ -15,7 +15,7 @@
 
 #define CHAR_BUFFER_SIZE 50
 
-#define MAX_STATES 2
+#define MAX_STATES 4
 
 #define DEFAULT_STATE 1.0
 
