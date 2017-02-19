@@ -73,6 +73,7 @@ void test_dog_file(){
 
 	graph = build_graph(expression);
 	print_nodes(graph);
+	print_edges(graph);
 
 	assert(graph != NULL);
 

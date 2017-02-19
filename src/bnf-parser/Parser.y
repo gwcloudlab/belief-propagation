@@ -150,10 +150,9 @@ variable_values_list
 					strncpy(values_list->value, $1, CHAR_BUFFER_SIZE);
 					$$ = values_list;
 					}
-	| variable_values_list TOKEN_WORD { struct expression * values_list = create_expression(VARIABLE_VALUES_LIST, NULL, NULL);
+	| variable_values_list TOKEN_WORD { struct expression * values_list = create_expression(VARIABLE_VALUES_LIST, $1, NULL);
 										strncpy(values_list->value, $2, CHAR_BUFFER_SIZE);
-										$1->right = values_list;
-										$$ = $1;
+										$$ = values_list;
 										}
 										
 probability_declaration
@@ -167,10 +166,9 @@ probability_names_list
 				   strncpy(names_list->value, $1, CHAR_BUFFER_SIZE);
 				   $$ = names_list;
 				   }
-	| probability_names_list TOKEN_WORD {struct expression * names_list = create_expression(PROBABILITY_VARIABLE_NAMES, NULL, NULL);
+	| probability_names_list TOKEN_WORD {struct expression * names_list = create_expression(PROBABILITY_VARIABLE_NAMES, $1, NULL);
 										   strncpy(names_list->value, $2, CHAR_BUFFER_SIZE);
-										   $1->right = names_list;
-										   $$ = $1;
+										   $$ = names_list;
 										}
 										
 probability_content
@@ -201,10 +199,9 @@ probability_values
 					strncpy(values_list->value, $1, CHAR_BUFFER_SIZE); 
 					$$ = values_list; 
 					}
-	| probability_values TOKEN_WORD { struct expression * values_list = create_expression(PROBABILITY_VALUES, NULL, NULL); 
-										strncpy(values_list->value, $2, CHAR_BUFFER_SIZE); 
-										$1->right = values_list;
-										$$ = $1; 
+	| probability_values TOKEN_WORD { struct expression * values_list = create_expression(PROBABILITY_VALUES, $1, NULL);
+										strncpy(values_list->value, $2, CHAR_BUFFER_SIZE);
+										$$ = values_list;
 										}
 
 probability_table
@@ -215,8 +212,8 @@ floating_point_list
 									 fp_list->double_value = $1;
 									 $$ = fp_list;
 									}
-	| floating_point_list TOKEN_FLOATING_POINT_LITERAL {struct expression * fp_list = create_expression(FLOATING_POINT_LIST, NULL, NULL);
+	| floating_point_list TOKEN_FLOATING_POINT_LITERAL {
+	                                                    struct expression * fp_list = create_expression(FLOATING_POINT_LIST, $1, NULL);
 														 fp_list->double_value = $2;
-														 $1->right = fp_list;
-														 $$ = $1;
+														 $$ = fp_list;
 														}		  																																															
