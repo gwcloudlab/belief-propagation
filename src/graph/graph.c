@@ -24,7 +24,8 @@ create_graph(int num_vertices, int num_edges)
 	g->forward_queue = (int *)malloc(sizeof(int) * num_vertices);
 	g->backward_queue = (int *)malloc(sizeof(int) * num_vertices);
 	g->leaf_node_queue = (int *)malloc(sizeof(int) * num_vertices);
-	g->visited = (char *)calloc(sizeof(char), num_vertices);
+	g->visited = (char *)calloc(sizeof(char), (size_t)num_vertices);
+	g->observed_nodes = (char *)calloc(sizeof(char), (size_t)num_vertices);
 	g->forward_queue_start = 0;
 	g->forward_queue_end = 0;
 	g->backward_queue_start = 0;
@@ -35,7 +36,7 @@ create_graph(int num_vertices, int num_edges)
 	g->total_num_edges = num_edges;
 	g->current_num_vertices = 0;
 	g->current_num_edges = 0;
-	g->variable_names = (char *)calloc(sizeof(char), num_vertices * CHAR_BUFFER_SIZE * MAX_STATES);
+	g->variable_names = (char *)calloc(sizeof(char), (size_t)num_vertices * CHAR_BUFFER_SIZE * MAX_STATES);
 	g->previous = &g->prev_edges;
 	g->current = &g->edges;
 	return g;
@@ -57,8 +58,23 @@ void graph_add_and_set_node_state(Graph_t g, int num_variables, const char * nam
 
 	node_index = g->current_num_vertices;
 
+	g->observed_nodes[g->current_num_vertices] = 1;
 	graph_add_node(g, num_variables, name);
 	node_set_state(&g->nodes[node_index], num_variables, state);
+}
+
+void graph_set_node_state(Graph_t g, int node_index, int num_states, double * state){
+	Node_t node;
+
+	assert(node_index < g->current_num_vertices);
+
+	node = &g->nodes[node_index];
+
+	assert(num_states <= node->num_variables);
+
+	g->observed_nodes[node_index] = 1;
+
+	node_set_state(node, num_states, state);
 }
 
 void graph_add_edge(Graph_t graph, int src_index, int dest_index, int dim_x, int dim_y, double ** joint_probabilities) {
@@ -147,6 +163,7 @@ void graph_destroy(Graph_t g) {
 	free(g->leaf_node_queue);
 	free(g->variable_names);
 	free(g->visited);
+	free(g->observed_nodes);
 	free(g);
 }
 
