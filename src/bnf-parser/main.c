@@ -50,7 +50,7 @@ void test_file(const char * file_path)
 	delete_expression(expression);
 }
 
-void test_dog_file(){
+void test_parse_file(char * file_name){
 	struct expression * expression;
 	yyscan_t scanner;
 	YY_BUFFER_STATE state;
@@ -59,7 +59,7 @@ void test_dog_file(){
 
 	assert(yylex_init(&scanner) == 0);
 
-	in = fopen("dog.bif", "r");
+	in = fopen(file_name, "r");
 
 	yyset_in(in, scanner);
 
@@ -91,7 +91,8 @@ int main(void)
 	const char test[] = "// Bayesian Network in the Interchange Format\n// Produced by BayesianNetworks package in JavaBayes\n// Output created Sun Nov 02 17:49:49 GMT+00:00 1997\n// Bayesian network \nnetwork \"Dog-Problem\" { //5 variables and 5 probability distributions\nproperty \"credal-set constant-density-bounded 1.1\" ;\n}variable  \"light-on\" { //2 values\ntype discrete[2] {  \"true\"  \"false\" };\nproperty \"position = (218, 195)\" ;\n}\nvariable  \"bowel-problem\" { //2 values\ntype discrete[2] {  \"true\"  \"false\" };\nproperty \"position = (335, 99)\" ;\n}";
 	test_ast(test);
 
-	test_dog_file();
+	test_parse_file("dog.bif");
+	test_parse_file("alarm.bif");
 
 	//test_file("dog.bif");
 	//test_file("alarm.bif");

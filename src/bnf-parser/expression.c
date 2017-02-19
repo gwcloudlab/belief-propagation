@@ -38,7 +38,7 @@ void delete_expression(struct expression * expr){
 
 	assert(expr != NULL);
 
-	print_expression(expr);
+	//print_expression(expr);
 
 	delete_expression(expr->left);
 	delete_expression(expr->right);
@@ -363,12 +363,9 @@ static void fill_in_probability_buffer_table(struct expression * expr, double * 
 	fill_in_probability_buffer_table(expr->right, probability_buffer, num_entries);
 }
 
-static int count_num_state_names(struct expression * expr, int count){
-	int new_count;
-
-	new_count = count;
+static void count_num_state_names(struct expression * expr, int * count){
 	if(expr == NULL){
-		return new_count;
+		return;
 	}
 
 	if(expr->type == PROBABILITY_VALUES_LIST){
@@ -376,10 +373,10 @@ static int count_num_state_names(struct expression * expr, int count){
 	}
 
 	if(expr->type == PROBABILITY_VALUES) {
-		new_count += 1;
+		*count += 1;
 	}
-	new_count = count_num_state_names(expr->left, new_count);
-	return count_num_state_names(expr->right, new_count);
+	count_num_state_names(expr->left, count);
+	count_num_state_names(expr->right, count);
 }
 
 static void fill_in_state_names(struct expression * expr, int count, int * current_index, char * buffer){
@@ -387,14 +384,13 @@ static void fill_in_state_names(struct expression * expr, int count, int * curre
 		return;
 	}
 
-	assert(*current_index < count);
-
 	if(expr->type == PROBABILITY_VALUES_LIST){
 		fill_in_state_names(expr->left, count, current_index, buffer);
 		return;
 	}
 
 	if(expr->type == PROBABILITY_VALUES){
+		assert(*current_index < count);
 		strncpy(&(buffer[*current_index * CHAR_BUFFER_SIZE]), expr->value, CHAR_BUFFER_SIZE);
 		*current_index += 1;
 	}
@@ -407,10 +403,7 @@ static int calculate_entry_offset(char * state_names, int num_states, Graph_t gr
     int i, j, k, pos, step, index;
     char * state;
     char * node_state_name;
-    Node_t * nodes;
     Node_t current_node;
-
-    nodes = &graph->nodes;
 
     pos = 0;
     step = 1;
@@ -421,7 +414,7 @@ static int calculate_entry_offset(char * state_names, int num_states, Graph_t gr
             if(index >= 0){
                 break;
             }
-            current_node = nodes[j];
+            current_node = &graph->nodes[j];
             for(k = 0; k < current_node->num_variables; ++k){
                 node_state_name = &graph->variable_names[j * k * CHAR_BUFFER_SIZE];
                 if(strcmp(state, node_state_name)){
@@ -467,10 +460,11 @@ static void fill_in_probability_buffer_entry(struct expression * expr, double * 
 		return;
 	}
 
-    jump = num_probabilities / first_num_states;
-
 	if(expr->type == PROBABILITY_ENTRY){
-		count = count_num_state_names(expr, 0);
+		jump = num_probabilities / first_num_states;
+
+		count = 0;
+		count_num_state_names(expr, &count);
 
 		state_names = (char *)malloc(sizeof(char) * count * CHAR_BUFFER_SIZE);
 		index = 0;
@@ -484,6 +478,9 @@ static void fill_in_probability_buffer_entry(struct expression * expr, double * 
 
 		free(state_names);
 	}
+
+	fill_in_probability_buffer_entry(expr->left, probability_buffer, num_probabilities, first_num_states, graph);
+	fill_in_probability_buffer_entry(expr->right, probability_buffer, num_probabilities, first_num_states, graph);
 }
 
 static int calculate_num_probabilities(char *node_name_buffer, int num_nodes, Graph_t graph){
@@ -578,6 +575,7 @@ static void insert_edges_into_graph(char * variable_buffer, int num_node_names, 
 	Node_t src;
 	int i, j, k, offset, slice;
 	double ** sub_graph;
+	double ** transpose;
 
 	assert(num_node_names > 1);
 
@@ -588,25 +586,35 @@ static void insert_edges_into_graph(char * variable_buffer, int num_node_names, 
 		src = find_node_by_name(&(variable_buffer[i * CHAR_BUFFER_SIZE]), graph);
 
 		sub_graph = (double **)malloc(sizeof(double*) * dest->num_variables);
-		for(j = 0; j < src->num_variables; ++j){
+		transpose = (double **)malloc(sizeof(double*) * src->num_variables);
+		for(j = 0; j < dest->num_variables; ++j){
 			sub_graph[j] = (double *)malloc(sizeof(double) * src->num_variables);
+		}
+		for(j = 0; j < src->num_variables; ++j){
+			transpose[j] = (double *)malloc(sizeof(double) * dest->num_variables);
 		}
 
 		for(j = 0; j < dest->num_variables; ++j){
 			for(k = 0; k < src->num_variables; ++k){
 				sub_graph[j][k] = probability_buffer[j * slice + offset + k];
+				transpose[k][j] = sub_graph[j][k];
 			}
 		}
 
-		graph_add_edge(graph, src->index, dest->index, dest->num_variables, src->num_variables, sub_graph);
+		graph_add_edge(graph, dest->index, src->index, dest->num_variables, src->num_variables, sub_graph);
 		if(graph->observed_nodes[src->index] != 1 ){
-			graph_add_edge(graph, dest->index, src->index, dest->num_variables, src->num_variables, sub_graph);
+			graph_add_edge(graph, src->index, dest->index, src->num_variables, dest->num_variables, transpose);
 		}
 
-		for(j = 0; j < src->num_variables; ++j){
+		for(j = 0; j < dest->num_variables; ++j){
 			free(sub_graph[j]);
 		}
 		free(sub_graph);
+
+		for(j = 0; j < src->num_variables; ++j){
+			free(transpose[j]);
+		}
+		free(transpose);
 
 		offset += src->num_variables;
 	}
