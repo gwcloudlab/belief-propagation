@@ -314,20 +314,28 @@ static void fill_in_probability_table_table(struct expression * expr, double * p
 	fill_in_probability_table_table(expr->right, probability_buffer, num_elements, curr_index);
 }
 
-static void fill_in_probability_table_entry(struct expression * expr, double * probability_buffer, int pos, int jump, int num_states, int * current_index){
-    if(expr == NULL){
+static void fill_in_probability_table_entry(struct expression * expr, double * probability_buffer, int num_probabilities,
+											int pos, int jump, int num_states, int * current_index){
+    int index;
+	if(expr == NULL){
         return;
     }
 
     assert(*current_index < num_states);
 
     if(expr->type == FLOATING_POINT_LIST){
-        probability_buffer[*current_index * jump + pos] = expr->double_value;
+		index = *current_index * jump + pos;
+		if(index < num_probabilities) {
+			probability_buffer[index] = expr->double_value;
+		}
+		else {
+			printf("Invalid index: %d vs %d\n", index, num_probabilities);
+		}
         *current_index += 1;
     }
 
-    fill_in_probability_table_entry(expr->left, probability_buffer, pos, jump, num_states, current_index);
-    fill_in_probability_table_entry(expr->right, probability_buffer, pos, jump, num_states, current_index);
+    fill_in_probability_table_entry(expr->left, probability_buffer, num_probabilities, pos, jump, num_states, current_index);
+    fill_in_probability_table_entry(expr->right, probability_buffer, num_probabilities, pos, jump, num_states, current_index);
 }
 
 static void fill_in_probability_buffer_default(struct expression * expr, double * probability_buffer, int num_probabilities){
@@ -369,7 +377,8 @@ static void count_num_state_names(struct expression * expr, int * count){
 	}
 
 	if(expr->type == PROBABILITY_VALUES_LIST){
-		return count_num_state_names(expr->left, count);
+		count_num_state_names(expr->left, count);
+		return;
 	}
 
 	if(expr->type == PROBABILITY_VALUES) {
@@ -386,6 +395,7 @@ static void fill_in_state_names(struct expression * expr, int count, int * curre
 
 	if(expr->type == PROBABILITY_VALUES_LIST){
 		fill_in_state_names(expr->left, count, current_index, buffer);
+		fill_in_state_names(expr->right, count, current_index, buffer);
 		return;
 	}
 
@@ -400,7 +410,7 @@ static void fill_in_state_names(struct expression * expr, int count, int * curre
 }
 
 static int calculate_entry_offset(char * state_names, int num_states, Graph_t graph){
-    int i, j, k, pos, step, index;
+    int i, j, k, pos, step, index, var_name_index;
     char * state;
     char * node_state_name;
     Node_t current_node;
@@ -416,8 +426,9 @@ static int calculate_entry_offset(char * state_names, int num_states, Graph_t gr
             }
             current_node = &graph->nodes[j];
             for(k = 0; k < current_node->num_variables; ++k){
-                node_state_name = &graph->variable_names[j * k * CHAR_BUFFER_SIZE];
-                if(strcmp(state, node_state_name)){
+				var_name_index =  j * MAX_STATES * CHAR_BUFFER_SIZE + k * CHAR_BUFFER_SIZE;
+                node_state_name = &graph->variable_names[var_name_index];
+                if(strcmp(state, node_state_name) == 0){
                     index = k;
                     pos += k * step;
                     step *= current_node->num_variables;
@@ -474,7 +485,7 @@ static void fill_in_probability_buffer_entry(struct expression * expr, double * 
 
         index = 0;
 
-        fill_in_probability_table_entry(expr, probability_buffer, pos, jump, first_num_states, &index);
+        fill_in_probability_table_entry(expr, probability_buffer, num_probabilities, pos, jump, first_num_states, &index);
 
 		free(state_names);
 	}
