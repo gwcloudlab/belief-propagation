@@ -19,13 +19,23 @@ create_graph(int num_vertices, int num_edges)
 	g->nodes = (Node_t)malloc(sizeof(struct node) * num_vertices);
 	assert(g->nodes);
 	g->src_nodes_to_edges = (int *)malloc(sizeof(int) * (num_vertices + num_edges));
+	assert(g->src_nodes_to_edges);
 	g->dest_nodes_to_edges = (int *)malloc(sizeof(int) * (num_vertices + num_edges));
+	assert(g->dest_nodes_to_edges);
 	g->node_names = (char *)malloc(sizeof(char) * CHAR_BUFFER_SIZE * num_vertices);
+	assert(g->node_names);
 	g->forward_queue = (int *)malloc(sizeof(int) * num_vertices);
+	assert(g->forward_queue);
 	g->backward_queue = (int *)malloc(sizeof(int) * num_vertices);
+	assert(g->backward_queue);
 	g->leaf_node_queue = (int *)malloc(sizeof(int) * num_vertices);
+	assert(g->leaf_node_queue);
 	g->visited = (char *)calloc(sizeof(char), (size_t)num_vertices);
+	assert(g->visited);
 	g->observed_nodes = (char *)calloc(sizeof(char), (size_t)num_vertices);
+	assert(g->observed_nodes);
+	g->variable_names = (char *)calloc(sizeof(char), (size_t)num_vertices * CHAR_BUFFER_SIZE * MAX_STATES);
+	assert(g->variable_names);
 	g->forward_queue_start = 0;
 	g->forward_queue_end = 0;
 	g->backward_queue_start = 0;
@@ -36,7 +46,6 @@ create_graph(int num_vertices, int num_edges)
 	g->total_num_edges = num_edges;
 	g->current_num_vertices = 0;
 	g->current_num_edges = 0;
-	g->variable_names = (char *)calloc(sizeof(char), (size_t)num_vertices * CHAR_BUFFER_SIZE * MAX_STATES);
 	g->previous = &g->prev_edges;
 	g->current = &g->edges;
 	return g;
@@ -153,17 +162,18 @@ int graph_edge_count(Graph_t g) {
 }
 
 void graph_destroy(Graph_t g) {
-	free(g->nodes);
 	free(g->edges);
+	free(g->prev_edges);
+	free(g->nodes);
 	free(g->src_nodes_to_edges);
 	free(g->dest_nodes_to_edges);
 	free(g->node_names);
 	free(g->forward_queue);
 	free(g->backward_queue);
 	free(g->leaf_node_queue);
-	free(g->variable_names);
 	free(g->visited);
 	free(g->observed_nodes);
+	free(g->variable_names);
 	free(g);
 }
 
