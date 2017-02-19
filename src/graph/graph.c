@@ -58,7 +58,7 @@ void graph_add_and_set_node_state(Graph_t g, int num_variables, const char * nam
 
 	node_index = g->current_num_vertices;
 
-	g->observed_nodes[g->current_num_vertices] = 1;
+	g->observed_nodes[node_index] = 1;
 	graph_add_node(g, num_variables, name);
 	node_set_state(&g->nodes[node_index], num_variables, state);
 }
