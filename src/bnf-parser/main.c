@@ -75,6 +75,20 @@ void test_parse_file(char * file_name){
 	print_nodes(graph);
 	print_edges(graph);
 
+    set_up_src_nodes_to_edges(graph);
+    set_up_dest_nodes_to_edges(graph);
+
+    send_from_leaf_nodes(graph);
+    propagate(graph, graph->forward_queue, &graph->forward_queue_start, &graph->forward_queue_end, graph->backward_queue, &graph->backward_queue_start, &graph->backward_queue_end);
+
+    reset_visited(graph);
+
+    propagate(graph, graph->backward_queue, &graph->backward_queue_start, &graph->backward_queue_end, graph->forward_queue, &graph->forward_queue_start, &graph->forward_queue_end);
+    marginalize(graph);
+
+    print_nodes(graph);
+
+
 	assert(graph != NULL);
 
 	delete_expression(expression);
@@ -91,7 +105,7 @@ int main(void)
 	const char test[] = "// Bayesian Network in the Interchange Format\n// Produced by BayesianNetworks package in JavaBayes\n// Output created Sun Nov 02 17:49:49 GMT+00:00 1997\n// Bayesian network \nnetwork \"Dog-Problem\" { //5 variables and 5 probability distributions\nproperty \"credal-set constant-density-bounded 1.1\" ;\n}variable  \"light-on\" { //2 values\ntype discrete[2] {  \"true\"  \"false\" };\nproperty \"position = (218, 195)\" ;\n}\nvariable  \"bowel-problem\" { //2 values\ntype discrete[2] {  \"true\"  \"false\" };\nproperty \"position = (335, 99)\" ;\n}";
 	test_ast(test);
 
-    test_parse_file("dog.bif");
+    //test_parse_file("dog.bif");
 	test_parse_file("alarm.bif");
 
 	//test_file("dog.bif");

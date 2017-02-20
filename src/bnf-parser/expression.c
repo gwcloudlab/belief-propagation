@@ -775,9 +775,9 @@ Graph_t build_graph(struct expression * root){
 	Graph_t graph;
 
 	int num_nodes = count_nodes(root);
-	int num_edges = count_edges(root);
+	//int num_edges = count_edges(root);
 
-	graph = create_graph(num_nodes, num_edges);
+	graph = create_graph(num_nodes, num_nodes * num_nodes);
 	add_nodes_to_graph(root, graph);
 	reverse_node_names(graph);
 

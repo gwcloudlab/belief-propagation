@@ -106,12 +106,12 @@ void set_up_src_nodes_to_edges(Graph_t graph){
 	Edge_t edge = NULL;
 
 	assert(graph->current_num_vertices == graph->total_num_vertices);
-	assert(graph->current_num_edges == graph->total_num_edges);
+	assert(graph->current_num_edges <= graph->total_num_edges);
 
 	edge_index = graph->total_num_vertices;
 
 	num_vertices = graph->total_num_vertices;
-	num_edges = graph->total_num_edges;
+	num_edges = graph->current_num_edges;
 
 	for(i = 0; i < num_vertices; ++i){
 		graph->src_nodes_to_edges[i] = edge_index;
@@ -132,12 +132,12 @@ void set_up_dest_nodes_to_edges(Graph_t graph){
 	Node_t node = NULL;
 
 	assert(graph->current_num_vertices == graph->total_num_vertices);
-	assert(graph->current_num_edges == graph->total_num_edges);
+	assert(graph->current_num_edges <= graph->total_num_edges);
 
 	edge_index = graph->total_num_vertices;
 
 	num_vertices = graph->total_num_vertices;
-	num_edges = graph->total_num_edges;
+	num_edges = graph->current_num_edges;
 
 	for(i = 0; i < num_vertices; ++i){
 		graph->dest_nodes_to_edges[i] = edge_index;
@@ -282,6 +282,9 @@ static void combine_message(double * dest, Edge_t src_edge, int length){
 
 	src = src_edge->message;
 	for(i = 0; i < length; ++i){
+		if(src[i] <= 0.0){
+			continue;
+		}
 		dest[i] = dest[i] * src[i];
 	}
 }
@@ -508,7 +511,7 @@ void print_src_nodes_to_edges(Graph_t g){
 		printf("Edges-------\n");
 		start_index = src_node_to_edges[i];
 		if(i + 1 == num_vertices){
-			end_index = num_vertices + g->total_num_edges;
+			end_index = num_vertices + g->current_num_edges;
 		}
 		else{
 			end_index = src_node_to_edges[i+1];
@@ -535,7 +538,7 @@ void print_dest_nodes_to_edges(Graph_t g){
 		printf("Edges-------\n");
 		start_index = dest_node_to_edges[i];
 		if(i + 1 == num_vertices){
-			end_index = num_vertices + g->total_num_edges;
+			end_index = num_vertices + g->current_num_edges;
 		}
 		else{
 			end_index = dest_node_to_edges[i+1];
