@@ -131,6 +131,7 @@ void test_loopy_belief_propagation(char * file_name){
 
 		loopy_propagate_until(graph, 1E-3, 10000);
 
+		print_nodes(graph);
 
 		assert(graph != NULL);
 
