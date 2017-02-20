@@ -621,14 +621,14 @@ void loopy_propagate_one_iteration(Graph_t graph){
 
 			combine_message(message_buffer, edge, num_variables);
 		}
-
+/*
 		printf("Message at node\n");
 		print_node(graph, i);
 		printf("[\t");
 		for(j = 0; j < num_variables; ++j){
 			printf("%.6lf\t", message_buffer[j]);
 		}
-		printf("\t]\n");
+		printf("\t]\n");*/
 
 
 		//send message
@@ -642,8 +642,8 @@ void loopy_propagate_one_iteration(Graph_t graph){
 		for(j = start_index; j < end_index; ++j){
 			edge_index = src_node_to_edges[j];
 			edge = &current[edge_index];
-			printf("Sending on edge\n");
-			print_edge(graph, edge_index);
+			/*printf("Sending on edge\n");
+			print_edge(graph, edge_index);*/
 			send_message(edge, message_buffer);
 		}
 
@@ -662,12 +662,14 @@ void loopy_propagate_one_iteration(Graph_t graph){
 void loopy_propagate_until(Graph_t graph, double convergence, int max_iterations){
 	int i, j, k, num_nodes;
 	Edge_t previous_edges, previous, current, current_edges;
-	double delta, diff;
+	double delta, diff, previous_delta;
 
 	previous_edges = *(graph->previous);
 	current_edges = *(graph->current);
 
 	num_nodes = graph->current_num_vertices;
+
+	previous_delta = -1.0;
 
 	for(i = 0; i < max_iterations; ++i){
 		printf("Current iteration: %d\n", i+1);
@@ -688,8 +690,10 @@ void loopy_propagate_until(Graph_t graph, double convergence, int max_iterations
 			}
 		}
 
-		if(delta < convergence){
+		printf("Current delta: %.6lf vs Previous delta: %.6lf\n", delta, previous_delta);
+		if(delta < convergence || delta == previous_delta){
 			break;
 		}
+		previous_delta = delta;
 	}
 }
