@@ -581,7 +581,7 @@ void init_previous_edge(Graph_t graph){
 	}
 }
 
-void loopy_propagate(Graph_t graph){
+void loopy_propagate_one_iteration(Graph_t graph){
 	int i, j, num_variables, num_vertices, start_index, end_index, edge_index;
 	int * dest_node_to_edges;
 	int * src_node_to_edges;
@@ -650,11 +650,46 @@ void loopy_propagate(Graph_t graph){
 	}
 
 	for(i = 0; i < num_vertices; ++i){
-		marginalize_node(graph, i, *graph->current);
+		marginalize_node(graph, i, current);
 	}
 
 	//swap previous and current
 	temp = graph->previous;
 	graph->previous = graph->current;
 	graph->current = temp;
+}
+
+void loopy_propagate_until(Graph_t graph, double convergence, int max_iterations){
+	int i, j, k, num_nodes;
+	Edge_t previous_edges, previous, current, current_edges;
+	double delta, diff;
+
+	previous_edges = *(graph->previous);
+	current_edges = *(graph->current);
+
+	num_nodes = graph->current_num_vertices;
+
+	for(i = 0; i < max_iterations; ++i){
+		printf("Current iteration: %d\n", i+1);
+		loopy_propagate_one_iteration(graph);
+
+		delta = 0.0;
+
+		for(j = 0; j < num_nodes; ++j){
+			previous = &previous_edges[j];
+			current = &current_edges[j];
+
+			for(k = 0; k < previous->x_dim; ++k){
+				diff = previous->message[k] - current->message[k];
+				if(diff < 0.0){
+					diff = diff * -1.0;
+				}
+				delta += diff;
+			}
+		}
+
+		if(delta < convergence){
+			break;
+		}
+	}
 }
