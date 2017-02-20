@@ -282,9 +282,6 @@ static void combine_message(double * dest, Edge_t src_edge, int length){
 
 	src = src_edge->message;
 	for(i = 0; i < length; ++i){
-		if(src[i] <= 0.0){
-			continue;
-		}
 		dest[i] = dest[i] * src[i];
 	}
 }
