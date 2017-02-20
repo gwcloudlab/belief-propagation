@@ -435,7 +435,7 @@ static int calculate_entry_offset(char * state_names, int num_states, char * var
 	int * indices = (int *)malloc(sizeof(int) * num_states);
 
 	for(i = 0; i < num_states; ++i){
-		state = &state_names[i * CHAR_BUFFER_SIZE];
+		state = &(state_names[i * CHAR_BUFFER_SIZE]);
 		current_node = find_node_by_name(&(variable_names[(i+1)*CHAR_BUFFER_SIZE]), graph);
 		for(j = 0; j < current_node->num_variables; ++j){
 			var_name_index =  current_node->index * MAX_STATES * CHAR_BUFFER_SIZE + j * CHAR_BUFFER_SIZE;
@@ -446,7 +446,12 @@ static int calculate_entry_offset(char * state_names, int num_states, char * var
 			}
 		}
 	}
-
+/*
+	printf("Indices for Sink: %s\n", variable_names);
+	for(i = 0; i < num_states; ++i) {
+		printf("State '%s': %d\n", &(state_names[i * CHAR_BUFFER_SIZE]), indices[i]);
+	}
+*/
     pos = 0;
     step = 1;
     for(k = num_states; k > 0; --k){
@@ -456,6 +461,8 @@ static int calculate_entry_offset(char * state_names, int num_states, char * var
 	}
 
 	free(indices);
+
+//	printf("Posiition: %d\n", pos);
 
     return pos;
 }
@@ -587,52 +594,71 @@ static void update_node_in_graph(struct expression * expr, Graph_t graph){
 static void insert_edges_into_graph(char * variable_buffer, int num_node_names, double * probability_buffer, int num_probabilities, Graph_t graph){
 	Node_t dest;
 	Node_t src;
-	int i, j, k, offset, slice, dest_index, src_index;
+	int i, j, k, offset, slice, index;
 	double ** sub_graph;
 	double ** transpose;
-	double temp, temp_2;
 
 	assert(num_node_names > 1);
 
-	offset = 0;
 	dest = find_node_by_name(variable_buffer, graph);
 	slice = num_probabilities / dest->num_variables;
-	for(i = 1; i < num_node_names; ++i){
+/*
+	printf("Values for sinK: %s\n", variable_buffer);
+	for(i = 0; i < num_probabilities; ++i){
+		printf("%.6lf\t", probability_buffer[i]);
+		if(i % dest->num_variables == dest->num_variables - 1){
+			printf("\n");
+		}
+	}
+	printf("\n");
+ */
+	offset = 1;
+	for(i = num_node_names - 1; i > 0; --i){
 		src = find_node_by_name(&(variable_buffer[i * CHAR_BUFFER_SIZE]), graph);
 
-		sub_graph = (double **)malloc(sizeof(double*) * dest->num_variables);
-		transpose = (double **)malloc(sizeof(double*) * src->num_variables);
-		for(j = 0; j < dest->num_variables; ++j){
-			sub_graph[j] = (double *)malloc(sizeof(double) * src->num_variables);
-		}
+
+		sub_graph = (double **)calloc(sizeof(double*), (size_t)src->num_variables);
+		transpose = (double **)calloc(sizeof(double*), (size_t)dest->num_variables);
 		for(j = 0; j < src->num_variables; ++j){
-			transpose[j] = (double *)malloc(sizeof(double) * dest->num_variables);
+			sub_graph[j] = (double *)calloc(sizeof(double), (size_t)dest->num_variables);
+		}
+		for(j = 0; j < dest->num_variables; ++j){
+			transpose[j] = (double *)calloc(sizeof(double), (size_t)src->num_variables);
 		}
 
-		for(j = 0; j < dest->num_variables; ++j){
-			for(k = 0; k < src->num_variables; ++k){
-				sub_graph[j][k] = probability_buffer[j * slice + offset + k];
+		for(k = 0; k < dest->num_variables; ++k){
+			for(j = 0; j < src->num_variables; ++j){
+				index = slice *k + offset *j;
+				assert(index < num_probabilities);
+				/*if(sub_graph[j][k] > 0){
+					printf("Added to sub_graph");
+				}*/
+				sub_graph[j][k] += probability_buffer[index];
+			}
+		}
+
+		for(j = 0; j < src->num_variables; ++j){
+			for(k = 0; k < dest->num_variables; ++k){
 				transpose[k][j] = sub_graph[j][k];
 			}
 		}
 
-
-		graph_add_edge(graph, src->index, dest->index, src->num_variables, dest->num_variables, transpose);
+		graph_add_edge(graph, src->index, dest->index, src->num_variables, dest->num_variables, sub_graph);
 		if(graph->observed_nodes[src->index] != 1 ){
-			graph_add_edge(graph, dest->index, src->index, dest->num_variables, src->num_variables, sub_graph);
+			graph_add_edge(graph, dest->index, src->index, dest->num_variables, src->num_variables, transpose);
 		}
 
-		for(j = 0; j < dest->num_variables; ++j){
+		for(j = 0; j < src->num_variables; ++j){
 			free(sub_graph[j]);
 		}
 		free(sub_graph);
 
-		for(j = 0; j < src->num_variables; ++j){
+		for(j = 0; j < dest->num_variables; ++j){
 			free(transpose[j]);
 		}
 		free(transpose);
 
-		offset += src->num_variables;
+		offset *= src->num_variables;
 	}
 }
 
