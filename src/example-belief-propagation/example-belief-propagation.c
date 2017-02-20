@@ -159,7 +159,7 @@ void loopy_belief_propagation() {
 int main() {
 	forward_backward_belief_propagation();
 
-	//loopy_belief_propagation();
+	loopy_belief_propagation();
 
 	return 0;
 }
