@@ -54,6 +54,7 @@ void test_file(const char * file_path)
 }
 
 void test_parse_file(char * file_name){
+	int i;
 	struct expression * expression;
 	yyscan_t scanner;
 	YY_BUFFER_STATE state;
@@ -80,13 +81,17 @@ void test_parse_file(char * file_name){
 
     set_up_src_nodes_to_edges(graph);
     set_up_dest_nodes_to_edges(graph);
+	init_levels_to_nodes(graph);
+	print_levels_to_nodes(graph);
 
-    send_from_leaf_nodes(graph);
-    propagate(graph, graph->forward_queue, &graph->forward_queue_start, &graph->forward_queue_end, graph->backward_queue, &graph->backward_queue_start, &graph->backward_queue_end);
-
-    reset_visited(graph);
-
-    propagate(graph, graph->backward_queue, &graph->backward_queue_start, &graph->backward_queue_end, graph->forward_queue, &graph->forward_queue_start, &graph->forward_queue_end);
+	propagate_using_levels_start(graph);
+	for(i = 1; i < graph->num_levels - 1; ++i){
+		propagate_using_levels(graph, i);
+	}
+	reset_visited(graph);
+	for(i = graph->num_levels - 1; i > 0; --i){
+		propagate_using_levels(graph, i);
+	}
 
 	marginalize(graph);
 

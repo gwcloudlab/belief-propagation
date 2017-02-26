@@ -101,6 +101,7 @@ void validate_nodes(Graph_t graph){
 
 void forward_backward_belief_propagation() {
 	Graph_t graph;
+	int i;
 
 	graph = create_graph(NUM_NODES, NUM_EDGES);
 
@@ -109,19 +110,25 @@ void forward_backward_belief_propagation() {
 
 	set_up_src_nodes_to_edges(graph);
 	set_up_dest_nodes_to_edges(graph);
+	init_levels_to_nodes(graph);
+
+	print_levels_to_nodes(graph);
 
 	print_nodes(graph);
 	print_edges(graph);
 	//print_src_nodes_to_edges(graph);
 	//print_dest_nodes_to_edges(graph);
 
-	send_from_leaf_nodes(graph);
-	propagate(graph, graph->forward_queue, &graph->forward_queue_start, &graph->forward_queue_end, graph->backward_queue, &graph->backward_queue_start, &graph->backward_queue_end);
-
+	propagate_using_levels_start(graph);
+	for(i = 1; i < graph->num_levels - 1; ++i){
+		propagate_using_levels(graph, i);
+	}
 	reset_visited(graph);
+	for(i = graph->num_levels - 1; i > 0; --i){
+		propagate_using_levels(graph, i);
+	}
 
-	propagate(graph, graph->backward_queue, &graph->backward_queue_start, &graph->backward_queue_end, graph->forward_queue, &graph->forward_queue_start, &graph->forward_queue_end);
-	marginalize(graph);
+ 	marginalize(graph);
 
 	print_nodes(graph);
 
