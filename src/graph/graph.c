@@ -24,24 +24,15 @@ create_graph(int num_vertices, int num_edges)
 	assert(g->dest_nodes_to_edges);
 	g->node_names = (char *)malloc(sizeof(char) * CHAR_BUFFER_SIZE * num_vertices);
 	assert(g->node_names);
-	g->forward_queue = (int *)malloc(sizeof(int) * num_vertices);
-	assert(g->forward_queue);
-	g->backward_queue = (int *)malloc(sizeof(int) * num_vertices);
-	assert(g->backward_queue);
-	g->leaf_node_queue = (int *)malloc(sizeof(int) * num_vertices);
-	assert(g->leaf_node_queue);
 	g->visited = (char *)calloc(sizeof(char), (size_t)num_vertices);
 	assert(g->visited);
 	g->observed_nodes = (char *)calloc(sizeof(char), (size_t)num_vertices);
 	assert(g->observed_nodes);
 	g->variable_names = (char *)calloc(sizeof(char), (size_t)num_vertices * CHAR_BUFFER_SIZE * MAX_STATES);
 	assert(g->variable_names);
-	g->forward_queue_start = 0;
-	g->forward_queue_end = 0;
-	g->backward_queue_start = 0;
-	g->backward_queue_end = 0;
-	g->leaf_node_queue_start = 0;
-	g->leaf_node_queue_end = 0;
+    g->levels_to_nodes = (int *)malloc(sizeof(int) * 2 * num_vertices);
+    assert(g->levels_to_nodes != NULL);
+    g->num_levels = 0;
 	g->total_num_vertices = num_vertices;
 	g->total_num_edges = num_edges;
 	g->current_num_vertices = 0;
@@ -168,73 +159,29 @@ void graph_destroy(Graph_t g) {
 	free(g->src_nodes_to_edges);
 	free(g->dest_nodes_to_edges);
 	free(g->node_names);
-	free(g->forward_queue);
-	free(g->backward_queue);
-	free(g->leaf_node_queue);
 	free(g->visited);
 	free(g->observed_nodes);
 	free(g->variable_names);
+	free(g->levels_to_nodes);
 	free(g);
 }
 
-void fill_forward_buffer_with_leaf_nodes(Graph_t g, int max_count){
-	int i, start_index, end_index, num_nodes;
-	int * dest_nodes_to_edges;
-
-	num_nodes = g->current_num_vertices;
-	dest_nodes_to_edges = g->dest_nodes_to_edges;
-
-	for(i = 0; i < num_nodes; ++i){
-		start_index = dest_nodes_to_edges[i];
-		if(i + 1 == num_nodes){
-			end_index = num_nodes + g->current_num_edges;
-		}
-		else
-		{
-			end_index = dest_nodes_to_edges[i+1];
-		}
-		if(end_index - start_index <= max_count){
-			push_node(i, g->leaf_node_queue, &g->leaf_node_queue_start, &g->leaf_node_queue_end, g->current_num_vertices);
-		}
-	}
-}
-
-
-void push_node(int n, int * queue, int * start_index, int * end_index, int mod){
-	int i;
-
-	for(i = *start_index; i < *end_index; ++i){
-		if(queue[i % mod] == n){
-
-			return;
-		}
-	}
-
-	queue[*end_index % mod] = n;
-	*end_index += 1;
-}
-
-int pop_node(int * queue, int * start_index, int * end_index, int mod){
-	int i, n;
-	if(*start_index == *end_index){
-		return -1;
-	}
-	n = queue[*start_index % mod];
-	*start_index += 1;
-	return n;
-}
-
-void send_from_leaf_nodes(Graph_t g) {
-	int i, j, node_index, start_index, edge_index, end_index, num_vertices;
+void propagate_using_levels_start(Graph_t g){
+	int i, j, k, node_index, edge_index, level_start_index, level_end_index, start_index, end_index, num_vertices;
 	Node_t node;
 	Edge_t edge;
 
 	num_vertices = g->current_num_vertices;
 
-	fill_forward_buffer_with_leaf_nodes(g, 1);
-
-	while(g->leaf_node_queue_start != g->leaf_node_queue_end){
-		node_index = pop_node(g->leaf_node_queue, &g->leaf_node_queue_start, &g->leaf_node_queue_end, g->current_num_vertices);
+	level_start_index = g->levels_to_nodes[0];
+	if(1 == g->num_levels){
+		level_end_index = 2 * num_vertices;
+	}
+	else{
+		level_end_index = g->levels_to_nodes[1];
+	}
+	for(k = level_start_index; k < level_end_index; ++k){
+		node_index = g->levels_to_nodes[k];
 		node = &g->nodes[node_index];
 		//set as visited
 		g->visited[node_index] = 1;
@@ -251,29 +198,16 @@ void send_from_leaf_nodes(Graph_t g) {
 			g->visited[node_index] = 1;
 			edge_index = g->src_nodes_to_edges[i];
 			edge = &g->edges[edge_index];
-			/*printf("sending message on edge\n");
+			printf("sending message on edge\n");
 			print_edge(g, edge_index);
 			printf("message: [");
 			for(j = 0; j < node->num_variables; ++j){
 				printf("%.6lf\t", node->states[j]);
 			}
-			printf("]\n");*/
+			printf("]\n");
 			send_message(edge, node->states);
-			push_node(edge->dest_index, g->forward_queue, &g->forward_queue_start, &g->forward_queue_end, g->current_num_vertices);
 		}
 	}
-}
-
-void propagate(Graph_t g, int * src_queue, int * src_queue_start, int * src_queue_end, int * dest_queue, int * dest_queue_start, int * dest_queue_end){
-	int current_node_index;
-
-	while(*src_queue_start != *src_queue_end){
-		current_node_index = pop_node(src_queue, src_queue_start, src_queue_end, g->current_num_vertices);
-		printf("Visiting node:\n");
-		print_node(g, current_node_index);
-		propagate_node(g, current_node_index, src_queue, src_queue_start, src_queue_end, dest_queue, dest_queue_start, dest_queue_end);
-	}
-	printf("All done\n");
 }
 
 static void combine_message(double * dest, Edge_t src_edge, int length){
@@ -282,15 +216,15 @@ static void combine_message(double * dest, Edge_t src_edge, int length){
 
 	src = src_edge->message;
 	for(i = 0; i < length; ++i){
-        if(src[i] > 0) {
-            dest[i] = dest[i] * src[i];
-        }
+		if(src[i] > 0) {
+			dest[i] = dest[i] * src[i];
+		}
 	}
 }
 
-void propagate_node(Graph_t g, int current_node_index, int * src_queue, int * src_queue_start, int * src_queue_end, int * dest_queue, int * dest_queue_start, int * dest_queue_end){
+static void propagate_node_using_levels(Graph_t g, int current_node_index){
 	double message_buffer[MAX_STATES];
-	int i, j, num_variables, start_index, end_index, num_vertices, num_sent, edge_index;
+	int i, j, num_variables, start_index, end_index, num_vertices, edge_index;
 	Node_t node;
 	Edge_t edge;
 	int * dest_nodes_to_edges;
@@ -335,28 +269,35 @@ void propagate_node(Graph_t g, int current_node_index, int * src_queue, int * sr
 		end_index = src_nodes_to_edges[current_node_index + 1];
 	}
 
-	num_sent = 0;
-
 	for(i = start_index; i < end_index; ++i){
 		edge_index = src_nodes_to_edges[i];
 		edge = &g->edges[edge_index];
 		//ensure node hasn't been visited yet
 		if(g->visited[edge->dest_index] == 0){
-			/*printf("sending message on edge\n");
+			printf("sending message on edge\n");
 			print_edge(g, edge_index);
 			printf("message: [");
 			for(j = 0; j < num_variables; ++j){
 				printf("%.6lf\t", message_buffer[j]);
 			}
-			printf("]\n");*/
+			printf("]\n");
 			send_message(edge, message_buffer);
-			push_node(edge->dest_index, src_queue, src_queue_start, src_queue_end, g->current_num_vertices);
-			num_sent += 1;
 		}
 	}
+}
 
-	if(num_sent == 0){
-		push_node(current_node_index, dest_queue, dest_queue_start, dest_queue_end, g->current_num_vertices);
+void propagate_using_levels(Graph_t g, int current_level) {
+	int i, start_index, end_index;
+
+	start_index = g->levels_to_nodes[current_level];
+	if(current_level + 1 == g->num_levels){
+		end_index = 2 * g->current_num_vertices;
+	}
+	else{
+		end_index = g->levels_to_nodes[current_level + 1];
+	}
+	for(i = start_index; i < end_index; ++i){
+		propagate_node_using_levels(g, g->levels_to_nodes[i]);
 	}
 }
 
@@ -578,6 +519,105 @@ void init_previous_edge(Graph_t graph){
 			send_message(edge, node->states);
 		}
 	}
+}
+
+void fill_in_leaf_nodes_in_index(Graph_t graph, int * start_index, int * end_index, int max_count){
+    int i, diff, edge_start_index, edge_end_index;
+
+    graph->levels_to_nodes[0] = *start_index;
+    for(i = 0; i < graph->current_num_vertices; ++i){
+        edge_start_index = graph->dest_nodes_to_edges[i];
+        if(i + 1 == graph->current_num_vertices){
+            edge_end_index = graph->current_num_vertices + graph->current_num_edges;
+        }
+        else{
+            edge_end_index = graph->dest_nodes_to_edges[i + 1];
+        }
+		diff = edge_end_index - edge_start_index;
+
+        if(diff <= max_count){
+            graph->levels_to_nodes[*end_index] = i;
+            *end_index += 1;
+        }
+    }
+}
+
+void visit_node(Graph_t graph, int buffer_index, int * end_index){
+    int node_index, edge_start_index, edge_end_index, edge_index, i, j, dest_node_index;
+    Edge_t edge;
+	char visited;
+
+    node_index = graph->levels_to_nodes[buffer_index];
+    if(graph->visited[node_index] == 0){
+        graph->visited[node_index] = 1;
+        edge_start_index = graph->src_nodes_to_edges[node_index];
+        if(node_index == graph->current_num_vertices){
+            edge_end_index = graph->current_num_vertices + graph->current_num_edges;
+        }
+        else{
+            edge_end_index = graph->src_nodes_to_edges[node_index + 1];
+        }
+        for(i = edge_start_index; i < edge_end_index; ++i){
+			edge_index = graph->src_nodes_to_edges[i];
+            edge = &graph->edges[edge_index];
+            dest_node_index = edge->dest_index;
+            visited = 0;
+			for(j = graph->current_num_vertices; j < 2 * graph->current_num_vertices; ++j){
+				if(graph->levels_to_nodes[j] == dest_node_index){
+					visited = 1;
+					break;
+				}
+			}
+			if(visited == 0){
+				graph->levels_to_nodes[*end_index] = dest_node_index;
+				*end_index += 1;
+			}
+        }
+    }
+}
+
+void init_levels_to_nodes(Graph_t graph){
+    int start_index, end_index, copy_end_index, i;
+
+    reset_visited(graph);
+
+    start_index = graph->current_num_vertices;
+    end_index = start_index;
+
+    fill_in_leaf_nodes_in_index(graph, &start_index, &end_index, 2);
+    while(end_index < 2 * graph->current_num_vertices){
+        copy_end_index = end_index;
+        for(i = start_index; i < copy_end_index; ++i){
+            visit_node(graph, i, &end_index);
+        }
+        graph->num_levels += 1;
+        graph->levels_to_nodes[graph->num_levels] = copy_end_index;
+    }
+
+	graph->num_levels += 1;
+
+    reset_visited(graph);
+}
+
+void print_levels_to_nodes(Graph_t graph){
+    int i, j, start_index, end_index;
+
+    for(i = 0; i < graph->num_levels; ++i){
+        printf("Level: %d\n", i);
+        printf("---------------\n");
+        start_index = graph->levels_to_nodes[i];
+        if(i + 1 == graph->num_levels){
+            end_index = graph->current_num_vertices * 2;
+        }
+        else{
+            end_index = graph->levels_to_nodes[i + 1];
+        }
+        printf("Nodes:-----------\n");
+        for(j = start_index; j < end_index; ++j){
+            print_node(graph, graph->levels_to_nodes[j]);
+        }
+        printf("-------------------\n");
+    }
 }
 
 void loopy_propagate_one_iteration(Graph_t graph){

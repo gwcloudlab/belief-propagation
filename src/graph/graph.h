@@ -33,17 +33,8 @@ struct graph {
 	int * src_nodes_to_edges;
 	int * dest_nodes_to_edges;
 
-	int * leaf_node_queue;
-	int leaf_node_queue_start;
-	int leaf_node_queue_end;
-
-	int * forward_queue;
-	int forward_queue_start;
-	int forward_queue_end;
-
-	int * backward_queue;
-	int backward_queue_start;
-	int backward_queue_end;
+	int * levels_to_nodes;
+	int num_levels;
 
 	char * visited;
 	char * node_names;
@@ -67,6 +58,7 @@ void graph_add_edge(Graph_t, int, int, int, int, double **);
 
 void set_up_src_nodes_to_edges(Graph_t);
 void set_up_dest_nodes_to_edges(Graph_t);
+void init_levels_to_nodes(Graph_t);
 /**
  * Get the counts
  */
@@ -76,12 +68,10 @@ int graph_edge_count(Graph_t);
 /** free space **/
 void graph_destroy(Graph_t);
 
-void fill_forward_buffer_with_leaf_nodes(Graph_t, int);
-void push_node(int, int *, int *, int *, int);
-int pop_node(int *, int *, int *, int);
-void send_from_leaf_nodes(Graph_t);
-void propagate_node(Graph_t, int, int *, int *, int *, int *, int *, int *);
-void propagate(Graph_t, int *, int *, int *, int *, int *, int *);
+
+void propagate_using_levels_start(Graph_t);
+void propagate_using_levels(Graph_t, int);
+
 void reset_visited(Graph_t);
 
 void init_previous_edge(Graph_t);
@@ -96,5 +86,6 @@ void print_nodes(Graph_t);
 void print_edges(Graph_t);
 void print_src_nodes_to_edges(Graph_t);
 void print_dest_nodes_to_edges(Graph_t);
+void print_levels_to_nodes(Graph_t);
 
 #endif /* GRAPH_H_ */
