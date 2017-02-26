@@ -602,7 +602,8 @@ static void insert_edges_into_graph(char * variable_buffer, int num_node_names, 
 
 	dest = find_node_by_name(variable_buffer, graph);
 	slice = num_probabilities / dest->num_variables;
-/*
+
+    /*
 	printf("Values for sinK: %s\n", variable_buffer);
 	for(i = 0; i < num_probabilities; ++i){
 		printf("%.6lf\t", probability_buffer[i]);
@@ -611,15 +612,13 @@ static void insert_edges_into_graph(char * variable_buffer, int num_node_names, 
 		}
 	}
 	printf("\n");
- */
+*/
 	offset = 1;
-    delta = -1;
 	for(i = num_node_names - 1; i > 0; --i){
 		src = find_node_by_name(&(variable_buffer[i * CHAR_BUFFER_SIZE]), graph);
+        //printf("LOOKING AT src: %s\n", &(variable_buffer[i * CHAR_BUFFER_SIZE]));
 
-        if(delta == -1){
-            delta = src->num_variables;
-        }
+        delta = src->num_variables;
 
 		sub_graph = (double **)calloc(sizeof(double*), (size_t)src->num_variables);
 		transpose = (double **)calloc(sizeof(double*), (size_t)dest->num_variables);
@@ -637,6 +636,7 @@ static void insert_edges_into_graph(char * variable_buffer, int num_node_names, 
                 while(index <= slice) {
 					index = j * offset + diff;
 					next = (j + 1) * offset + diff;
+                    //printf("Current Index: %d; Next: %d; Delta: %d; Diff: %d\n", index, next, delta, diff);
                     while (index < next) {
                         sub_graph[j][k] += probability_buffer[index + k * slice];
                         index++;

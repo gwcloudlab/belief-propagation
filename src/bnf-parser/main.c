@@ -87,10 +87,10 @@ void test_parse_file(char * file_name){
     reset_visited(graph);
 
     propagate(graph, graph->backward_queue, &graph->backward_queue_start, &graph->backward_queue_end, graph->forward_queue, &graph->forward_queue_start, &graph->forward_queue_end);
-    marginalize(graph);
+
+	marginalize(graph);
 
     print_nodes(graph);
-
 
 	assert(graph != NULL);
 
