@@ -269,11 +269,11 @@ void propagate(Graph_t g, int * src_queue, int * src_queue_start, int * src_queu
 
 	while(*src_queue_start != *src_queue_end){
 		current_node_index = pop_node(src_queue, src_queue_start, src_queue_end, g->current_num_vertices);
-		//printf("Visiting node:\n");
-		//print_node(g, current_node_index);
+		printf("Visiting node:\n");
+		print_node(g, current_node_index);
 		propagate_node(g, current_node_index, src_queue, src_queue_start, src_queue_end, dest_queue, dest_queue_start, dest_queue_end);
 	}
-	//printf("All done\n");
+	printf("All done\n");
 }
 
 static void combine_message(double * dest, Edge_t src_edge, int length){
@@ -282,7 +282,9 @@ static void combine_message(double * dest, Edge_t src_edge, int length){
 
 	src = src_edge->message;
 	for(i = 0; i < length; ++i){
-		dest[i] = dest[i] * src[i];
+        if(src[i] > 0) {
+            dest[i] = dest[i] * src[i];
+        }
 	}
 }
 
