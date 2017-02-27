@@ -151,10 +151,18 @@ variable_values_list
 					strncpy(values_list->value, $1, CHAR_BUFFER_SIZE);
 					$$ = values_list;
 					}
+	| TOKEN_DECIMAL_LITERAL {struct expression * values_list = create_expression(VARIABLE_VALUES_LIST, NULL, NULL);
+                             					snprintf(values_list->value, CHAR_BUFFER_SIZE, "%d", $1);
+                             					$$ = values_list;
+	                        }
 	| variable_values_list TOKEN_WORD { struct expression * values_list = create_expression(VARIABLE_VALUES_LIST, $1, NULL);
 										strncpy(values_list->value, $2, CHAR_BUFFER_SIZE);
 										$$ = values_list;
 										}
+    | variable_values_list TOKEN_DECIMAL_LITERAL {struct expression * values_list = create_expression(VARIABLE_VALUES_LIST, $1, NULL);
+                                                                              					snprintf(values_list->value, CHAR_BUFFER_SIZE, "%d", $2);
+                                                                              					$$ = values_list;
+                                                 	                        }
 										
 probability_declaration
 	: TOKEN_PROBABILITY probability_variables_list probability_content { $$ = create_expression(PROBABILITY_DECLARATION, $2, $3); }
@@ -167,10 +175,18 @@ probability_names_list
 				   strncpy(names_list->value, $1, CHAR_BUFFER_SIZE);
 				   $$ = names_list;
 				   }
+	| TOKEN_DECIMAL_LITERAL {struct expression * names_list = create_expression(PROBABILITY_VARIABLE_NAMES, NULL, NULL);
+                             snprintf(names_list->value, CHAR_BUFFER_SIZE, "%d", $1);
+                            $$ = names_list;
+	                        }
 	| probability_names_list TOKEN_WORD {struct expression * names_list = create_expression(PROBABILITY_VARIABLE_NAMES, $1, NULL);
 										   strncpy(names_list->value, $2, CHAR_BUFFER_SIZE);
 										   $$ = names_list;
 										}
+	| probability_names_list TOKEN_DECIMAL_LITERAL {struct expression * names_list = create_expression(PROBABILITY_VARIABLE_NAMES, $1, NULL);
+                                                                                snprintf(names_list->value, CHAR_BUFFER_SIZE, "%d", $2);
+                                                                               $$ = names_list;
+                                                   	                        }
 										
 probability_content
 	: TOKEN_L_CURLY_BRACE TOKEN_R_CURLY_BRACE {}
@@ -200,10 +216,20 @@ probability_values
 					strncpy(values_list->value, $1, CHAR_BUFFER_SIZE); 
 					$$ = values_list; 
 					}
+    | TOKEN_DECIMAL_LITERAL {
+                            struct expression * values_list = create_expression(PROBABILITY_VALUES, NULL, NULL);
+                            					snprintf(values_list->value, CHAR_BUFFER_SIZE, "%d", $1);
+                            					$$ = values_list;
+    					}
 	| probability_values TOKEN_WORD { struct expression * values_list = create_expression(PROBABILITY_VALUES, $1, NULL);
 										strncpy(values_list->value, $2, CHAR_BUFFER_SIZE);
 										$$ = values_list;
 										}
+	| probability_values TOKEN_DECIMAL_LITERAL {
+                                                                           struct expression * values_list = create_expression(PROBABILITY_VALUES, $1, NULL);
+                                                                           					snprintf(values_list->value, CHAR_BUFFER_SIZE, "%d", $1);
+                                                                           					$$ = values_list;
+                                                   					}
 
 probability_table
 	: TOKEN_TABLEVALUES floating_point_list TOKEN_SEMICOLON { $$ = create_expression(PROBABILITY_TABLE, $2, NULL); }

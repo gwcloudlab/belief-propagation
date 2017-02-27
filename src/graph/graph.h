@@ -16,11 +16,11 @@
 #include "../edge/edge.h"
 
 struct graph {
-	int total_num_vertices;
-	int total_num_edges;
+	unsigned int total_num_vertices;
+	unsigned int total_num_edges;
 
-	int current_num_vertices;
-	int current_num_edges;
+	unsigned int current_num_vertices;
+	unsigned int current_num_edges;
 
 	Edge_t edges;
 	Edge_t prev_edges;
@@ -30,11 +30,11 @@ struct graph {
 
 	Node_t nodes;
 
-	int * src_nodes_to_edges;
-	int * dest_nodes_to_edges;
+	unsigned int * src_nodes_to_edges;
+	unsigned int * dest_nodes_to_edges;
 
-	int * levels_to_nodes;
-	int num_levels;
+	unsigned int * levels_to_nodes;
+	unsigned int num_levels;
 
 	char * visited;
 	char * node_names;
@@ -48,13 +48,13 @@ struct graph {
 typedef struct graph* Graph_t;
 
 /** create a new graph with n vertices labeled 0 to n-1 and no edges */
-Graph_t create_graph(int, int);
+Graph_t create_graph(unsigned int, unsigned int);
 
-void graph_add_node(Graph_t, int, const char *);
-void graph_add_and_set_node_state(Graph_t, int, const char *, double *);
-void graph_set_node_state(Graph_t, int, int, double *);
+void graph_add_node(Graph_t, unsigned int, const char *);
+void graph_add_and_set_node_state(Graph_t, unsigned int, const char *, double *);
+void graph_set_node_state(Graph_t, unsigned int, unsigned int, double *);
 
-void graph_add_edge(Graph_t, int, int, int, int, double **);
+void graph_add_edge(Graph_t, unsigned int, unsigned int, unsigned int, unsigned int, double **);
 
 void set_up_src_nodes_to_edges(Graph_t);
 void set_up_dest_nodes_to_edges(Graph_t);
@@ -70,18 +70,18 @@ void graph_destroy(Graph_t);
 
 
 void propagate_using_levels_start(Graph_t);
-void propagate_using_levels(Graph_t, int);
+void propagate_using_levels(Graph_t, unsigned int);
 
 void reset_visited(Graph_t);
 
 void init_previous_edge(Graph_t);
 void loopy_propagate_one_iteration(Graph_t);
-void loopy_propagate_until(Graph_t, double convergence, int max_iterations);
+void loopy_propagate_until(Graph_t, double convergence, unsigned int max_iterations);
 
 void marginalize(Graph_t);
 
-void print_node(Graph_t, int);
-void print_edge(Graph_t, int);
+void print_node(Graph_t, unsigned int);
+void print_edge(Graph_t, unsigned int);
 void print_nodes(Graph_t);
 void print_edges(Graph_t);
 void print_src_nodes_to_edges(Graph_t);

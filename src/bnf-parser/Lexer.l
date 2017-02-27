@@ -43,7 +43,7 @@ BLOCK_COMMENT [/][*][^*]*\*([^/][^*]*\*)*[/]
 
 WORD [0-9]*[a-zA-Z_\-]+[0-9a-zA-Z_\-]*
 
-DECIMAL_LITERAL [1-9][0-9]*
+DECIMAL_LITERAL [0-9]+
 EXPONENT [eE][+\-]?[0-9]+
 FLOATING_POINT_LITERAL ([0-9]+\.[0-9]+({EXPONENT})?)|(\.[0-9]+({EXPONENT})?)|([0-9]+({EXPONENT}))
 

@@ -3,7 +3,7 @@
 
 #include "edge.h"
 
-Edge_t create_edge(int edge_index, int src_index, int dest_index, int dim_x, int dim_y, double ** joint_probabilities) {
+Edge_t create_edge(unsigned int edge_index, unsigned int src_index, unsigned int dest_index, unsigned int dim_x, unsigned int dim_y, double ** joint_probabilities) {
 	Edge_t e;
 
 	e = (Edge_t)malloc(sizeof(struct edge));
@@ -14,7 +14,7 @@ Edge_t create_edge(int edge_index, int src_index, int dest_index, int dim_x, int
 	return e;
 }
 
-void init_edge(Edge_t e, int edge_index, int src_index, int dest_index, int dim_x, int dim_y, double ** joint_probabilities){
+void init_edge(Edge_t e, unsigned int edge_index, unsigned int src_index, unsigned int dest_index, unsigned int dim_x, unsigned int dim_y, double ** joint_probabilities){
 	int i, j;
 
 	assert(src_index >= 0);
@@ -45,7 +45,7 @@ void destroy_edge(Edge_t edge) {
 }
 
 void send_message(Edge_t edge, double * message) {
-	int i, j, num_src, num_dest;
+	unsigned int i, j, num_src, num_dest;
 	double sum;
 
 	num_src = edge->x_dim;
