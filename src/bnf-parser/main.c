@@ -55,7 +55,7 @@ void test_file(const char * file_path)
 }
 
 void test_parse_file(char * file_name){
-	int i;
+	unsigned int i;
 	struct expression * expression;
 	yyscan_t scanner;
 	YY_BUFFER_STATE state;
