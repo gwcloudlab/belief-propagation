@@ -120,3 +120,4 @@ dkms.conf
 
 *.cmake
 Makefile
+CMakeCache.txt
