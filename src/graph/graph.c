@@ -642,7 +642,7 @@ void loopy_propagate_one_iteration(Graph_t graph){
 	dest_node_to_edges = graph->dest_nodes_to_edges;
 	src_node_to_edges = graph->src_nodes_to_edges;
 
-	//#pragma omp parallel for shared(graph, previous, current, num_vertices, dest_node_to_edges, src_node_to_edges) private(node, edge, start_index, end_index, edge_index, num_variables)
+	//#pragma omp parallel for shared(graph, previous, current, num_vertices, dest_node_to_edges, src_node_to_edges) private(node, edge, start_index, end_index, edge_index, num_variables, message_buffer)
 	for(i = 0; i < num_vertices; ++i){
 		node = &graph->nodes[i];
 		num_variables = node->num_variables;
