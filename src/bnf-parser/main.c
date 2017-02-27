@@ -234,7 +234,7 @@ void run_test_loopy_belief_propagation(struct expression * expression, const cha
     start = clock();
     init_previous_edge(graph);
 
-    loopy_propagate_until(graph, 1E-16, 10000);
+    loopy_propagate_until(graph, 1E-16, 100000);
     end = clock();
 
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
