@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <assert.h>
+#include <time.h>
 
 #include "expression.h"
 #include "Parser.h"
@@ -60,6 +61,8 @@ void test_parse_file(char * file_name){
 	YY_BUFFER_STATE state;
 	FILE * in;
 	Graph_t graph;
+	clock_t start, end;
+	double time_elapsed;
 
 	assert(yylex_init(&scanner) == 0);
 
@@ -76,13 +79,15 @@ void test_parse_file(char * file_name){
 	assert(expression != NULL);
 
 	graph = build_graph(expression);
-	print_nodes(graph);
-	print_edges(graph);
+	//print_nodes(graph);
+	//print_edges(graph);
 
     set_up_src_nodes_to_edges(graph);
     set_up_dest_nodes_to_edges(graph);
+
+	start = clock();
 	init_levels_to_nodes(graph);
-	print_levels_to_nodes(graph);
+	//print_levels_to_nodes(graph);
 
 	propagate_using_levels_start(graph);
 	for(i = 1; i < graph->num_levels - 1; ++i){
@@ -94,8 +99,12 @@ void test_parse_file(char * file_name){
 	}
 
 	marginalize(graph);
+	end = clock();
 
-    print_nodes(graph);
+	time_elapsed = (double)(end - start) / CLOCKS_PER_SEC;
+	printf("%s,regular,%d,%d,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, time_elapsed);
+
+    //print_nodes(graph);
 
 	assert(graph != NULL);
 
@@ -110,6 +119,8 @@ void test_loopy_belief_propagation(char * file_name){
 		YY_BUFFER_STATE state;
 		FILE * in;
 		Graph_t graph;
+		clock_t start, end;
+		double time_elapsed;
 
 		assert(yylex_init(&scanner) == 0);
 
@@ -126,19 +137,22 @@ void test_loopy_belief_propagation(char * file_name){
 		assert(expression != NULL);
 
 		graph = build_graph(expression);
-		print_nodes(graph);
-		print_edges(graph);
+		assert(graph != NULL);
+		//print_nodes(graph);
+		//print_edges(graph);
 
 		set_up_src_nodes_to_edges(graph);
 		set_up_dest_nodes_to_edges(graph);
 
+		start = clock();
 		init_previous_edge(graph);
 
-		loopy_propagate_until(graph, 1E-3, 10000);
+		loopy_propagate_until(graph, 1E-15, 10000);
+		end = clock();
 
-		print_nodes(graph);
-
-		assert(graph != NULL);
+		time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
+		//print_nodes(graph);
+		printf("%s,loopy,%d,%d,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, time_elapsed);
 
 		delete_expression(expression);
 
