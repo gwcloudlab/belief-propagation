@@ -11,18 +11,18 @@
 #include "../node/node.h"
 
 struct edge {
-	int edge_index;
-	int src_index;
-	int dest_index;
-	int x_dim;
-	int y_dim;
+	unsigned int edge_index;
+	unsigned int src_index;
+	unsigned int dest_index;
+	unsigned int x_dim;
+	unsigned int y_dim;
 	double joint_probabilities[MAX_STATES][MAX_STATES];
 	double message[MAX_STATES];
 };
 typedef struct edge* Edge_t;
 
-Edge_t create_edge(int, int, int, int, int, double **);
-void init_edge(Edge_t, int, int, int, int, int, double **);
+Edge_t create_edge(unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, double **);
+void init_edge(Edge_t, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, double **);
 void destroy_edge(Edge_t);
 void send_message(Edge_t, double *);
 

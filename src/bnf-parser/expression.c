@@ -325,7 +325,7 @@ static void fill_in_probability_table_entry(struct expression * expr, double * p
 
     if(expr->type == FLOATING_POINT_LIST){
 		index = (num_states - *current_index - 1) * jump + pos;
-		assert(index < num_probabilities);
+		index = index % num_probabilities;
 		probability_buffer[index] = expr->double_value;
         *current_index += 1;
     }
@@ -774,9 +774,11 @@ static void reverse_node_names(Graph_t graph){
 		for(j = 0; j < curr_node->num_variables/2; ++j){
 			index_1 = i * MAX_STATES * CHAR_BUFFER_SIZE + j * CHAR_BUFFER_SIZE;
 			index_2 = i * MAX_STATES * CHAR_BUFFER_SIZE + (curr_node->num_variables / 2 - j) * CHAR_BUFFER_SIZE;
-			strncpy(temp, &(graph->variable_names[index_1]), CHAR_BUFFER_SIZE);
-			strncpy(&(graph->variable_names[index_1]), &(graph->variable_names[index_2]), CHAR_BUFFER_SIZE);
-			strncpy(&(graph->variable_names[index_2]), temp, CHAR_BUFFER_SIZE);
+			if(index_1 != index_2) {
+				strncpy(temp, &(graph->variable_names[index_1]), CHAR_BUFFER_SIZE);
+				strncpy(&(graph->variable_names[index_1]), &(graph->variable_names[index_2]), CHAR_BUFFER_SIZE);
+				strncpy(&(graph->variable_names[index_2]), temp, CHAR_BUFFER_SIZE);
+			}
 		}
 	}
 }

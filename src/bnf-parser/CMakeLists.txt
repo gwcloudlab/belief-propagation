@@ -1,8 +1,9 @@
 cmake_minimum_required(VERSION 2.8)
 find_package(FLEX REQUIRED)
 find_package(BISON REQUIRED)
+find_package(OpenMP REQUIRED)
 
-set(CMAKE_C_FLAGS_RELEASE "-O3")
+set(CMAKE_C_FLAGS_RELEASE "-O3 ${OpenMP_C_FLAGS}")
 
 project(test-expression)
 BISON_TARGET(Parser Parser.y ${CMAKE_CURRENT_SOURCE_DIR}/Parser.c)

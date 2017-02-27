@@ -6,7 +6,7 @@
 #include "graph.h"
 
 Graph_t
-create_graph(int num_vertices, int num_edges)
+create_graph(unsigned int num_vertices, unsigned int num_edges)
 {
 	Graph_t g;
 
@@ -18,9 +18,9 @@ create_graph(int num_vertices, int num_edges)
 	assert(g->prev_edges);
 	g->nodes = (Node_t)malloc(sizeof(struct node) * num_vertices);
 	assert(g->nodes);
-	g->src_nodes_to_edges = (int *)malloc(sizeof(int) * (num_vertices + num_edges));
+	g->src_nodes_to_edges = (unsigned int *)malloc(sizeof(unsigned int) * (num_vertices + num_edges));
 	assert(g->src_nodes_to_edges);
-	g->dest_nodes_to_edges = (int *)malloc(sizeof(int) * (num_vertices + num_edges));
+	g->dest_nodes_to_edges = (unsigned int *)malloc(sizeof(unsigned int) * (num_vertices + num_edges));
 	assert(g->dest_nodes_to_edges);
 	g->node_names = (char *)malloc(sizeof(char) * CHAR_BUFFER_SIZE * num_vertices);
 	assert(g->node_names);
@@ -30,7 +30,7 @@ create_graph(int num_vertices, int num_edges)
 	assert(g->observed_nodes);
 	g->variable_names = (char *)calloc(sizeof(char), (size_t)num_vertices * CHAR_BUFFER_SIZE * MAX_STATES);
 	assert(g->variable_names);
-    g->levels_to_nodes = (int *)malloc(sizeof(int) * 2 * num_vertices);
+    g->levels_to_nodes = (unsigned int *)malloc(sizeof(unsigned int) * 2 * num_vertices);
     assert(g->levels_to_nodes != NULL);
     g->num_levels = 0;
 	g->total_num_vertices = num_vertices;
@@ -42,8 +42,8 @@ create_graph(int num_vertices, int num_edges)
 	return g;
 }
 
-void graph_add_node(Graph_t g, int num_variables, const char * name) {
-	int node_index;
+void graph_add_node(Graph_t g, unsigned int num_variables, const char * name) {
+	unsigned int node_index;
 
 	node_index = g->current_num_vertices;
 
@@ -53,8 +53,8 @@ void graph_add_node(Graph_t g, int num_variables, const char * name) {
 	g->current_num_vertices += 1;
 }
 
-void graph_add_and_set_node_state(Graph_t g, int num_variables, const char * name, double * state){
-	int node_index;
+void graph_add_and_set_node_state(Graph_t g, unsigned int num_variables, const char * name, double * state){
+	unsigned int node_index;
 
 	node_index = g->current_num_vertices;
 
@@ -63,7 +63,7 @@ void graph_add_and_set_node_state(Graph_t g, int num_variables, const char * nam
 	node_set_state(&g->nodes[node_index], num_variables, state);
 }
 
-void graph_set_node_state(Graph_t g, int node_index, int num_states, double * state){
+void graph_set_node_state(Graph_t g, unsigned int node_index, unsigned int num_states, double * state){
 	Node_t node;
 
 	assert(node_index < g->current_num_vertices);
@@ -77,8 +77,8 @@ void graph_set_node_state(Graph_t g, int node_index, int num_states, double * st
 	node_set_state(node, num_states, state);
 }
 
-void graph_add_edge(Graph_t graph, int src_index, int dest_index, int dim_x, int dim_y, double ** joint_probabilities) {
-	int edge_index;
+void graph_add_edge(Graph_t graph, unsigned int src_index, unsigned int dest_index, unsigned int dim_x, unsigned int dim_y, double ** joint_probabilities) {
+	unsigned int edge_index;
 
 	edge_index = graph->current_num_edges;
 
@@ -93,7 +93,7 @@ void graph_add_edge(Graph_t graph, int src_index, int dest_index, int dim_x, int
 }
 
 void set_up_src_nodes_to_edges(Graph_t graph){
-	int i, j, edge_index, num_vertices, num_edges;
+	unsigned int i, j, edge_index, num_vertices, num_edges;
 	Edge_t edge = NULL;
 
 	assert(graph->current_num_vertices == graph->total_num_vertices);
@@ -118,7 +118,7 @@ void set_up_src_nodes_to_edges(Graph_t graph){
 }
 
 void set_up_dest_nodes_to_edges(Graph_t graph){
-	int i, j, edge_index, num_vertices, num_edges;
+	unsigned int i, j, edge_index, num_vertices, num_edges;
 	Edge_t edge = NULL;
 	Node_t node = NULL;
 
@@ -167,7 +167,7 @@ void graph_destroy(Graph_t g) {
 }
 
 void propagate_using_levels_start(Graph_t g){
-	int i, j, k, node_index, edge_index, level_start_index, level_end_index, start_index, end_index, num_vertices;
+	unsigned int i, j, k, node_index, edge_index, level_start_index, level_end_index, start_index, end_index, num_vertices;
 	Node_t node;
 	Edge_t edge;
 
@@ -212,7 +212,7 @@ void propagate_using_levels_start(Graph_t g){
 	}
 }
 
-static void combine_message(double * dest, Edge_t src_edge, int length){
+static void combine_message(double * dest, Edge_t src_edge, unsigned int length){
 	int i;
 	double * src;
 
@@ -224,13 +224,13 @@ static void combine_message(double * dest, Edge_t src_edge, int length){
 	}
 }
 
-static void propagate_node_using_levels(Graph_t g, int current_node_index){
+static void propagate_node_using_levels(Graph_t g, unsigned int current_node_index){
 	double message_buffer[MAX_STATES];
-	int i, j, num_variables, start_index, end_index, num_vertices, edge_index;
+	unsigned int i, j, num_variables, start_index, end_index, num_vertices, edge_index;
 	Node_t node;
 	Edge_t edge;
-	int * dest_nodes_to_edges;
-	int * src_nodes_to_edges;
+	unsigned int * dest_nodes_to_edges;
+	unsigned int * src_nodes_to_edges;
 
 	node = &g->nodes[current_node_index];
 	num_variables = node->num_variables;
@@ -290,8 +290,8 @@ static void propagate_node_using_levels(Graph_t g, int current_node_index){
 	}
 }
 
-void propagate_using_levels(Graph_t g, int current_level) {
-	int i, start_index, end_index;
+void propagate_using_levels(Graph_t g, unsigned int current_level) {
+	unsigned int i, start_index, end_index;
 
 	start_index = g->levels_to_nodes[current_level];
 	if(current_level + 1 == g->num_levels){
@@ -300,19 +300,20 @@ void propagate_using_levels(Graph_t g, int current_level) {
 	else{
 		end_index = g->levels_to_nodes[current_level + 1];
 	}
+	//#pragma omp parallel for shared(g, start_index, end_index) private(i)
 	for(i = start_index; i < end_index; ++i){
 		propagate_node_using_levels(g, g->levels_to_nodes[i]);
 	}
 }
 
-static void marginalize_node(Graph_t g, int node_index, Edge_t edges){
-	int i, num_variables, start_index, end_index, edge_index;
+static void marginalize_node(Graph_t g, unsigned int node_index, Edge_t edges){
+	unsigned int i, num_variables, start_index, end_index, edge_index;
 	char has_incoming;
 	Edge_t edge;
 	Node_t node;
 	double sum;
 
-	int * dest_nodes_to_edges;
+	unsigned int * dest_nodes_to_edges;
 
 	dest_nodes_to_edges = g->dest_nodes_to_edges;
 
@@ -363,7 +364,7 @@ static void marginalize_node(Graph_t g, int node_index, Edge_t edges){
 }
 
 void marginalize(Graph_t g){
-	int i, num_nodes;
+	unsigned int i, num_nodes;
 	Edge_t edges;
 
 	num_nodes = g->current_num_vertices;
@@ -375,7 +376,7 @@ void marginalize(Graph_t g){
 }
 
 void reset_visited(Graph_t g){
-	int i, num_nodes;
+	unsigned int i, num_nodes;
 
 	num_nodes = g->current_num_vertices;
 	for(i = 0; i < num_nodes; ++i){
@@ -384,8 +385,8 @@ void reset_visited(Graph_t g){
 }
 
 
-void print_node(Graph_t graph, int node_index){
-	int i, num_vars, variable_name_index;
+void print_node(Graph_t graph, unsigned int node_index){
+	unsigned int i, num_vars, variable_name_index;
 	double * states;
 	Node_t n;
 
@@ -401,8 +402,8 @@ void print_node(Graph_t graph, int node_index){
 	printf("]\n");
 }
 
-void print_edge(Graph_t graph, int edge_index){
-	int i, j, dim_x, dim_y;
+void print_edge(Graph_t graph, unsigned int edge_index){
+	unsigned int i, j, dim_x, dim_y;
 	Edge_t e;
 
 	e = &graph->edges[edge_index];
@@ -421,7 +422,7 @@ void print_edge(Graph_t graph, int edge_index){
 }
 
 void print_nodes(Graph_t g){
-	int i, num_nodes;
+	unsigned int i, num_nodes;
 
 	num_nodes = g->current_num_vertices;
 
@@ -431,7 +432,7 @@ void print_nodes(Graph_t g){
 }
 
 void print_edges(Graph_t g){
-	int i, num_edges;
+	unsigned int i, num_edges;
 
 	num_edges = g->current_num_edges;
 
@@ -440,8 +441,8 @@ void print_edges(Graph_t g){
 	}
 }
 void print_src_nodes_to_edges(Graph_t g){
-	int i, j, start_index, end_index, num_vertices, edge_index;
-	int * src_node_to_edges;
+	unsigned int i, j, start_index, end_index, num_vertices, edge_index;
+	unsigned int * src_node_to_edges;
 
 	printf("src index -> edge index\n");
 
@@ -468,8 +469,8 @@ void print_src_nodes_to_edges(Graph_t g){
 	}
 }
 void print_dest_nodes_to_edges(Graph_t g){
-	int i, j, start_index, end_index, num_vertices, edge_index;
-	int * dest_node_to_edges;
+	unsigned int i, j, start_index, end_index, num_vertices, edge_index;
+	unsigned int * dest_node_to_edges;
 
 	printf("dest index -> edge index\n");
 
@@ -496,8 +497,8 @@ void print_dest_nodes_to_edges(Graph_t g){
 }
 
 void init_previous_edge(Graph_t graph){
-	int i, j, num_vertices, start_index, end_index, edge_index;
-	int * src_node_to_edges;
+	unsigned int i, j, num_vertices, start_index, end_index, edge_index;
+	unsigned int * src_node_to_edges;
 	Edge_t edge, previous;
 	Node_t node;
 
@@ -525,8 +526,8 @@ void init_previous_edge(Graph_t graph){
 	}
 }
 
-void fill_in_leaf_nodes_in_index(Graph_t graph, int * start_index, int * end_index, int max_count){
-    int i, diff, edge_start_index, edge_end_index;
+void fill_in_leaf_nodes_in_index(Graph_t graph, unsigned int * start_index, unsigned int * end_index, unsigned int max_count){
+	unsigned int i, diff, edge_start_index, edge_end_index;
 
     graph->levels_to_nodes[0] = *start_index;
     for(i = 0; i < graph->current_num_vertices; ++i){
@@ -546,8 +547,8 @@ void fill_in_leaf_nodes_in_index(Graph_t graph, int * start_index, int * end_ind
     }
 }
 
-void visit_node(Graph_t graph, int buffer_index, int * end_index){
-    int node_index, edge_start_index, edge_end_index, edge_index, i, j, dest_node_index;
+void visit_node(Graph_t graph, unsigned int buffer_index, unsigned int * end_index){
+	unsigned int node_index, edge_start_index, edge_end_index, edge_index, i, j, dest_node_index;
     Edge_t edge;
 	char visited;
 
@@ -566,7 +567,7 @@ void visit_node(Graph_t graph, int buffer_index, int * end_index){
             edge = &graph->edges[edge_index];
             dest_node_index = edge->dest_index;
             visited = 0;
-			for(j = graph->current_num_vertices; j < 2 * graph->current_num_vertices; ++j){
+			for(j = graph->current_num_vertices; j < *end_index; ++j){
 				if(graph->levels_to_nodes[j] == dest_node_index){
 					visited = 1;
 					break;
@@ -581,7 +582,7 @@ void visit_node(Graph_t graph, int buffer_index, int * end_index){
 }
 
 void init_levels_to_nodes(Graph_t graph){
-    int start_index, end_index, copy_end_index, i;
+	unsigned int start_index, end_index, copy_end_index, i;
 
     reset_visited(graph);
 
@@ -604,7 +605,7 @@ void init_levels_to_nodes(Graph_t graph){
 }
 
 void print_levels_to_nodes(Graph_t graph){
-    int i, j, start_index, end_index;
+	unsigned int i, j, start_index, end_index;
 
     for(i = 0; i < graph->num_levels; ++i){
         printf("Level: %d\n", i);
@@ -625,9 +626,9 @@ void print_levels_to_nodes(Graph_t graph){
 }
 
 void loopy_propagate_one_iteration(Graph_t graph){
-	int i, j, num_variables, num_vertices, start_index, end_index, edge_index;
-	int * dest_node_to_edges;
-	int * src_node_to_edges;
+	unsigned int i, j, num_variables, num_vertices, start_index, end_index, edge_index;
+	unsigned int * dest_node_to_edges;
+	unsigned int * src_node_to_edges;
 	Node_t node;
 	Edge_t edge, previous, current;
 	Edge_t * temp;
@@ -641,6 +642,7 @@ void loopy_propagate_one_iteration(Graph_t graph){
 	dest_node_to_edges = graph->dest_nodes_to_edges;
 	src_node_to_edges = graph->src_nodes_to_edges;
 
+	//#pragma omp parallel for shared(graph, previous, current, num_vertices, dest_node_to_edges, src_node_to_edges) private(node, edge, start_index, end_index, edge_index, num_variables)
 	for(i = 0; i < num_vertices; ++i){
 		node = &graph->nodes[i];
 		num_variables = node->num_variables;
@@ -702,8 +704,8 @@ void loopy_propagate_one_iteration(Graph_t graph){
 	graph->current = temp;
 }
 
-void loopy_propagate_until(Graph_t graph, double convergence, int max_iterations){
-	int i, j, k, num_nodes;
+void loopy_propagate_until(Graph_t graph, double convergence, unsigned int max_iterations){
+	unsigned int i, j, k, num_nodes;
 	Edge_t previous_edges, previous, current, current_edges;
 	double delta, diff, previous_delta;
 
