@@ -82,7 +82,7 @@ typedef void* yyscan_t;
 
 union YYSTYPE
 {
-#line 33 "Parser.y" /* yacc.c:1909  */
+#line 34 "Parser.y" /* yacc.c:1909  */
 
 	char word[50];
 	int int_value;
@@ -95,6 +95,20 @@ union YYSTYPE
 typedef union YYSTYPE YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define YYSTYPE_IS_DECLARED 1
+#endif
+
+/* Location type.  */
+#if ! defined YYLTYPE && ! defined YYLTYPE_IS_DECLARED
+typedef struct YYLTYPE YYLTYPE;
+struct YYLTYPE
+{
+  int first_line;
+  int first_column;
+  int last_line;
+  int last_column;
+};
+# define YYLTYPE_IS_DECLARED 1
+# define YYLTYPE_IS_TRIVIAL 1
 #endif
 
 

@@ -148,6 +148,7 @@ void test_loopy_belief_propagation(char * file_name){
 
 int main(void)
 {
+/*
 	extern int yydebug;
 	yydebug = 1;
 
@@ -158,9 +159,15 @@ int main(void)
   	test_parse_file("dog.bif");
 	test_parse_file("alarm.bif");
 
+	test_parse_file("very_large/andes.bif");
+	test_loopy_belief_propagation("very_large/andes.bif");
+*/
+	test_parse_file("Diabetes.bif");
+	test_loopy_belief_propagation("Diabetes.bif");
+/*
 	test_loopy_belief_propagation("dog.bif");
 	test_loopy_belief_propagation("alarm.bif");
-
+*/
 	//test_file("dog.bif");
 	//test_file("alarm.bif");
 

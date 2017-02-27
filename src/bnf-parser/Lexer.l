@@ -5,6 +5,8 @@
 #include "expression.h"
 #include "Parser.h"
 
+#define YY_USER_ACTION yylloc->first_line = yylineno; yylloc->first_column = yycolumn; yycolumn=yycolumn+yyleng; yylloc->last_column=yycolumn;  yylloc->last_line = yylineno;
+
 %}
 
 %option outfile="Lexer.c" header-file="Lexer.h"
@@ -12,7 +14,8 @@
  
 %option reentrant noyywrap never-interactive nounistd
 %option bison-bridge
-
+%option bison-locations
+%option yylineno
 
 NETWORK "network"
 VARIABLE "variable"
@@ -38,11 +41,11 @@ SINGLE_LINE_COMMENT [/]{2}[^\n\r]*(\n|\r\n)
 BLOCK_COMMENT [/][*][^*]*\*([^/][^*]*\*)*[/]
 
 
-WORD [a-zA-Z_-][a-zA-Z0-9_-]*
+WORD [0-9]*[a-zA-Z_\-]+[0-9a-zA-Z_\-]*
 
 DECIMAL_LITERAL [1-9][0-9]*
-EXPONENT [eE][+-]?[0-9]+
-FLOATING_POINT_LITERAL ([0-9]+\.[0-9]*(EXPONENT)?)|(\.[0-9]+(EXPONENT)?)|([0-9]+(EXPONENT))
+EXPONENT [eE][+\-]?[0-9]+
+FLOATING_POINT_LITERAL ([0-9]+\.[0-9]+({EXPONENT})?)|(\.[0-9]+({EXPONENT})?)|([0-9]+({EXPONENT}))
 
 %%
 
@@ -75,6 +78,6 @@ FLOATING_POINT_LITERAL ([0-9]+\.[0-9]*(EXPONENT)?)|(\.[0-9]+(EXPONENT)?)|([0-9]+
 %%
 
 static int yyerror(const char* msg) {
-	fprintf(stderr, "Error:%s\n", msg);
+	fprintf(stderr, "Error: %s\n", msg);
 	return 0;
 }
