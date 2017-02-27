@@ -186,7 +186,7 @@ void run_test_belief_propagation(struct expression * expression, const char * fi
     Graph_t graph;
     clock_t start, end;
     double time_elapsed;
-    int i;
+    unsigned int i;
 
     graph = build_graph(expression);
 	assert(graph != NULL);
@@ -244,8 +244,8 @@ void run_test_loopy_belief_propagation(struct expression * expression, const cha
     graph_destroy(graph);
 }
 
-void run_tests_with_file(const char * file_name, int num_iterations){
-    int i;
+void run_tests_with_file(const char * file_name, unsigned int num_iterations){
+    unsigned int i;
     struct expression * expr;
 
     expr = parse_file(file_name);
