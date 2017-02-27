@@ -6,8 +6,8 @@
 
 #define YYDEBUG 1
 
-int yyerror(struct expression ** expression, yyscan_t scanner, const char *msg){
-	fprintf(stderr, "Error:%s\n", msg);
+int yyerror(YYLTYPE * yyltype, struct expression ** expression, yyscan_t scanner, const char *msg){
+	fprintf(stderr, "Error on line: %d and column: %d: %s\n", yyltype->last_line, yyltype->last_column, msg);
 	return 0;
 }
 
@@ -26,6 +26,7 @@ typedef void* yyscan_t;
 %defines "Parser.h"
 
 %define api.pure
+%locations
 %lex-param   { yyscan_t scanner }
 %parse-param { struct expression ** expression }
 %parse-param { yyscan_t scanner }
@@ -212,8 +213,18 @@ floating_point_list
 									 fp_list->double_value = $1;
 									 $$ = fp_list;
 									}
+	| TOKEN_DECIMAL_LITERAL         {struct expression * fp_list = create_expression(FLOATING_POINT_LIST, NULL, NULL);
+                                     									 fp_list->double_value = (double)$1;
+                                     									 $$ = fp_list;
+	                                }
 	| floating_point_list TOKEN_FLOATING_POINT_LITERAL {
 	                                                    struct expression * fp_list = create_expression(FLOATING_POINT_LIST, $1, NULL);
 														 fp_list->double_value = $2;
 														 $$ = fp_list;
-														}		  																																															
+														}
+
+    | floating_point_list TOKEN_DECIMAL_LITERAL {
+                                                            struct expression * fp_list = create_expression(FLOATING_POINT_LIST, $1, NULL);
+                                                             fp_list->double_value = (double)$2;
+                                                             $$ = fp_list;
+                                                            }
