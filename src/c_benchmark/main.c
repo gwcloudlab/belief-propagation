@@ -2,9 +2,9 @@
 #include <assert.h>
 #include <time.h>
 
-#include "expression.h"
-#include "Parser.h"
-#include "Lexer.h"
+#include "../bnf-parser/expression.h"
+#include "../bnf-parser/Parser.h"
+#include "../bnf-parser/Lexer.h"
 
 int yyparse(struct expression ** expr, yyscan_t scanner);
 
