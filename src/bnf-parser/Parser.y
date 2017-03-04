@@ -227,7 +227,7 @@ probability_values
 										}
 	| probability_values TOKEN_DECIMAL_LITERAL {
                                                                            struct expression * values_list = create_expression(PROBABILITY_VALUES, $1, NULL);
-                                                                           					snprintf(values_list->value, CHAR_BUFFER_SIZE, "%d", $1);
+                                                                           					snprintf(values_list->value, CHAR_BUFFER_SIZE, "%d", $2);
                                                                            					$$ = values_list;
                                                    					}
 
