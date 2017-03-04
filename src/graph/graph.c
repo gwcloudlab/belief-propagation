@@ -746,10 +746,21 @@ void loopy_propagate_until(Graph_t graph, double convergence, unsigned int max_i
 
 void calculate_diameter(Graph_t graph){
     // calculate diameter using floyd-warshall
-    int dist[graph->current_num_vertices][graph->current_num_vertices];
-	int g[graph->current_num_vertices][graph->current_num_vertices];
+    int ** dist;
+	int ** g;
     int i, j, k, start_index, end_index, curr_dist;
 	Edge_t edge;
+
+	dist = (int **)malloc(sizeof(int *) * graph->current_num_vertices);
+	assert(dist);
+	g = (int **)malloc(sizeof(int *) * graph->current_num_vertices);
+	assert(g);
+	for(i = 0; i < graph->current_num_vertices; ++i){
+		dist[i] = (int *)malloc(sizeof(int) * graph->current_num_vertices);
+		assert(dist[i]);
+		g[i] = (int *)malloc(sizeof(int) * graph->current_num_vertices);
+		assert(g[i]);
+	}
 
 	// fill in g based on edges
 	for(i = 0; i < graph->current_num_vertices; ++i){
@@ -797,5 +808,9 @@ void calculate_diameter(Graph_t graph){
 				graph->diameter = dist[i][j];
 			}
 		}
+		free(g[i]);
+		free(dist[i]);
 	}
+	free(g);
+	free(dist);
 }

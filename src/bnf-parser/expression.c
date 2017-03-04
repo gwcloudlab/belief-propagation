@@ -169,7 +169,7 @@ static int count_edges(struct expression * expr){
 	return count;
 }
 
-static void add_variable_discrete(struct expression * expr, Graph_t graph, int * state_index){
+static void add_variable_discrete(struct expression * expr, Graph_t graph, unsigned int * state_index){
 	char * node_name;
 	int num_vertices, char_index;
 
@@ -192,7 +192,7 @@ static void add_variable_discrete(struct expression * expr, Graph_t graph, int *
 
 }
 
-static void add_property_or_variable_discrete(struct expression * expr, Graph_t graph, int * state_index)
+static void add_property_or_variable_discrete(struct expression * expr, Graph_t graph, unsigned int * state_index)
 {
 	int num_states;
 
@@ -212,7 +212,7 @@ static void add_property_or_variable_discrete(struct expression * expr, Graph_t 
 	}
 }
 
-static void add_variable_content_to_graph(struct expression * expr, Graph_t graph, int * state_index){
+static void add_variable_content_to_graph(struct expression * expr, Graph_t graph, unsigned int * state_index){
 	if(expr == NULL){
 		return;
 	}
@@ -223,7 +223,7 @@ static void add_variable_content_to_graph(struct expression * expr, Graph_t grap
 
 static void add_node_to_graph(struct expression * expr, Graph_t graph){
 	char variable_name[CHAR_BUFFER_SIZE];
-	int state_index;
+	unsigned int state_index;
 
 	state_index = 0;
 
@@ -257,7 +257,7 @@ static void add_nodes_to_graph(struct expression * expr, Graph_t graph){
 	add_nodes_to_graph(expr->right, graph);
 }
 
-static void count_number_of_node_names(struct expression *expr, int * count){
+static void count_number_of_node_names(struct expression *expr, unsigned int * count){
 	if(expr == NULL){
 		return;
 	}
@@ -269,7 +269,7 @@ static void count_number_of_node_names(struct expression *expr, int * count){
 	count_number_of_node_names(expr->right, count);
 }
 
-static void fill_in_node_names(struct expression *expr, char *buffer, int *curr_index){
+static void fill_in_node_names(struct expression *expr, char *buffer, unsigned int *curr_index){
 	if(expr == NULL){
 		return;
 	}
@@ -506,8 +506,9 @@ static void fill_in_probability_buffer_entry(struct expression * expr, double * 
 	fill_in_probability_buffer_entry(expr->right, probability_buffer, num_probabilities, variables, num_variables, first_num_states, graph);
 }
 
-static int calculate_num_probabilities(char *node_name_buffer, int num_nodes, Graph_t graph){
-	int i, j, num_probabilities, found_index;
+static unsigned int calculate_num_probabilities(char *node_name_buffer, unsigned int num_nodes, Graph_t graph){
+	unsigned int i, j, num_probabilities;
+	int found_index;
 	char * curr_name;
 	char * curr_node_name;
 	Node_t curr_node;
@@ -538,7 +539,7 @@ static void update_node_in_graph(struct expression * expr, Graph_t graph){
 	char * buffer;
 	char * node_names;
 	double * probability_buffer;
-	int index, num_node_names, num_probabilities;
+	unsigned int index, num_node_names, num_probabilities;
     int node_index;
 
 	if(expr == NULL){
@@ -587,7 +588,7 @@ static void update_node_in_graph(struct expression * expr, Graph_t graph){
 
     assert(node_index >= 0);
 
-    graph_set_node_state(graph, node_index, num_probabilities, probability_buffer);
+    graph_set_node_state(graph, (unsigned int)node_index, num_probabilities, probability_buffer);
 
 	free(buffer);
 	free(probability_buffer);
@@ -677,7 +678,7 @@ static void insert_edges_into_graph(char * variable_buffer, int num_node_names, 
 static void add_edge_to_graph(struct expression * expr, Graph_t graph){
     char * buffer;
     double * probability_buffer;
-    int index, num_node_names, num_probabilities, first_num_states;
+    unsigned int index, num_node_names, num_probabilities, first_num_states;
 
     if(expr == NULL){
         return;
@@ -791,7 +792,10 @@ Graph_t build_graph(struct expression * root){
 	int num_nodes = count_nodes(root);
 	int num_edges = count_edges(root);
 
-	graph = create_graph(num_nodes, 2 * num_edges);
+	assert(num_edges > 0);
+	assert(num_nodes > 0);
+
+	graph = create_graph((unsigned int)num_nodes, (unsigned int)2 * num_edges);
 	add_nodes_to_graph(root, graph);
 	reverse_node_names(graph);
 
