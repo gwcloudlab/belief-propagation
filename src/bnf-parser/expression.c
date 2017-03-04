@@ -147,6 +147,8 @@ static int count_nodes(struct expression * expr){
 static int count_edges(struct expression * expr){
 	int count;
 
+	count = 0;
+
 	if(expr == NULL){
 		return count;
 	}
@@ -787,9 +789,9 @@ Graph_t build_graph(struct expression * root){
 	Graph_t graph;
 
 	int num_nodes = count_nodes(root);
-	//int num_edges = count_edges(root);
+	int num_edges = count_edges(root);
 
-	graph = create_graph(num_nodes, num_nodes * num_nodes);
+	graph = create_graph(num_nodes, 2 * num_edges);
 	add_nodes_to_graph(root, graph);
 	reverse_node_names(graph);
 

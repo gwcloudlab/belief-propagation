@@ -39,6 +39,7 @@ create_graph(unsigned int num_vertices, unsigned int num_edges)
 	g->current_num_edges = 0;
 	g->previous = &g->prev_edges;
 	g->current = &g->edges;
+    g->diameter = -1;
 	return g;
 }
 
@@ -740,5 +741,61 @@ void loopy_propagate_until(Graph_t graph, double convergence, unsigned int max_i
 			break;
 		}
 		previous_delta = delta;
+	}
+}
+
+void calculate_diameter(Graph_t graph){
+    // calculate diameter using floyd-warshall
+    int dist[graph->current_num_vertices][graph->current_num_vertices];
+	int g[graph->current_num_vertices][graph->current_num_vertices];
+    int i, j, k, start_index, end_index, curr_dist;
+	Edge_t edge;
+
+	// fill in g based on edges
+	for(i = 0; i < graph->current_num_vertices; ++i){
+		for(j = 0; j < graph->current_num_vertices; ++j){
+			g[i][j] = INFINITY;
+		}
+	}
+	for(i = 0; i < graph->current_num_vertices; ++i){
+		 start_index = graph->src_nodes_to_edges[i];
+		if(i + 1 == graph->current_num_vertices){
+			end_index = graph->current_num_vertices + graph->current_num_edges;
+		}
+		else{
+			end_index = graph->src_nodes_to_edges[i+1];
+		}
+		for(j = start_index; j < end_index; ++j){
+			k = graph->src_nodes_to_edges[j];
+			edge = &graph->edges[k];
+			g[i][edge->dest_index] = 1;
+		}
+	}
+
+	for(i = 0; i < graph->current_num_vertices; ++i){
+		for(j = 0; j < graph->current_num_vertices; ++j){
+			dist[i][j] = g[i][j];
+		}
+	}
+
+	for(k = 0; k < graph->current_num_vertices; ++k){
+		for(i = 0; i < graph->current_num_vertices; ++i){
+			for(j = 0; j < graph->current_num_vertices; ++j){
+				curr_dist = dist[i][k] + dist[k][j];
+				if(curr_dist < dist[i][j]){
+					dist[i][j] = curr_dist;
+				}
+			}
+		}
+	}
+
+	graph->diameter = -1;
+
+	for(i = 0; i < graph->current_num_vertices; ++i){
+		for(j = 0; j < graph->current_num_vertices; ++j){
+			if(dist[i][j] != INFINITY && dist[i][j] > graph->diameter){
+				graph->diameter = dist[i][j];
+			}
+		}
 	}
 }
