@@ -195,6 +195,7 @@ void run_test_belief_propagation(struct expression * expression, const char * fi
 
     set_up_src_nodes_to_edges(graph);
     set_up_dest_nodes_to_edges(graph);
+    calculate_diameter(graph);
 
     start = clock();
     init_levels_to_nodes(graph);
@@ -213,7 +214,7 @@ void run_test_belief_propagation(struct expression * expression, const char * fi
     end = clock();
 
     time_elapsed = (double)(end - start) / CLOCKS_PER_SEC;
-    printf("%s,regular,%d,%d,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, time_elapsed);
+    printf("%s,regular,%d,%d,%d,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, time_elapsed);
 
     graph_destroy(graph);
 }
@@ -230,6 +231,7 @@ void run_test_loopy_belief_propagation(struct expression * expression, const cha
 
     set_up_src_nodes_to_edges(graph);
     set_up_dest_nodes_to_edges(graph);
+    calculate_diameter(graph);
 
     start = clock();
     init_previous_edge(graph);
@@ -239,7 +241,7 @@ void run_test_loopy_belief_propagation(struct expression * expression, const cha
 
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
     //print_nodes(graph);
-    printf("%s,loopy,%d,%d,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, time_elapsed);
+    printf("%s,loopy,%d,%d,%d,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, time_elapsed);
 
     graph_destroy(graph);
 }

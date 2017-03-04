@@ -19,5 +19,7 @@
 
 #define DEFAULT_STATE 1.0
 
+#define INFINITY 99999
+
 
 #endif /* CONSTANTS_H_ */

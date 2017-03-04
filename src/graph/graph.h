@@ -36,6 +36,8 @@ struct graph {
 	unsigned int * levels_to_nodes;
 	unsigned int num_levels;
 
+    int diameter;
+
 	char * visited;
 	char * node_names;
 
@@ -59,6 +61,7 @@ void graph_add_edge(Graph_t, unsigned int, unsigned int, unsigned int, unsigned 
 void set_up_src_nodes_to_edges(Graph_t);
 void set_up_dest_nodes_to_edges(Graph_t);
 void init_levels_to_nodes(Graph_t);
+void calculate_diameter(Graph_t);
 /**
  * Get the counts
  */
