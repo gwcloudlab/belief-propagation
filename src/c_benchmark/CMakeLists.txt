@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 2.8)
 
+set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -pg")
 set(CMAKE_C_FLAGS_RELEASE "-O3")
 
 project(benchmark_c)

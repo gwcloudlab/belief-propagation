@@ -1768,7 +1768,7 @@ yyreduce:
 #line 228 "Parser.y" /* yacc.c:1646  */
     {
                                                                            struct expression * values_list = create_expression(PROBABILITY_VALUES, (yyvsp[-1].expression), NULL);
-                                                                           					snprintf(values_list->value, CHAR_BUFFER_SIZE, "%d", (yyvsp[-1].expression));
+                                                                           					snprintf(values_list->value, CHAR_BUFFER_SIZE, "%d", (yyvsp[0].int_value));
                                                                            					(yyval.expression) = values_list;
                                                    					}
 #line 1775 "Parser.c" /* yacc.c:1646  */
