@@ -208,7 +208,7 @@ static void add_property_or_variable_discrete(struct expression * expr, Graph_t 
 		num_states = expr->int_value;
 		assert(num_states <= MAX_STATES);
 		add_variable_discrete(expr->left, graph, state_index);
-		assert(*state_index == num_states);
+		assert((int)*state_index == num_states);
 	}
 }
 
@@ -316,9 +316,9 @@ static void fill_in_probability_table_table(struct expression * expr, double * p
 	fill_in_probability_table_table(expr->right, probability_buffer, num_elements, curr_index);
 }
 
-static void fill_in_probability_table_entry(struct expression * expr, double * probability_buffer, int num_probabilities,
-											int pos, int jump, int num_states, int * current_index){
-    int index;
+static void fill_in_probability_table_entry(struct expression * expr, double * probability_buffer, unsigned int num_probabilities,
+											unsigned int pos, unsigned int jump, unsigned int num_states, unsigned int * current_index){
+    unsigned int index;
 	if(expr == NULL){
         return;
     }
@@ -369,7 +369,7 @@ static void fill_in_probability_buffer_table(struct expression * expr, double * 
 	fill_in_probability_buffer_table(expr->right, probability_buffer, num_entries);
 }
 
-static void count_num_state_names(struct expression * expr, int * count){
+static void count_num_state_names(struct expression * expr, unsigned int * count){
 	if(expr == NULL){
 		return;
 	}
@@ -386,7 +386,7 @@ static void count_num_state_names(struct expression * expr, int * count){
 	count_num_state_names(expr->right, count);
 }
 
-static void fill_in_state_names(struct expression * expr, int count, int * current_index, char * buffer){
+static void fill_in_state_names(struct expression * expr, unsigned int count, unsigned int * current_index, char * buffer){
 	if(expr == NULL){
 		return;
 	}
@@ -410,7 +410,7 @@ static void fill_in_state_names(struct expression * expr, int count, int * curre
 static Node_t find_node_by_name(char * name, Graph_t graph){
 	Node_t node;
 	char * node_name;
-	int i;
+	unsigned int i;
 
 	node = NULL;
 
@@ -427,9 +427,9 @@ static Node_t find_node_by_name(char * name, Graph_t graph){
 	return node;
 }
 
-static int calculate_entry_offset(char * state_names, int num_states, char * variable_names, int num_variables,
+static unsigned int calculate_entry_offset(char * state_names, unsigned int num_states, char * variable_names, int num_variables,
 								  Graph_t graph){
-    int i, j, k, pos, step, index, var_name_index;
+    unsigned int i, j, k, pos, step, index, var_name_index;
     char * state;
     char * node_state_name;
     Node_t current_node;
@@ -470,11 +470,11 @@ static int calculate_entry_offset(char * state_names, int num_states, char * var
 }
 
 static void fill_in_probability_buffer_entry(struct expression * expr, double * probability_buffer,
-											 int num_probabilities,
-											 char * variables, int num_variables,
-											 int first_num_states,
+											 unsigned int num_probabilities,
+											 char * variables, unsigned int num_variables,
+											 unsigned int first_num_states,
                                              Graph_t graph){
-	int count, index, pos, jump;
+	unsigned int count, index, pos, jump;
 	char * state_names;
 
 	if(expr == NULL){
@@ -526,7 +526,7 @@ static unsigned int calculate_num_probabilities(char *node_name_buffer, unsigned
 				break;
 			}
 		}
-		assert(found_index < graph->current_num_vertices);
+		assert(found_index < (int)graph->current_num_vertices);
 		curr_node = &(graph->nodes[found_index]);
 
 		num_probabilities *= curr_node->num_variables;
@@ -594,10 +594,10 @@ static void update_node_in_graph(struct expression * expr, Graph_t graph){
 	free(probability_buffer);
 }
 
-static void insert_edges_into_graph(char * variable_buffer, int num_node_names, double * probability_buffer, int num_probabilities, Graph_t graph){
+static void insert_edges_into_graph(char * variable_buffer, unsigned int num_node_names, double * probability_buffer, unsigned int num_probabilities, Graph_t graph){
 	Node_t dest;
 	Node_t src;
-	int i, j, k, offset, slice, index, delta, next, diff;
+	unsigned int i, j, k, offset, slice, index, delta, next, diff;
 	double ** sub_graph;
 	double ** transpose;
 
@@ -768,7 +768,7 @@ static void add_edges_to_graph(struct expression * expr, Graph_t graph){
 }
 
 static void reverse_node_names(Graph_t graph){
-	int i, j, index_1, index_2;
+	unsigned int i, j, index_1, index_2;
 	char temp[CHAR_BUFFER_SIZE];
 	Node_t curr_node;
 

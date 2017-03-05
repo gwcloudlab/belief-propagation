@@ -51,6 +51,7 @@ void send_message(Edge_t edge, double * message) {
 	num_src = edge->x_dim;
 	num_dest = edge->y_dim;
 
+
 	sum = 0.0;
 	for(i = 0; i < num_src; ++i){
 		edge->message[i] = 0.0;
@@ -59,7 +60,10 @@ void send_message(Edge_t edge, double * message) {
 		}
 		sum += edge->message[i];
 	}
-	for(i = 0; i < num_src; ++i){
+	if(sum <= 0.0){
+		sum = 1.0;
+	}
+	for (i = 0; i < num_src; ++i) {
 		edge->message[i] = edge->message[i] / sum;
 	}
 }

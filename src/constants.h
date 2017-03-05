@@ -12,7 +12,17 @@
 
 #define DEFAULT_STATE 1.0
 
-#define INFINITY 99999
+#define WEIGHT_INFINITY 99999
+
+#define BATCH_SIZE 1000
+
+#define NUM_ITERATIONS 100000
+
+#define PRECISION 1E-16
+
+#define BLOCK_SIZE 256
+
+#define MAX_NUM_NODES 1048
 
 
 #endif /* CONSTANTS_H_ */
