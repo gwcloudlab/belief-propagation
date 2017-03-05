@@ -26,7 +26,7 @@ void initialize_node(Node_t n, unsigned int index, unsigned int num_variables){
 	n->index = index;
 }
 
-void node_set_state(Node_t n, unsigned int num_variables, double * state){
+void node_set_state(Node_t n, unsigned int num_variables, long double * state){
 	unsigned int i;
 
 	for(i = 0; i < num_variables; ++i) {

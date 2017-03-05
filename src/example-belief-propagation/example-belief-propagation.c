@@ -8,7 +8,7 @@ static const int NUM_EDGES = 5;
 static const int NUM_VARIABLES = 2;
 
 void add_nodes(Graph_t graph){
-	double y2[NUM_VARIABLES];
+	long double y2[NUM_VARIABLES];
 	y2[0] = 1.0;
 	y2[1] = 0.0;
 
@@ -21,13 +21,13 @@ void add_nodes(Graph_t graph){
 void add_edges(Graph_t graph){
 	int i;
 
-	double ** phi_1_2 = (double **)malloc(sizeof(double*) * NUM_VARIABLES);
-	double ** phi_2_3 = (double **)malloc(sizeof(double*) * NUM_VARIABLES);
-	double ** phi_2_4 = (double **)malloc(sizeof(double*) * NUM_VARIABLES);
+	long double ** phi_1_2 = (long double **)malloc(sizeof(long double*) * NUM_VARIABLES);
+	long double ** phi_2_3 = (long double **)malloc(sizeof(long double*) * NUM_VARIABLES);
+	long double ** phi_2_4 = (long double **)malloc(sizeof(long double*) * NUM_VARIABLES);
 	for(i = 0; i < NUM_VARIABLES; ++i){
-		phi_1_2[i] = (double *)malloc(sizeof(double) * NUM_VARIABLES);
-		phi_2_3[i] = (double *)malloc(sizeof(double) * NUM_VARIABLES);
-		phi_2_4[i] = (double *)malloc(sizeof(double) * NUM_VARIABLES);
+		phi_1_2[i] = (long double *)malloc(sizeof(long double) * NUM_VARIABLES);
+		phi_2_3[i] = (long double *)malloc(sizeof(long double) * NUM_VARIABLES);
+		phi_2_4[i] = (long double *)malloc(sizeof(long double) * NUM_VARIABLES);
 	}
 
 	phi_1_2[0][0] = 1.0;
@@ -61,14 +61,14 @@ void add_edges(Graph_t graph){
 	free(phi_2_4);
 }
 
-void assert_value(double diff){
+void assert_value(long double diff){
 	assert(diff > -0.0001);
 	assert(diff < 0.0001);
 }
 
 void validate_nodes(Graph_t graph){
 	Node_t node;
-	double value;
+	long double value;
 
 	//x1
 	node = &graph->nodes[0];
@@ -101,7 +101,7 @@ void validate_nodes(Graph_t graph){
 
 void forward_backward_belief_propagation() {
 	Graph_t graph;
-	int i;
+	unsigned int i;
 
 	graph = create_graph(NUM_NODES, NUM_EDGES);
 

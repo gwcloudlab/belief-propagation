@@ -190,8 +190,8 @@ void run_test_belief_propagation(struct expression * expression, const char * fi
 
     graph = build_graph(expression);
 	assert(graph != NULL);
-    //print_nodes(graph);
-    //print_edges(graph);
+    print_nodes(graph);
+    print_edges(graph);
 
     set_up_src_nodes_to_edges(graph);
     set_up_dest_nodes_to_edges(graph);

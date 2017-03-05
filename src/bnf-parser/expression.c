@@ -539,6 +539,7 @@ static void update_node_in_graph(struct expression * expr, Graph_t graph){
 	char * buffer;
 	char * node_names;
 	double * probability_buffer;
+	long double * long_buffer;
 	unsigned int index, num_node_names, num_probabilities;
     int node_index;
 
@@ -561,6 +562,7 @@ static void update_node_in_graph(struct expression * expr, Graph_t graph){
 	num_probabilities = calculate_num_probabilities(buffer, num_node_names, graph);
 
 	probability_buffer = (double *)malloc(sizeof(double) * num_probabilities);
+	long_buffer = (long double *)malloc(sizeof(long double) * num_probabilities);
 	assert(probability_buffer);
     for(index = 0; index < num_probabilities; ++index){
         probability_buffer[index] = -1.0;
@@ -587,19 +589,23 @@ static void update_node_in_graph(struct expression * expr, Graph_t graph){
     }
 
     assert(node_index >= 0);
+	for(index = 0; index < num_probabilities; ++index){
+		long_buffer[index] = (long double)probability_buffer[index];
+	}
 
-    graph_set_node_state(graph, (unsigned int)node_index, num_probabilities, probability_buffer);
+    graph_set_node_state(graph, (unsigned int)node_index, num_probabilities, long_buffer);
 
 	free(buffer);
 	free(probability_buffer);
+	free(long_buffer);
 }
 
 static void insert_edges_into_graph(char * variable_buffer, unsigned int num_node_names, double * probability_buffer, unsigned int num_probabilities, Graph_t graph){
 	Node_t dest;
 	Node_t src;
 	unsigned int i, j, k, offset, slice, index, delta, next, diff;
-	double ** sub_graph;
-	double ** transpose;
+	long double ** sub_graph;
+	long double ** transpose;
 
 	assert(num_node_names > 1);
 
@@ -623,13 +629,13 @@ static void insert_edges_into_graph(char * variable_buffer, unsigned int num_nod
 
         delta = src->num_variables;
 
-		sub_graph = (double **)calloc(sizeof(double*), (size_t)src->num_variables);
-		transpose = (double **)calloc(sizeof(double*), (size_t)dest->num_variables);
+		sub_graph = (long double **)calloc(sizeof(long double*), (size_t)src->num_variables);
+		transpose = (long double **)calloc(sizeof(long double*), (size_t)dest->num_variables);
 		for(j = 0; j < src->num_variables; ++j){
-			sub_graph[j] = (double *)calloc(sizeof(double), (size_t)dest->num_variables);
+			sub_graph[j] = (long double *)calloc(sizeof(long double), (size_t)dest->num_variables);
 		}
 		for(j = 0; j < dest->num_variables; ++j){
-			transpose[j] = (double *)calloc(sizeof(double), (size_t)src->num_variables);
+			transpose[j] = (long double *)calloc(sizeof(long double), (size_t)src->num_variables);
 		}
 
 		for(k = 0; k < dest->num_variables; ++k){
@@ -641,7 +647,7 @@ static void insert_edges_into_graph(char * variable_buffer, unsigned int num_nod
 					next = (j + 1) * offset + diff;
                     //printf("Current Index: %d; Next: %d; Delta: %d; Diff: %d\n", index, next, delta, diff);
                     while (index < next) {
-                        sub_graph[j][k] += probability_buffer[index + k * slice];
+                        sub_graph[j][k] += (long double)probability_buffer[index + k * slice];
                         index++;
                     }
 					index += delta * offset;

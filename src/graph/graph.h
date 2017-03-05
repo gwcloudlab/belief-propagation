@@ -53,10 +53,10 @@ typedef struct graph* Graph_t;
 Graph_t create_graph(unsigned int, unsigned int);
 
 void graph_add_node(Graph_t, unsigned int, const char *);
-void graph_add_and_set_node_state(Graph_t, unsigned int, const char *, double *);
-void graph_set_node_state(Graph_t, unsigned int, unsigned int, double *);
+void graph_add_and_set_node_state(Graph_t, unsigned int, const char *, long double *);
+void graph_set_node_state(Graph_t, unsigned int, unsigned int, long double *);
 
-void graph_add_edge(Graph_t, unsigned int, unsigned int, unsigned int, unsigned int, double **);
+void graph_add_edge(Graph_t, unsigned int, unsigned int, unsigned int, unsigned int, long double **);
 
 void set_up_src_nodes_to_edges(Graph_t);
 void set_up_dest_nodes_to_edges(Graph_t);
@@ -80,11 +80,11 @@ void reset_visited(Graph_t);
 void init_previous_edge(Graph_t);
 void loopy_propagate_one_iteration(Graph_t);
 
-unsigned int loopy_propagate_until(Graph_t, double convergence, unsigned int max_iterations);
+unsigned int loopy_propagate_until(Graph_t, long double convergence, unsigned int max_iterations);
 
-void loopy_propagate_one_iteration_shared_buffer(Graph_t, double *);
+void loopy_propagate_one_iteration_shared_buffer(Graph_t, long double *);
 
-unsigned int loopy_propagate_until_shared_buffer(Graph_t, double convergence, unsigned int max_iterations);
+unsigned int loopy_propagate_until_shared_buffer(Graph_t, long double convergence, unsigned int max_iterations);
 
 void marginalize(Graph_t);
 
