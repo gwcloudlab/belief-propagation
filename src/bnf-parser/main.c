@@ -214,7 +214,9 @@ void run_test_belief_propagation(struct expression * expression, const char * fi
     end = clock();
 
     time_elapsed = (double)(end - start) / CLOCKS_PER_SEC;
-    printf("%s,regular,%d,%d,%d,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, time_elapsed);
+    printf("%s,regular,%d,%d,%d,2,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, time_elapsed);
+
+	print_nodes(graph);
 
     graph_destroy(graph);
 }
@@ -223,6 +225,7 @@ void run_test_loopy_belief_propagation(struct expression * expression, const cha
     Graph_t graph;
     clock_t start, end;
     double time_elapsed;
+	unsigned int num_iterations;
 
     graph = build_graph(expression);
     assert(graph != NULL);
@@ -236,12 +239,12 @@ void run_test_loopy_belief_propagation(struct expression * expression, const cha
     start = clock();
     init_previous_edge(graph);
 
-    loopy_propagate_until(graph, 1E-16, 100000);
+	num_iterations = loopy_propagate_until(graph, PRECISION, NUM_ITERATIONS);
     end = clock();
 
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
-    //print_nodes(graph);
-    printf("%s,loopy,%d,%d,%d,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, time_elapsed);
+    print_nodes(graph);
+    printf("%s,loopy,%d,%d,%d,%d,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
 
     graph_destroy(graph);
 }
@@ -294,14 +297,14 @@ int main(void)
 
 	delete_expression(expression);*/
 
-	run_tests_with_file("../benchmark_files/small/asia.bif", 1);
+	/*run_tests_with_file("../benchmark_files/small/asia.bif", 1);
 	run_tests_with_file("../benchmark_files/small/cancer.bif", 1);
 	run_tests_with_file("../benchmark_files/small/earthquake.bif", 1);
 	run_tests_with_file("../benchmark_files/small/sachs.bif", 1);
 	run_tests_with_file("../benchmark_files/small/survey.bif", 1);
-
+*/
 	run_tests_with_file("../benchmark_files/medium/alarm.bif", 1);
-	run_tests_with_file("../benchmark_files/medium/barley.bif", 1);
+/*	run_tests_with_file("../benchmark_files/medium/barley.bif", 1);
 	//run_tests_with_file("../benchmark_files/medium/child.bif", 1);
 	run_tests_with_file("../benchmark_files/medium/hailfinder.bif", 1);
 	run_tests_with_file("../benchmark_files/medium/insurance.bif", 1);
@@ -318,8 +321,9 @@ int main(void)
     run_tests_with_file("../benchmark_files/very_large/munin2.bif", 1);
     run_tests_with_file("../benchmark_files/very_large/munin3.bif", 1);
     run_tests_with_file("../benchmark_files/very_large/munin4.bif", 1);
-    //run_tests_with_file("very_large/pathfinder.bif", 1);
-    run_tests_with_file("../benchmark_files/very_large/pigs.bif", 1);
+    //run_tests_with_file("../benchmark_files/very_large/munin.bif", 1);
+    run_tests_with_file("../benchmark_files/very_large/pathfinder.bif", 1);
+    run_tests_with_file("../benchmark_files/very_large/pigs.bif", 1);*/
 
 	return 0;
 }

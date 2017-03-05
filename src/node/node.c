@@ -15,7 +15,7 @@ Node_t create_node(unsigned int index, unsigned int num_variables) {
 }
 
 void initialize_node(Node_t n, unsigned int index, unsigned int num_variables){
-	int i;
+	unsigned int i;
 
 	//initialize to default state since initial state not given
 	for(i = 0; i < num_variables; ++i){
@@ -27,7 +27,7 @@ void initialize_node(Node_t n, unsigned int index, unsigned int num_variables){
 }
 
 void node_set_state(Node_t n, unsigned int num_variables, double * state){
-	int i;
+	unsigned int i;
 
 	for(i = 0; i < num_variables; ++i) {
 		n->states[i] = state[i];

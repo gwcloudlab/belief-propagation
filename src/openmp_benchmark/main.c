@@ -147,7 +147,7 @@ void test_loopy_belief_propagation(char * file_name){
 		start = clock();
 		init_previous_edge(graph);
 
-		loopy_propagate_until(graph, 1E-16, 10000);
+		loopy_propagate_until(graph, PRECISION, NUM_ITERATIONS);
 		end = clock();
 
 		time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
@@ -183,67 +183,68 @@ struct expression * parse_file(const char * file_name){
 }
 
 void run_test_belief_propagation(struct expression * expression, const char * file_name){
-    Graph_t graph;
-    clock_t start, end;
-    double time_elapsed;
-    unsigned int i;
+	Graph_t graph;
+	clock_t start, end;
+	double time_elapsed;
+	unsigned int i;
 
-    graph = build_graph(expression);
+	graph = build_graph(expression);
 	assert(graph != NULL);
-    //print_nodes(graph);
-    //print_edges(graph);
+	//print_nodes(graph);
+	//print_edges(graph);
 
-    set_up_src_nodes_to_edges(graph);
-    set_up_dest_nodes_to_edges(graph);
-    calculate_diameter(graph);
+	set_up_src_nodes_to_edges(graph);
+	set_up_dest_nodes_to_edges(graph);
+	calculate_diameter(graph);
 
-    start = clock();
-    init_levels_to_nodes(graph);
-    //print_levels_to_nodes(graph);
+	start = clock();
+	init_levels_to_nodes(graph);
+	//print_levels_to_nodes(graph);
 
-    propagate_using_levels_start(graph);
-    for(i = 1; i < graph->num_levels - 1; ++i){
-        propagate_using_levels(graph, i);
-    }
-    reset_visited(graph);
-    for(i = graph->num_levels - 1; i > 0; --i){
-        propagate_using_levels(graph, i);
-    }
+	propagate_using_levels_start(graph);
+	for(i = 1; i < graph->num_levels - 1; ++i){
+		propagate_using_levels(graph, i);
+	}
+	reset_visited(graph);
+	for(i = graph->num_levels - 1; i > 0; --i){
+		propagate_using_levels(graph, i);
+	}
 
-    marginalize(graph);
-    end = clock();
+	marginalize(graph);
+	end = clock();
 
-    time_elapsed = (double)(end - start) / CLOCKS_PER_SEC;
-    printf("%s,regular,%d,%d,%d,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, time_elapsed);
+	time_elapsed = (double)(end - start) / CLOCKS_PER_SEC;
+	printf("%s,regular,%d,%d,%d,2,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, time_elapsed);
 
-    graph_destroy(graph);
+	graph_destroy(graph);
 }
 
 void run_test_loopy_belief_propagation(struct expression * expression, const char * file_name){
-    Graph_t graph;
-    clock_t start, end;
-    double time_elapsed;
+	Graph_t graph;
+	clock_t start, end;
+	double time_elapsed;
+	unsigned int num_iterations;
 
-    graph = build_graph(expression);
-    assert(graph != NULL);
-    //print_nodes(graph);
-    //print_edges(graph);
+	graph = build_graph(expression);
+	assert(graph != NULL);
+	//print_nodes(graph);
+	//print_edges(graph);
 
-    set_up_src_nodes_to_edges(graph);
-    set_up_dest_nodes_to_edges(graph);
-    calculate_diameter(graph);
+	set_up_src_nodes_to_edges(graph);
+	set_up_dest_nodes_to_edges(graph);
+	calculate_diameter(graph);
 
-    start = clock();
-    init_previous_edge(graph);
+	start = clock();
+	init_previous_edge(graph);
 
-    loopy_propagate_until(graph, 1E-16, 100000);
-    end = clock();
+	num_iterations = loopy_propagate_until(graph, PRECISION, NUM_ITERATIONS);
+	end = clock();
 
-    time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
-    //print_nodes(graph);
-    printf("%s,loopy,%d,%d,%d,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, time_elapsed);
+	time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
+	//print_nodes(graph);
+	printf("%s,loopy,%d,%d,%d,%d,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
 
-    graph_destroy(graph);
+	graph_destroy(graph);
 }
 
 void run_tests_with_file(const char * file_name, unsigned int num_iterations){
@@ -318,7 +319,8 @@ int main(void)
     run_tests_with_file("../benchmark_files/very_large/munin2.bif", 1);
     run_tests_with_file("../benchmark_files/very_large/munin3.bif", 1);
     run_tests_with_file("../benchmark_files/very_large/munin4.bif", 1);
-    //run_tests_with_file("very_large/pathfinder.bif", 1);
+	//run_tests_with_file("../benchmark_files/very_large/munin.bif", 1);
+	run_tests_with_file("../benchmark_files/very_large/pathfinder.bif", 1);
     run_tests_with_file("../benchmark_files/very_large/pigs.bif", 1);
 
 	return 0;

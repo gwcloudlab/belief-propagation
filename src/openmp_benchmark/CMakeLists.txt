@@ -1,7 +1,7 @@
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.5)
 find_package(OpenMP)
 
-set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -pg ${OpenMP_C_FLAGS}")
+set(CMAKE_C_FLAGS_DEBUG  "-O0 -g -Wall ${OpenMP_C_FLAGS}")
 set(CMAKE_C_FLAGS_RELEASE "-O3 ${OpenMP_C_FLAGS}")
 
 project(benchmark_openmp)
