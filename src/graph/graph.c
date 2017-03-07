@@ -219,6 +219,7 @@ static void combine_message(double * dest, Edge_t src_edge, unsigned int length)
 	double * src;
 
 	src = src_edge->message;
+
 	for(i = 0; i < length; ++i){
 		if(src[i] == src[i]) { // ensure no nan's
 			dest[i] = dest[i] * src[i];
@@ -753,7 +754,7 @@ void loopy_propagate_one_iteration_shared_buffer(Graph_t graph, double * message
 	dest_node_to_edges = graph->dest_nodes_to_edges;
 	src_node_to_edges = graph->src_nodes_to_edges;
 
-#pragma omp parallel for shared(graph, current, previous, num_vertices, dest_node_to_edges, src_node_to_edges, message_buffer) private(edge, i, j, num_variables, start_index, end_index, edge_index)
+#pragma omp parallel for shared(graph, num_vertices, dest_node_to_edges, src_node_to_edges, message_buffer) private(j, num_variables, node, edge, start_index, end_index, edge_index)
 #pragma acc kernels copy(current) copyin(graph, previous, num_vertices, dest_node_to_edges, src_node_to_edges, message_buffer)
 	for(i = 0; i < num_vertices; ++i){
 		node = &graph->nodes[i];
