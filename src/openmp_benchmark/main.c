@@ -237,7 +237,7 @@ void run_test_loopy_belief_propagation(struct expression * expression, const cha
 	start = clock();
 	init_previous_edge(graph);
 
-	num_iterations = loopy_propagate_until(graph, PRECISION, NUM_ITERATIONS);
+	num_iterations = loopy_propagate_until_shared_buffer(graph, PRECISION, NUM_ITERATIONS);
 	end = clock();
 
 	time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
@@ -294,6 +294,8 @@ int main(void)
 	assert(expression != NULL);
 
 	delete_expression(expression);*/
+
+	printf("File Name,Propagation Type,Number of Nodes,Number of Edges,Diameter,Number of Iterations,BP Run Time(s)\n");
 
 	run_tests_with_file("../benchmark_files/small/asia.bif", 1);
 	run_tests_with_file("../benchmark_files/small/cancer.bif", 1);

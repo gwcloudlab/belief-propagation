@@ -297,6 +297,8 @@ int main(void)
 
 	delete_expression(expression);*/
 
+	printf("File Name,Propagation Type,Number of Nodes,Number of Edges,Diameter,Number of Iterations,BP Run Time(s)\n");
+
 	/*run_tests_with_file("../benchmark_files/small/asia.bif", 1);
 	run_tests_with_file("../benchmark_files/small/cancer.bif", 1);
 	run_tests_with_file("../benchmark_files/small/earthquake.bif", 1);

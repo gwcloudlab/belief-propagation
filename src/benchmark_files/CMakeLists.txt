@@ -37,3 +37,5 @@ configure_file(very_large/munin3.bif very_large/munin3.bif COPYONLY)
 configure_file(very_large/munin4.bif very_large/munin4.bif COPYONLY)
 configure_file(very_large/pathfinder.bif very_large/pathfinder.bif COPYONLY)
 configure_file(very_large/pigs.bif very_large/pigs.bif COPYONLY)
+
+configure_file(dog.xml dog.xml COPYONLY)
