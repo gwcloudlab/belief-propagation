@@ -133,6 +133,9 @@ static int count_nodes(struct expression * expr){
 	if(expr == NULL){
 		return count;
 	}
+	if(expr->type == PROBABILITY_DECLARATION){
+		return count;
+	}
 
 	if(expr->type == VARIABLE_CONTENT){
 		count = 1;
@@ -150,6 +153,12 @@ static int count_edges(struct expression * expr){
 	count = 0;
 
 	if(expr == NULL){
+		return count;
+	}
+	if(expr->type == VARIABLE_CONTENT){
+		return count;
+	}
+	if(expr->type == PROBABILITY_CONTENT){
 		return count;
 	}
 
@@ -261,6 +270,9 @@ static void count_number_of_node_names(struct expression *expr, unsigned int * c
 	if(expr == NULL){
 		return;
 	}
+	if(expr->type == FLOATING_POINT_LIST){
+		return;
+	}
 	if(expr->type == PROBABILITY_VARIABLE_NAMES){
 		*count += 1;
 	}
@@ -341,6 +353,9 @@ static void fill_in_probability_buffer_default(struct expression * expr, double 
 	if(expr == NULL){
 		return;
 	}
+    if(expr->type == FLOATING_POINT_LIST){
+        return;
+    }
 
 	if(expr->type == PROBABILITY_DEFAULT_ENTRY){
         current_index = 0;
@@ -358,6 +373,9 @@ static void fill_in_probability_buffer_table(struct expression * expr, double * 
 	if(expr == NULL){
 		return;
 	}
+    if(expr->type == FLOATING_POINT_LIST){
+        return;
+    }
 
 	current_index = 0;
 
@@ -480,6 +498,9 @@ static void fill_in_probability_buffer_entry(struct expression * expr, double * 
 	if(expr == NULL){
 		return;
 	}
+    if(expr->type == FLOATING_POINT_LIST){
+        return;
+    }
 
 	if(expr->type == PROBABILITY_ENTRY){
 		jump = num_probabilities / first_num_states;
@@ -739,6 +760,9 @@ static void update_nodes_in_graph(struct expression * expr, Graph_t graph){
 	if(expr->type == VARIABLE_DECLARATION){
 		return;
 	}
+	if(expr->type == FLOATING_POINT_LIST){
+		return;
+	}
 
 	if(expr->type == PROBABILITY_DECLARATION){
 		update_node_in_graph(expr, graph);
@@ -752,6 +776,9 @@ static void add_edges_to_graph(struct expression * expr, Graph_t graph){
 		return;
 	}
 
+	if(expr->type == FLOATING_POINT_LIST){
+		return;
+	}
     if(expr->type == NETWORK_DECLARATION){
         return;
     }
