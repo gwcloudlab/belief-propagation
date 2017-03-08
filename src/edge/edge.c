@@ -47,7 +47,6 @@ void destroy_edge(Edge_t edge) {
 void send_message(Edge_t edge, double * message) {
 	unsigned int i, j, num_src, num_dest;
 	double sum;
-	double scratch[MAX_STATES];
 
 	num_src = edge->x_dim;
 	num_dest = edge->y_dim;
@@ -55,16 +54,16 @@ void send_message(Edge_t edge, double * message) {
 
 	sum = 0.0;
 	for(i = 0; i < num_src; ++i){
-		scratch[i] = 0.0;
+		edge->message[i] = 0.0;
 		for(j = 0; j < num_dest; ++j){
-			scratch[i] += edge->joint_probabilities[i][j] * message[j];
+			edge->message[i] += edge->joint_probabilities[i][j] * message[j];
 		}
-		sum += scratch[i];
+		sum += edge->message[i];
 	}
 	if(sum <= 0.0){
 		sum = 1.0;
 	}
 	for (i = 0; i < num_src; ++i) {
-		edge->message[i] = scratch[i] / sum;
+		edge->message[i] = edge->message[i] / sum;
 	}
 }
