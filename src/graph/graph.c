@@ -214,7 +214,7 @@ void propagate_using_levels_start(Graph_t g){
 	}
 }
 
-static void combine_message(double * dest, Edge_t src_edge, unsigned int length){
+static inline void combine_message(double * dest, Edge_t src_edge, unsigned int length){
 	unsigned int i;
 	double * src;
 
@@ -739,13 +739,14 @@ void loopy_propagate_one_iteration(Graph_t graph){
 	graph->current = temp;
 }
 
-void loopy_propagate_one_iteration_shared_buffer(Graph_t graph, double * message_buffer){
-	unsigned int i, j, num_variables, num_vertices, start_index, end_index, edge_index;
+void loopy_propagate_one_iteration_shared_buffer(Graph_t graph, double * tm){
+	unsigned int i, j, num_variables, num_vertices, start_index, end_index, edge_index, current_num_edges;
 	unsigned int * dest_node_to_edges;
 	unsigned int * src_node_to_edges;
 	Node_t node;
 	Edge_t edge, previous, current;
 	Edge_t * temp;
+	double message_buffer[MAX_STATES];
 
 	previous = *graph->previous;
 	current = *graph->current;
@@ -753,21 +754,22 @@ void loopy_propagate_one_iteration_shared_buffer(Graph_t graph, double * message
 	num_vertices = graph->current_num_vertices;
 	dest_node_to_edges = graph->dest_nodes_to_edges;
 	src_node_to_edges = graph->src_nodes_to_edges;
+	current_num_edges = graph->current_num_edges;
 
-#pragma omp parallel for shared(graph, num_vertices, dest_node_to_edges, src_node_to_edges, message_buffer) private(j, num_variables, node, edge, start_index, end_index, edge_index)
-#pragma acc kernels copy(current) copyin(graph, previous, num_vertices, dest_node_to_edges, src_node_to_edges, message_buffer)
+#pragma omp parallel for shared(num_vertices, dest_node_to_edges, src_node_to_edges, current, previous, current_num_edges) private(i, j, message_buffer, num_variables, node, edge, start_index, end_index, edge_index)
+//#pragma acc kernels copy(current) copyin(graph, previous, num_vertices, dest_node_to_edges, src_node_to_edges, message_buffer)
 	for(i = 0; i < num_vertices; ++i){
 		node = &graph->nodes[i];
 		num_variables = node->num_variables;
 		//clear buffer
 		for(j = 0; j < num_variables; ++j){
-			message_buffer[j + i * MAX_STATES] = node->states[j];
+			message_buffer[j] = node->states[j];
 		}
 
 		//read incoming messages
 		start_index = dest_node_to_edges[i];
 		if(i + 1 >= num_vertices){
-			end_index = num_vertices + graph->current_num_edges;
+			end_index = num_vertices + current_num_edges;
 		}
 		else{
 			end_index = dest_node_to_edges[i + 1];
@@ -777,7 +779,7 @@ void loopy_propagate_one_iteration_shared_buffer(Graph_t graph, double * message
 			edge_index = dest_node_to_edges[j];
 			edge = &previous[edge_index];
 
-			combine_message(&message_buffer[i * MAX_STATES], edge, num_variables);
+			combine_message(message_buffer, edge, num_variables);
 		}
 /*
 		printf("Message at node\n");
@@ -792,7 +794,7 @@ void loopy_propagate_one_iteration_shared_buffer(Graph_t graph, double * message
 		//send message
 		start_index = src_node_to_edges[i];
 		if(i + 1 >= num_vertices){
-			end_index = num_vertices + graph->current_num_edges;
+			end_index = num_vertices + current_num_edges;
 		}
 		else {
 			end_index = src_node_to_edges[i + 1];
@@ -803,10 +805,11 @@ void loopy_propagate_one_iteration_shared_buffer(Graph_t graph, double * message
 			/*printf("Sending on edge\n");
 			print_edge(graph, edge_index);*/
 
-			send_message(edge, &message_buffer[i * MAX_STATES]);
+			send_message(edge, message_buffer);
 		}
 
 	}
+
 
 	for(i = 0; i < num_vertices; ++i){
 		marginalize_node(graph, i, current);

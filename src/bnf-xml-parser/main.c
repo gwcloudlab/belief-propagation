@@ -61,5 +61,17 @@ int main() {
         graph_destroy(graph_bif);
     }
 
+    xml_expr = parse_xml_file("../benchmark_files/xml/bf_10000_20000_1.xml");
+    assert(xml_expr);
+    graph_xml = build_graph(xml_expr);
+    assert(graph_xml);
+
+    if(xml_expr != NULL){
+        delete_expression(xml_expr);
+    }
+    if(graph_xml != NULL){
+        graph_destroy(graph_xml);
+    }
+
     return 0;
 }

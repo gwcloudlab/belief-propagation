@@ -255,10 +255,13 @@ static struct expression * process_network(xmlDocPtr doc) {
 
 struct expression * parse_xml_file(const char * file_name){
     xmlDocPtr  doc;
+    xmlParserCtxtPtr context;
     struct expression * root;
 
-    doc = xmlParseFile(file_name);
+    context = xmlNewParserCtxt();
+    doc = xmlCtxtReadFile(context, file_name, NULL, XML_PARSE_HUGE);
     assert(doc);
+
 
     root = create_expression(COMPILATION_UNIT, process_network(doc), process_variables_and_probabilities(doc));
 
