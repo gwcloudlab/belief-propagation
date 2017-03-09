@@ -16,7 +16,7 @@
 
 #define BATCH_SIZE 1000
 
-#define NUM_ITERATIONS 100000
+#define NUM_ITERATIONS 1
 
 #define PRECISION 1E-16
 
