@@ -31,6 +31,22 @@ struct expression * create_expression(eType type, struct expression * left, stru
 	return expr;
 }
 
+static void delete_floating_point_list(struct expression * expr){
+	struct expression * curr;
+	struct expression * next;
+
+	if(expr == NULL){
+		return;
+	}
+
+	curr = expr;
+	while(curr != NULL){
+		next = curr->left;
+		free(curr);
+		curr = next;
+	}
+}
+
 void delete_expression(struct expression * expr){
 	if(expr == NULL){
 		return;
@@ -39,11 +55,15 @@ void delete_expression(struct expression * expr){
 	assert(expr != NULL);
 
 	//print_expression(expr);
+	if(expr->type == FLOATING_POINT_LIST){
+		delete_floating_point_list(expr);
+	}
+	else {
+		delete_expression(expr->left);
+		delete_expression(expr->right);
 
-	delete_expression(expr->left);
-	delete_expression(expr->right);
-
-	free(expr);
+		free(expr);
+	}
 }
 
 void print_expression(struct expression * expr){
@@ -285,6 +305,9 @@ static void fill_in_node_names(struct expression *expr, char *buffer, unsigned i
 	if(expr == NULL){
 		return;
 	}
+	if(expr->type == PROBABILITY_CONTENT){
+		return;
+	}
 
 	if(expr->type == PROBABILITY_VARIABLE_NAMES){
 		strncpy(&buffer[*curr_index * CHAR_BUFFER_SIZE], expr->value, CHAR_BUFFER_SIZE);
@@ -320,8 +343,12 @@ static void fill_in_probability_table_table(struct expression * expr, double * p
 	}
 	assert(*curr_index < num_elements);
 	if(expr->type == FLOATING_POINT_LIST){
-		probability_buffer[*curr_index] = expr->double_value;
-		*curr_index += 1;
+        while(expr != NULL && expr->type == FLOATING_POINT_LIST) {
+            probability_buffer[*curr_index] = expr->double_value;
+            *curr_index += 1;
+            expr = expr->left;
+        }
+		return;
 	}
 
 	fill_in_probability_table_table(expr->left, probability_buffer, num_elements, curr_index);
