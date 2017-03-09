@@ -684,6 +684,7 @@ static void send_message_for_node(unsigned int * src_node_to_edges, double * mes
 static void marginalize_loopy_nodes(Graph_t graph, Edge_t current, unsigned int num_vertices) {
 	unsigned int i;
 
+#pragma omp parallel for default(none) shared(graph, num_vertices, current) private(i)
 	for(i = 0; i < num_vertices; ++i){
 		marginalize_node(graph, i, current);
 	}
@@ -815,7 +816,7 @@ void loopy_propagate_one_iteration_shared_buffer(Graph_t graph, double * tm){
 
 	}
 
-
+#pragma omp parallel for default(none) shared(graph, num_vertices, current) private(i)
 	for(i = 0; i < num_vertices; ++i){
 		marginalize_node(graph, i, current);
 	}
