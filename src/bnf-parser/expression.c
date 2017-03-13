@@ -794,8 +794,10 @@ static void update_nodes_in_graph(struct expression * expr, Graph_t graph){
 	if(expr->type == PROBABILITY_DECLARATION){
 		update_node_in_graph(expr, graph);
 	}
-    update_nodes_in_graph(expr->left, graph);
-    update_nodes_in_graph(expr->right, graph);
+	else {
+		update_nodes_in_graph(expr->left, graph);
+		update_nodes_in_graph(expr->right, graph);
+	}
 }
 
 static void add_edges_to_graph(struct expression * expr, Graph_t graph){
@@ -814,11 +816,24 @@ static void add_edges_to_graph(struct expression * expr, Graph_t graph){
         return;
     }
 
+    if(expr->type == PROBABILITY_CONTENT){
+        return;
+    }
+
+    if(expr->type == PROBABILITY_VARIABLES_LIST){
+        return;
+    }
+
+
+
+
     if(expr->type == PROBABILITY_DECLARATION){
         add_edge_to_graph(expr, graph);
     }
-    add_edges_to_graph(expr->left, graph);
-    add_edges_to_graph(expr->right, graph);
+	else {
+		add_edges_to_graph(expr->left, graph);
+		add_edges_to_graph(expr->right, graph);
+	}
 }
 
 static void reverse_node_names(Graph_t graph){
