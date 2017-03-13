@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.0)
 
 add_subdirectory(src/bnf-parser)
 add_subdirectory(src/bnf-xml-parser)
