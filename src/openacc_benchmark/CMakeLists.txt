@@ -1,9 +1,9 @@
 cmake_minimum_required(VERSION 3.5)
 find_package(CUDA QUIET REQUIRED)
 
-project(benchmark_opeacc)
+project(benchmark_openacc)
 
-FIND_PROGRAM(M_pg_cc NAMES /opt/pgi/linux86-64/16.10/bin/pgcc)
+FIND_PROGRAM(M_pg_cc NAMES /c1/apps/pgi/linux86-64/10.5/bin/pgcc)
 MESSAGE(STATUS "Mutatee pgcc: ${M_pg_cc}")
 set(CMAKE_C_FLAGS_RELEASE "-O3 -acc -ta=nvidia")
 set(CMAKE_C_FLAGS_DEBUG  "${CMAKE_C_FLAGS_DEBUG} -acc -Minfo=accel -ta=nvidia")
