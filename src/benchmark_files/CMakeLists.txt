@@ -65,5 +65,10 @@ configure_file(xml/bf_25000_50000_3.xml xml/bf_25000_50000_3.xml COPYONLY)
 configure_file(xml/bf_30000_60000_1.xml xml/bf_30000_60000_1.xml COPYONLY)
 configure_file(xml/bf_30000_60000_2.xml xml/bf_30000_60000_2.xml COPYONLY)
 configure_file(xml/bf_30000_60000_3.xml xml/bf_30000_60000_3.xml COPYONLY)
+configure_file(xml/bf_40000_80000_1.xml xml/bf_40000_80000_1.xml COPYONLY)
+configure_file(xml/bf_40000_80000_2.xml xml/bf_40000_80000_2.xml COPYONLY)
+configure_file(xml/bf_40000_80000_3.xml xml/bf_40000_80000_3.xml COPYONLY)
+
+configure_file(xml/bf_80000_160000_2.xml xml/bf_80000_160000_2.xml COPYONLY)
 
 configure_file(dog.xml dog.xml COPYONLY)
