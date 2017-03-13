@@ -358,7 +358,7 @@ int main(void)
     run_tests_with_xml_file("../benchmark_files/xml/bf_12000_24000_2.xml", 1);
     run_tests_with_xml_file("../benchmark_files/xml/bf_12000_24000_3.xml", 1);*/
 
-	run_tests_with_xml_file("../benchmark_files/xml/bf_15000_30000_1.xml", 1);
+	/*run_tests_with_xml_file("../benchmark_files/xml/bf_15000_30000_1.xml", 1);
 	run_tests_with_xml_file("../benchmark_files/xml/bf_15000_30000_2.xml", 1);
 	run_tests_with_xml_file("../benchmark_files/xml/bf_15000_30000_3.xml", 1);
 
@@ -372,7 +372,13 @@ int main(void)
 
 	run_tests_with_xml_file("../benchmark_files/xml/bf_30000_60000_1.xml", 1);
 	run_tests_with_xml_file("../benchmark_files/xml/bf_30000_60000_2.xml", 1);
-	run_tests_with_xml_file("../benchmark_files/xml/bf_30000_60000_3.xml", 1);
+	run_tests_with_xml_file("../benchmark_files/xml/bf_30000_60000_3.xml", 1);*/
+
+    run_tests_with_xml_file("../benchmark_files/xml/bf_40000_80000_1.xml", 1);
+    run_tests_with_xml_file("../benchmark_files/xml/bf_40000_80000_2.xml", 1);
+    run_tests_with_xml_file("../benchmark_files/xml/bf_40000_80000_3.xml", 1);
+
+    run_tests_with_xml_file("../benchmark_files/xml/bf_80000_160000_2.xml", 1);
 
 	return 0;
 }

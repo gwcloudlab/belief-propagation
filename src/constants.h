@@ -18,7 +18,7 @@
 
 #define NUM_ITERATIONS 100000
 
-#define PRECISION 1E-16
+#define PRECISION 1E-3
 
 #define BLOCK_SIZE 256
 
