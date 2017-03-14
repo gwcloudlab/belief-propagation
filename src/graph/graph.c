@@ -804,7 +804,6 @@ void loopy_propagate_one_iteration(Graph_t graph){
     num_edges = graph->current_num_edges;
 
 #pragma omp parallel for default(none) shared(nodes, current, previous, num_vertices, dest_node_to_edges, src_node_to_edges, num_edges) private(message_buffer, i, num_variables, node)
-#pragma acc kernels
     for(i = 0; i < num_vertices; ++i){
 		node = &nodes[i];
 		num_variables = node->num_variables;
