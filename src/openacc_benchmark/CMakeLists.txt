@@ -1,7 +1,6 @@
+project(benchmark_openacc)
 cmake_minimum_required(VERSION 2.8)
 find_package(CUDA QUIET REQUIRED)
-
-project(benchmark_openacc)
 
 FIND_PROGRAM(M_pg_cc NAMES /c1/apps/pgi/linux86-64/10.5/bin/pgcc)
 MESSAGE(STATUS "Mutatee pgcc: ${M_pg_cc}")
