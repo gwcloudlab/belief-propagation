@@ -14,7 +14,7 @@
 
 #define WEIGHT_INFINITY 99999
 
-#define BATCH_SIZE 1000
+#define BATCH_SIZE 1
 
 #define NUM_ITERATIONS 100000
 
@@ -23,6 +23,8 @@
 #define BLOCK_SIZE 256
 
 #define MAX_NUM_NODES 1048
+
+#define WARP_SIZE 32
 
 
 #endif /* CONSTANTS_H_ */
