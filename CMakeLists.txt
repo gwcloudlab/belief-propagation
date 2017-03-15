@@ -6,4 +6,6 @@ add_subdirectory(src/example-belief-propagation)
 add_subdirectory(src/benchmark_files)
 add_subdirectory(src/c_benchmark)
 add_subdirectory(src/openmp_benchmark)
-add_subdirectory(src/openacc_benchmark)
+add_subdirectory(src/cuda_benchmark)
+#add_subdirectory(src/openacc_benchmark EXCLUDE_FROM_ALL)
+

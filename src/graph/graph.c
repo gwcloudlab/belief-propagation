@@ -719,6 +719,7 @@ static void marginalize_loopy_nodes(Graph_t graph, Edge_t current, unsigned int 
 	}
 }
 
+#pragma acc routine
 static void marginalize_node_acc(Node_t nodes, unsigned int node_index,
 								 Edge_t edges, unsigned int * dest_nodes_to_edges,
 								 unsigned int current_num_vertices, unsigned int current_num_edges){
@@ -727,8 +728,6 @@ static void marginalize_node_acc(Node_t nodes, unsigned int node_index,
 	Edge_t edge;
 	Node_t node;
 	double sum;
-
-	has_incoming = 0;
 
 	node = &nodes[node_index];
 	num_variables = node->num_variables;
@@ -920,7 +919,10 @@ static void loopy_propagate_one_iteration_acc(unsigned int num_vertices, unsigne
 
 	}
 
-	marginalize_nodes_acc(nodes, current_edge, dest_node_to_edges, num_vertices, num_edges);
+	#pragma kernels copy(nodes[0:num_vertices]) copyin(current_edge[0:num_edges], dest_node_to_edges[0:num_edges+num_vertices], num_vertices, num_edges)
+	for(i = 0; i < num_vertices; ++i){
+		marginalize_node_acc(nodes, i, current_edge, dest_node_to_edges, num_vertices, num_edges);
+	}
 
 	//swap previous and current
 	temp = previous;
