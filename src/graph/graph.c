@@ -880,29 +880,40 @@ unsigned int loopy_propagate_until(Graph_t graph, double convergence, unsigned i
 	return i;
 }
 
-static void loopy_propagate_one_iteration_acc(unsigned int num_vertices, unsigned int num_edges,
-											  unsigned int * dest_node_to_edges, unsigned int * src_node_to_edges, Node_t nodes,
-											  Edge_t * previous, Edge_t * current){
-	unsigned int i, num_variables;
+static unsigned int loopy_propagate_iterations_acc(unsigned int num_vertices, unsigned int num_edges,
+										   unsigned int *dest_node_to_edges, unsigned int *src_node_to_edges,
+										   Node_t nodes,
+										   Edge_t *previous, Edge_t *current, unsigned int max_iterations,
+										   double convergence){
+	unsigned int i, j, k, num_variables, num_iter;
 	Node_t node;
 	Edge_t * temp;
-	Edge_t previous_edge, current_edge;
+	Edge_t previous_edges, current_edges, previous_edge, current_edge;
 
-	previous_edge = *previous;
-	current_edge = *current;
+	double delta, previous_delta, diff;
+
+	previous_edges = *previous;
+	current_edges = *current;
 
 	double message_buffer[MAX_STATES];
 
-#pragma omp parallel for default(none) shared(nodes, current_edge, previous_edge, num_vertices, dest_node_to_edges, src_node_to_edges, num_edges) private(message_buffer, i, num_variables, node)
-#pragma acc kernels copy(current_edge[0:num_edges]) copyin(nodes[0:num_vertices], previous_edge[0:num_edges], num_vertices, num_edges, dest_node_to_edges[0:num_vertices+num_edges], src_node_to_edges[0:num_vertices+num_edges])
-	for(i = 0; i < num_vertices; ++i){
-		node = &nodes[i];
-		num_variables = node->num_variables;
+	num_iter = 0;
+	delta = 0.0;
+	previous_delta = -1.0;
 
-		initialize_message_buffer(message_buffer, node, num_variables);
+#pragma acc data copy(current_edges[0:num_edges], nodes[0:num_vertices], previous_edges[0:num_edges]) copyin(num_vertices, num_edges, dest_node_to_edges[0:num_vertices+num_edges], src_node_to_edges[0:num_vertices+num_edges])
+	for(i = 0; i < max_iterations; i+= BATCH_SIZE){
+		//printf("Current iteration: %d\n", i+1);
+		for(j = 0; j < BATCH_SIZE; ++j){
+#pragma acc kernels
+			for(k = 0; k < num_vertices; ++k){
+				node = &nodes[k];
+				num_variables = node->num_variables;
 
-		//read incoming messages
-		read_incoming_messages(message_buffer, dest_node_to_edges, previous_edge, num_edges, num_vertices, num_variables, i);
+				initialize_message_buffer(message_buffer, node, num_variables);
+
+				//read incoming messages
+				read_incoming_messages(message_buffer, dest_node_to_edges, previous_edges, num_edges, num_vertices, num_variables, k);
 
 /*
 		printf("Message at node\n");
@@ -914,49 +925,35 @@ static void loopy_propagate_one_iteration_acc(unsigned int num_vertices, unsigne
 		printf("\t]\n");*/
 
 
-		//send message
-		send_message_for_node(src_node_to_edges, message_buffer, num_edges, current_edge, num_vertices, i);
+				//send message
+				send_message_for_node(src_node_to_edges, message_buffer, num_edges, current_edges, num_vertices, k);
 
-	}
+			}
 
-	#pragma kernels copy(nodes[0:num_vertices]) copyin(current_edge[0:num_edges], dest_node_to_edges[0:num_edges+num_vertices], num_vertices, num_edges)
-	for(i = 0; i < num_vertices; ++i){
-		marginalize_node_acc(nodes, i, current_edge, dest_node_to_edges, num_vertices, num_edges);
-	}
+#pragma kernels
+			for(k = 0; k < num_vertices; ++k){
+				marginalize_node_acc(nodes, k, current_edges, dest_node_to_edges, num_vertices, num_edges);
+			}
 
-	//swap previous and current
-	temp = previous;
-	previous = current;
-	current = temp;
-}
+			//swap previous and current
+			temp = previous;
+			previous = current;
+			current = temp;
 
-unsigned int loopy_progagate_until_acc(Graph_t graph, double convergence, unsigned int max_iterations){
-	unsigned int i, j, k, num_nodes;
-	Edge_t previous_edges, previous, current, current_edges;
-	double delta, diff, previous_delta;
+		}
 
-	previous_edges = *(graph->previous);
-	current_edges = *(graph->current);
-
-	num_nodes = graph->current_num_vertices;
-
-	previous_delta = -1.0;
-	delta = 0.0;
-
-	for(i = 0; i < max_iterations; ++i){
-		//printf("Current iteration: %d\n", i+1);
-		loopy_propagate_one_iteration_acc(graph->current_num_vertices, graph->current_num_edges, graph->dest_nodes_to_edges, graph->src_nodes_to_edges, graph->nodes, graph->previous, graph->current);
+		num_iter += BATCH_SIZE;
 
 		delta = 0.0;
 
-		for(j = 0; j < num_nodes; ++j){
-			previous = &previous_edges[j];
-			current = &current_edges[j];
+		for(j = 0; j < num_vertices; ++j){
+			previous_edge = &previous_edges[j];
+			current_edge = &current_edges[j];
 
-			for(k = 0; k < previous->x_dim; ++k){
-				diff = previous->message[k] - current->message[k];
+			for(k = 0; k < previous_edge->x_dim; ++k){
+				diff = previous_edge->message[k] - current_edge->message[k];
 				if(diff != diff){
-					continue;
+					diff = 0.0;
 				}
 				delta += fabs(diff);
 			}
@@ -972,7 +969,18 @@ unsigned int loopy_progagate_until_acc(Graph_t graph, double convergence, unsign
 	if(i == max_iterations){
 		printf("No Convergence: previous: %lf vs current: %lf\n", previous_delta, delta);
 	}
-	return i;
+
+	return num_iter;
+}
+
+unsigned int loopy_progagate_until_acc(Graph_t graph, double convergence, unsigned int max_iterations){
+
+
+
+	return loopy_propagate_iterations_acc(graph->current_num_vertices, graph->current_num_edges,
+	graph->dest_nodes_to_edges, graph->src_nodes_to_edges,
+	graph->nodes,
+	graph->previous, graph->current, max_iterations, convergence);
 }
 
 void calculate_diameter(Graph_t graph){

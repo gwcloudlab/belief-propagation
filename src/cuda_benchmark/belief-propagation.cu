@@ -17,7 +17,8 @@ int yyparse(struct expression ** expr, yyscan_t scanner);
 static void CheckCudaErrorAux (const char *, unsigned, const char *, cudaError_t);
 #define CUDA_CHECK_RETURN(value) CheckCudaErrorAux(__FILE__,__LINE__, #value, value)
 
-texture<unsigned int, cudaTextureType1D, cudaReadModeElementType> tex_dest_node_to_edges, tex_src_node_to_edges;
+texture<unsigned int, cudaTextureType1D, cudaReadModeElementType> tex_dest_node_to_edges;
+texture<unsigned int, cudaTextureType1D, cudaReadModeElementType> tex_src_node_to_edges;
 
 __device__
 void init_message_buffer_cuda(double * buffer, Node_t node, unsigned int num_variables){
@@ -180,8 +181,8 @@ void loopy_propagate_main_loop(unsigned int num_vertices, unsigned int num_edges
         read_incoming_messages_cuda(message_buffer, previous_edge, num_edges, num_vertices, num_variables, idx);
         __syncthreads();
 
-        send_message_for_node_cuda(message_buffer, num_edges, current_edge, num_vertices, idx);
-        __syncthreads();
+        //send_message_for_node_cuda(message_buffer, num_edges, current_edge, num_vertices, idx);
+        //__syncthreads();
 
         marginalize_node(nodes, idx, current_edge, num_vertices, num_edges);
     }

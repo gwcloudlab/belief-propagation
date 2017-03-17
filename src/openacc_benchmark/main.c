@@ -312,7 +312,7 @@ int main(void)
 	delete_expression(expression);*/
 
 	printf("File Name,Propagation Type,Number of Nodes,Number of Edges,Diameter,Number of Iterations,BP Run Time(s)\n");
-/*
+
 	run_tests_with_file("../benchmark_files/small/asia.bif", 1);
 	run_tests_with_file("../benchmark_files/small/cancer.bif", 1);
 	run_tests_with_file("../benchmark_files/small/earthquake.bif", 1);
@@ -355,9 +355,9 @@ int main(void)
     run_tests_with_xml_file("../benchmark_files/xml/bf_10000_20000_3.xml", 1);
     run_tests_with_xml_file("../benchmark_files/xml/bf_12000_24000_1.xml", 1);
     run_tests_with_xml_file("../benchmark_files/xml/bf_12000_24000_2.xml", 1);
-    run_tests_with_xml_file("../benchmark_files/xml/bf_12000_24000_3.xml", 1);*/
+    run_tests_with_xml_file("../benchmark_files/xml/bf_12000_24000_3.xml", 1);
 
-	/*run_tests_with_xml_file("../benchmark_files/xml/bf_15000_30000_1.xml", 1);
+	run_tests_with_xml_file("../benchmark_files/xml/bf_15000_30000_1.xml", 1);
 	run_tests_with_xml_file("../benchmark_files/xml/bf_15000_30000_2.xml", 1);
 	run_tests_with_xml_file("../benchmark_files/xml/bf_15000_30000_3.xml", 1);
 
@@ -371,7 +371,7 @@ int main(void)
 
 	run_tests_with_xml_file("../benchmark_files/xml/bf_30000_60000_1.xml", 1);
 	run_tests_with_xml_file("../benchmark_files/xml/bf_30000_60000_2.xml", 1);
-	run_tests_with_xml_file("../benchmark_files/xml/bf_30000_60000_3.xml", 1);*/
+	run_tests_with_xml_file("../benchmark_files/xml/bf_30000_60000_3.xml", 1);
 
 	run_tests_with_xml_file("../benchmark_files/xml/bf_40000_80000_1.xml", 1);
 	run_tests_with_xml_file("../benchmark_files/xml/bf_40000_80000_2.xml", 1);
