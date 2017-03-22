@@ -32,4 +32,4 @@ make
 cd /home/***REMOVED***/belief-propagation/src/openacc_benchmark
 cmake . -DCMAKE_BUILD_TYPE=Release
 make
-./openmp_benchmark > openmp_benchmark.csv
+./openacc_benchmark > openacc_benchmark.csv
