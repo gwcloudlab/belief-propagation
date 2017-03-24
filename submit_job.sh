@@ -20,16 +20,16 @@ module load cmake
 cd /home/trotsky/belief-propagation/src/c_benchmark
 cmake . -DCMAKE_BUILD_TYPE=Release
 make
-./c_benchmark > c_benchmark.csv
+./c_benchmark
 
 # build and run openmp benchmarks
 cd /home/trotsky/belief-propagation/src/openmp_benchmark
 cmake . -DCMAKE_BUILD_TYPE=Release
 make
-./openmp_benchmark > openmp_benchmark.csv
+./openmp_benchmark
 
 # build and run openacc benchmarks
 cd /home/trotsky/belief-propagation/src/openacc_benchmark
 cmake . -DCMAKE_BUILD_TYPE=Release
 make
-./openacc_benchmark > openacc_benchmark.csv
+./openacc_benchmark
