@@ -264,6 +264,7 @@ static void add_node_to_graph(struct expression * expr, Graph_t graph){
 }
 
 static void add_nodes_to_graph(struct expression * expr, Graph_t graph){
+	struct expression * next;
 	if(expr == NULL){
 		return;
 	}
@@ -282,8 +283,22 @@ static void add_nodes_to_graph(struct expression * expr, Graph_t graph){
 	if(expr->type == PROBABILITY_DECLARATION){
 		return;
 	}
-	add_nodes_to_graph(expr->left, graph);
-	add_nodes_to_graph(expr->right, graph);
+
+	if(expr->type == VARIABLE_OR_PROBABILITY_DECLARATION){
+		next = expr;
+		while(next != NULL && next->type == VARIABLE_OR_PROBABILITY_DECLARATION){
+			add_nodes_to_graph(next->right, graph);
+			next = next->left;
+		}
+		if(next != NULL && next->type != VARIABLE_OR_PROBABILITY_DECLARATION){
+			add_nodes_to_graph(next, graph);
+		}
+	}
+
+	else {
+		add_nodes_to_graph(expr->left, graph);
+		add_nodes_to_graph(expr->right, graph);
+	}
 }
 
 static void count_number_of_node_names(struct expression *expr, unsigned int * count){
@@ -302,6 +317,8 @@ static void count_number_of_node_names(struct expression *expr, unsigned int * c
 }
 
 static void fill_in_node_names(struct expression *expr, char *buffer, unsigned int *curr_index){
+	struct expression * next;
+
 	if(expr == NULL){
 		return;
 	}
@@ -314,8 +331,20 @@ static void fill_in_node_names(struct expression *expr, char *buffer, unsigned i
 		*curr_index += 1;
 	}
 
-	fill_in_node_names(expr->left, buffer, curr_index);
-	fill_in_node_names(expr->right, buffer, curr_index);
+	if(expr->type == VARIABLE_OR_PROBABILITY_DECLARATION){
+		next = expr;
+		while(next != NULL && next->type == VARIABLE_OR_PROBABILITY_DECLARATION){
+			fill_in_node_names(next->right, buffer, curr_index);
+			next = next->left;
+		}
+		if(next != NULL && next->type != VARIABLE_OR_PROBABILITY_DECLARATION){
+			fill_in_node_names(next, buffer, curr_index);
+		}
+	}
+	else {
+		fill_in_node_names(expr->left, buffer, curr_index);
+		fill_in_node_names(expr->right, buffer, curr_index);
+	}
 }
 
 static void fill_in_probability_table_value(struct expression *expr, double *probability_buffer,
@@ -776,6 +805,7 @@ static void add_edge_to_graph(struct expression * expr, Graph_t graph){
 }
 
 static void update_nodes_in_graph(struct expression * expr, Graph_t graph){
+	struct expression * next;
 	if(expr == NULL){
 		return;
 	}
@@ -793,6 +823,18 @@ static void update_nodes_in_graph(struct expression * expr, Graph_t graph){
 
 	if(expr->type == PROBABILITY_DECLARATION){
 		update_node_in_graph(expr, graph);
+		return;
+	}
+
+	if(expr->type == VARIABLE_OR_PROBABILITY_DECLARATION){
+		next = expr;
+		while(next != NULL && next->type == VARIABLE_OR_PROBABILITY_DECLARATION){
+			update_nodes_in_graph(next->right, graph);
+			next = next->left;
+		}
+		if(next != NULL && next->type != VARIABLE_OR_PROBABILITY_DECLARATION){
+			update_nodes_in_graph(next, graph);
+		}
 	}
 	else {
 		update_nodes_in_graph(expr->left, graph);
@@ -801,6 +843,7 @@ static void update_nodes_in_graph(struct expression * expr, Graph_t graph){
 }
 
 static void add_edges_to_graph(struct expression * expr, Graph_t graph){
+	struct expression * next;
 	if(expr == NULL){
 		return;
 	}
@@ -823,13 +866,22 @@ static void add_edges_to_graph(struct expression * expr, Graph_t graph){
     if(expr->type == PROBABILITY_VARIABLES_LIST){
         return;
     }
-
-
-
-
+	
     if(expr->type == PROBABILITY_DECLARATION){
         add_edge_to_graph(expr, graph);
+		return;
     }
+
+	if(expr->type == VARIABLE_OR_PROBABILITY_DECLARATION){
+		next = expr;
+		while(next != NULL && next->type == VARIABLE_OR_PROBABILITY_DECLARATION){
+			add_edges_to_graph(next->right, graph);
+			next = next->left;
+		}
+		if(next != NULL && next->type != VARIABLE_OR_PROBABILITY_DECLARATION){
+			add_edges_to_graph(next, graph);
+		}
+	}
 	else {
 		add_edges_to_graph(expr->left, graph);
 		add_edges_to_graph(expr->right, graph);
