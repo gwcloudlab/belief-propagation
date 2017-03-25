@@ -216,6 +216,7 @@ void run_test_belief_propagation(struct expression * expression, const char * fi
 
 	time_elapsed = (double)(end - start) / CLOCKS_PER_SEC;
 	fprintf(out, "%s,regular,%d,%d,%d,2,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, time_elapsed);
+    fflush(out);
 
 	graph_destroy(graph);
 }
@@ -244,6 +245,7 @@ void run_test_loopy_belief_propagation(struct expression * expression, const cha
 	time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
 	//print_nodes(graph);
 	fprintf(out, "%s,loopy,%d,%d,%d,%d,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
+    fflush(out);
 
 	graph_destroy(graph);
 }
@@ -382,12 +384,13 @@ int main(void)
 
     FILE * out = fopen("c_benchmark.csv", "w");
     fprintf(out, "File Name,Propagation Type,Number of Nodes,Number of Edges,Diameter,Number of Iterations,BP Run Time(s)\n");
+    fflush(out);
 
-	run_tests_with_xml_file("../benchmark_files/xml2/10_20.xml", 1, out);
+	/*run_tests_with_xml_file("../benchmark_files/xml2/10_20.xml", 1, out);
 	run_tests_with_xml_file("../benchmark_files/xml2/100_200.xml", 1, out);
 	run_tests_with_xml_file("../benchmark_files/xml2/1000_2000.xml", 1, out);
 	run_tests_with_xml_file("../benchmark_files/xml2/10000_20000.xml", 1, out);
-	run_tests_with_xml_file("../benchmark_files/xml2/100000_200000.xml", 1, out);
+	run_tests_with_xml_file("../benchmark_files/xml2/100000_200000.xml", 1, out);*/
 	run_tests_with_xml_file("../benchmark_files/xml2/1000000_2000000.xml", 1, out);
 	run_tests_with_xml_file("../benchmark_files/xml2/10000000_20000000.xml", 1, out);
 

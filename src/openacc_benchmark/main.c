@@ -216,6 +216,7 @@ void run_test_belief_propagation(struct expression * expression, const char * fi
 
 	time_elapsed = (double)(end - start) / CLOCKS_PER_SEC;
 	fprintf(out, "%s,regular,%d,%d,%d,2,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, time_elapsed);
+    fflush(out);
 
 	graph_destroy(graph);
 }
@@ -244,6 +245,7 @@ void run_test_loopy_belief_propagation(struct expression * expression, const cha
 	time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
 	//print_nodes(graph);
 	fprintf(out, "%s,loopy,%d,%d,%d,%d,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
+    fflush(out);
 
 	graph_destroy(graph);
 }
@@ -312,7 +314,8 @@ int main(void)
 	delete_expression(expression);*/
 
     FILE * out = fopen("openacc_benchmark.csv", "w");
-	printf("File Name,Propagation Type,Number of Nodes,Number of Edges,Diameter,Number of Iterations,BP Run Time(s)\n");
+	fprintf(out, "File Name,Propagation Type,Number of Nodes,Number of Edges,Diameter,Number of Iterations,BP Run Time(s)\n");
+    fflush(out);
 
 	/*run_tests_with_file("../benchmark_files/small/asia.bif", 1);
 	run_tests_with_file("../benchmark_files/small/cancer.bif", 1);

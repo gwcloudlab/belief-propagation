@@ -157,8 +157,8 @@ static int count_nodes(struct expression * expr){
 		return count;
 	}
 
-	if(expr->type == VARIABLE_CONTENT){
-		count = 1;
+	if(expr->type == VARIABLE_DECLARATION){
+		return 1;
 	}
 
 	count += count_nodes(expr->left);
