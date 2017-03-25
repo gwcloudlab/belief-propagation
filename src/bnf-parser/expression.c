@@ -146,6 +146,7 @@ static void reverse_probability_table(double * probability_table, int num_probab
 
 
 static int count_nodes(struct expression * expr){
+	struct expression * next;
 	int count;
 
 	count = 0;
@@ -160,14 +161,26 @@ static int count_nodes(struct expression * expr){
 	if(expr->type == VARIABLE_DECLARATION){
 		return 1;
 	}
-
-	count += count_nodes(expr->left);
-	count += count_nodes(expr->right);
-
+	if(expr->type == VARIABLE_OR_PROBABILITY_DECLARATION){
+		next = expr;
+		while(next != NULL && next->type == VARIABLE_OR_PROBABILITY_DECLARATION){
+			count += count_nodes(next->right);
+			next = next->left;
+		}
+		if(next != NULL && next->type != VARIABLE_OR_PROBABILITY_DECLARATION){
+			count += count_nodes(next);
+		}
+	}
+	else {
+		count += count_nodes(expr->left);
+		count += count_nodes(expr->right);
+	}
 	return count;
 }
 
 static int count_edges(struct expression * expr){
+	struct expression * next;
+
 	int count;
 
 	count = 0;
@@ -191,9 +204,20 @@ static int count_edges(struct expression * expr){
 	else {
 		count = 0;
 	}
-
-	count += count_edges(expr->left);
-	count += count_edges(expr->right);
+	if(expr->type == VARIABLE_OR_PROBABILITY_DECLARATION){
+		next = expr;
+		while(next != NULL && next->type == VARIABLE_OR_PROBABILITY_DECLARATION){
+			count += count_edges(next->right);
+			next = next->left;
+		}
+		if(next != NULL && next->type != VARIABLE_OR_PROBABILITY_DECLARATION){
+			count += count_edges(next);
+		}
+	}
+	else{
+		count += count_edges(expr->left);
+		count += count_edges(expr->right);
+	}
 
 	return count;
 }
@@ -866,7 +890,7 @@ static void add_edges_to_graph(struct expression * expr, Graph_t graph){
     if(expr->type == PROBABILITY_VARIABLES_LIST){
         return;
     }
-	
+
     if(expr->type == PROBABILITY_DECLARATION){
         add_edge_to_graph(expr, graph);
 		return;
