@@ -711,12 +711,76 @@ static void send_message_for_node(unsigned int * src_node_to_edges, double * mes
 }
 
 static void marginalize_loopy_nodes(Graph_t graph, Edge_t current, unsigned int num_vertices) {
-	unsigned int i;
+	unsigned int j;
 
+	unsigned int i, num_variables, start_index, end_index, edge_index, current_num_vertices, current_num_edges;
+	char has_incoming;
+	Edge_t edge, edges;
+	Node_t node, nodes;
+	double sum;
+	double new_message[MAX_STATES];
+
+	unsigned int * dest_nodes_to_edges;
+
+	dest_nodes_to_edges = graph->dest_nodes_to_edges;
+	nodes = graph->nodes;
+	current_num_vertices = graph->current_num_vertices;
+	current_num_edges = graph->current_num_edges;
+	edges = graph->edges;
+
+#pragma omp parallel for default(none) shared(num_vertices, current_num_vertices, current_num_edges, dest_nodes_to_edges, nodes, edges) private(i, j, node, num_variables, start_index, end_index, edge_index, has_incoming, edge, sum, new_message)
+	for(j = 0; j < num_vertices; ++j) {
+		has_incoming = 0;
+
+		node = &nodes[j];
+		num_variables = node->num_variables;
+
+
+		for (i = 0; i < num_variables; ++i) {
+			new_message[i] = 1.0;
+		}
+
+		has_incoming = 0;
+
+		start_index = dest_nodes_to_edges[j];
+		if (j + 1 == current_num_vertices) {
+			end_index = current_num_vertices + current_num_edges;
+		} else {
+			end_index = dest_nodes_to_edges[j + 1];
+		}
+
+		for (i = start_index; i < end_index; ++i) {
+			edge_index = dest_nodes_to_edges[i];
+			edge = &edges[edge_index];
+
+			combine_message(new_message, edge, num_variables);
+			has_incoming = 1;
+
+		}
+		if (has_incoming == 1) {
+			for (i = 0; i < num_variables; ++i) {
+				node->states[i] = new_message[i];
+			}
+		}
+		sum = 0.0;
+		for (i = 0; i < num_variables; ++i) {
+			sum += node->states[i];
+		}
+		if (sum <= 0.0) {
+			sum = 1.0;
+		}
+
+		for (i = 0; i < num_variables; ++i) {
+			node->states[i] = node->states[i] / sum;
+		}
+	}
+
+/*
 #pragma omp parallel for default(none) shared(graph, num_vertices, current) private(i)
 	for(i = 0; i < num_vertices; ++i){
 		marginalize_node(graph, i, current);
-	}
+	}*/
+
 }
 
 #pragma acc routine
