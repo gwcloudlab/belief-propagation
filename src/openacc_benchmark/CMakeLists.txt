@@ -5,7 +5,7 @@ find_package(CUDA QUIET REQUIRED)
 find_package(LibXml2 REQUIRED)
 
 #set(CMAKE_C_COMPILER /opt/pgi/linux86-64/16.10/bin/pgcc)
-set(CMAKE_C_COMPILER /c1/apps/pgi/linux86-64/10.5/bin/pgcc)
+set(CMAKE_C_COMPILER /home/***REMOVED***/pgi/linux86-64/10.5/bin/pgcc)
 set(CMAKE_C_FLAGS_RELEASE "-O3 -acc -ta=nvidia")
 set(CMAKE_C_FLAGS_DEBUG  "${CMAKE_C_FLAGS_DEBUG} -acc -Minfo=accel -ta=nvidia,time")
 SET(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS)
