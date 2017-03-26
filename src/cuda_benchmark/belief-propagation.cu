@@ -440,8 +440,8 @@ unsigned int loopy_propagate_until_cuda(Graph_t graph, double convergence, unsig
     tex_dest_node_to_edges.filterMode = cudaFilterModePoint;
     tex_dest_node_to_edges.normalized = 1;
 
-    cudaBindTextureToArray(&tex_src_node_to_edges, src_node_to_edges, &channel_desc);
-    cudaBindTextureToArray(&tex_dest_node_to_edges, dest_node_to_edges, &channel_desc);
+    CUDA_CHECK_RETURN(cudaBindTextureToArray(&tex_src_node_to_edges, src_node_to_edges, &channel_desc));
+    CUDA_CHECK_RETURN(cudaBindTextureToArray(&tex_dest_node_to_edges, dest_node_to_edges, &channel_desc));
 
     const int blockCount = (num_vertices + BLOCK_SIZE - 1)/ BLOCK_SIZE;
     num_iter = 0;
@@ -450,8 +450,10 @@ unsigned int loopy_propagate_until_cuda(Graph_t graph, double convergence, unsig
         for(j = 0; j < BATCH_SIZE; ++j) {
             loopy_propagate_main_loop<<<blockCount, BLOCK_SIZE >>>(num_vertices, num_edges, nodes, previous, current);
             err = cudaGetLastError();
-            if (err != cudaSuccess)
-                printf("Error: %s\n", cudaGetErrorString(err));
+            if (err != cudaSuccess) {
+                fprintf(stderr, "Error: %s\n", cudaGetErrorString(err));
+                exit(-1);
+            }
             //swap pointers
             temp = current;
             current = previous;
@@ -461,8 +463,9 @@ unsigned int loopy_propagate_until_cuda(Graph_t graph, double convergence, unsig
         //calculate_delta_6<<<blockCount, BLOCK_SIZE>>>(previous, current, delta, delta_array, num_vertices, is_pow_2, WARP_SIZE);
         calculate_delta<<<blockCount, BLOCK_SIZE>>>(previous, current, delta, delta_array, num_vertices);
         err = cudaGetLastError();
-        if (err != cudaSuccess)
-            printf("Error: %s\n", cudaGetErrorString(err));
+        if (err != cudaSuccess) {
+            fprintf(stderr, "Error: %s\n", cudaGetErrorString(err));
+        }
         CUDA_CHECK_RETURN(cudaMemcpy(&host_delta, delta, sizeof(double), cudaMemcpyDeviceToHost));
         printf("Current delta: %lf\n", host_delta);
 
