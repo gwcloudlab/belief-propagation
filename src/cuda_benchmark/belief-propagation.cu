@@ -439,9 +439,9 @@ unsigned int loopy_propagate_until_cuda(Graph_t graph, double convergence, unsig
     host_previous = *(graph->previous);
     host_current = *(graph->current);
 
-    printf("Before=====");
+    /*printf("Before=====");
     print_edges(graph);
-    print_nodes(graph);
+    print_nodes(graph);*/
 
 
     is_pow_2 = num_vertices % 2 == 0;
@@ -526,9 +526,9 @@ unsigned int loopy_propagate_until_cuda(Graph_t graph, double convergence, unsig
     CUDA_CHECK_RETURN(cudaFree(delta));
     CUDA_CHECK_RETURN(cudaFree(delta_array));
 
-    printf("After=====");
+    /*printf("After=====");
     print_nodes(graph);
-    print_edges(graph);
+    print_edges(graph);*/
 
     return num_iter;
 }
