@@ -383,6 +383,39 @@ void calculate_delta_6(Edge_t previous_edges, Edge_t current_edges, double * del
     }
 }
 
+__global__
+void calculate_delta_simple(Edge_t previous_edges, Edge_t current_edges, double * delta, double * delta_array, unsigned int num_vertices) {
+    extern __shared__ double shared_delta[];
+    unsigned int tid, idx, i, s;
+
+    tid = threadIdx.x;
+    idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (idx < num_vertices) {
+        delta_array[idx] = calculate_local_delta(idx, previous_edges, current_edges);
+    }
+    __syncthreads();
+
+    shared_delta[tid] = (idx < num_vertices) ? delta_array[idx] : 0;
+
+    __syncthreads();
+
+    // do reduction in shared mem
+    for(s = 1; s < blockDim.x; s *= 2){
+        i = 2 * s * tid;
+        if( i < blockDim.x ) {
+            shared_delta[i] += shared_delta[i + s];
+        }
+
+        __syncthreads();
+    }
+
+    //write result for this block to global mem
+    if(tid == 0){
+        *delta = shared_delta[0];
+    }
+}
+
 unsigned int loopy_propagate_until_cuda(Graph_t graph, double convergence, unsigned int max_iterations){
     unsigned int i, j, num_iter, num_vertices, num_edges;
     double * delta;
@@ -464,8 +497,9 @@ unsigned int loopy_propagate_until_cuda(Graph_t graph, double convergence, unsig
             previous = temp;
             num_iter++;
         }
-        calculate_delta_6<<<dimReduceGrid, dimReduceBlock, reduceSmemSize>>>(previous, current, delta, delta_array, num_vertices, is_pow_2, WARP_SIZE);
+        //calculate_delta_6<<<dimReduceGrid, dimReduceBlock, reduceSmemSize>>>(previous, current, delta, delta_array, num_vertices, is_pow_2, WARP_SIZE);
         //calculate_delta<<<blockCount, BLOCK_SIZE>>>(previous, current, delta, delta_array, num_vertices);
+        calculate_delta_simple<<<blockCount, BLOCK_SIZE>>>(previous, current, delta, delta_array, num_vertices);
         err = cudaGetLastError();
         if (err != cudaSuccess) {
             fprintf(stderr, "Error: %s\n", cudaGetErrorString(err));
