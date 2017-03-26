@@ -505,7 +505,7 @@ unsigned int loopy_propagate_until_cuda(Graph_t graph, double convergence, unsig
             fprintf(stderr, "Error: %s\n", cudaGetErrorString(err));
         }
         CUDA_CHECK_RETURN(cudaMemcpy(&host_delta, delta, sizeof(double), cudaMemcpyDeviceToHost));
-        printf("Current delta: %lf\n", host_delta);
+        //printf("Current delta: %lf\n", host_delta);
 
         if(host_delta < convergence || fabs(host_delta - previous_delta) < convergence){
             break;
@@ -744,7 +744,7 @@ void run_test_belief_propagation(struct expression * expression, const char * fi
     graph_destroy(graph);
 }
 
-void run_test_loopy_belief_propagation(struct expression * expression, const char * file_name){
+void run_test_loopy_belief_propagation(struct expression * expression, const char * file_name, FILE * out){
     Graph_t graph;
     clock_t start, end;
     double time_elapsed;
@@ -767,7 +767,8 @@ void run_test_loopy_belief_propagation(struct expression * expression, const cha
 
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
     //print_nodes(graph);
-    printf("%s,loopy,%d,%d,%d,%d,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
+    fprintf(out, "%s,loopy,%d,%d,%d,%d,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
+    fflush(out);
 
     graph_destroy(graph);
 }
@@ -788,17 +789,17 @@ void run_tests_with_file(const char * file_name, unsigned int num_iterations){
     delete_expression(expr);
 }
 
-void run_tests_with_xml_file(const char * file_name, unsigned int num_iterations){
+void run_tests_with_xml_file(const char * file_name, unsigned int num_iterations, FILE * out){
     unsigned int i;
     struct expression * expr;
 
     expr = parse_xml_file(file_name);
-    for(i = 0; i < num_iterations; ++i){
+    /*for(i = 0; i < num_iterations; ++i){
         run_test_belief_propagation(expr, file_name);
-    }
+    }*/
 
     for(i = 0; i < num_iterations; ++i){
-        run_test_loopy_belief_propagation(expr, file_name);
+        run_test_loopy_belief_propagation(expr, file_name, out);
     }
 
     delete_expression(expr);
@@ -823,7 +824,7 @@ int main(void)
 	test_parse_file("Diabetes.bif");
 	test_loopy_belief_propagation("Diabetes.bif");
 */
-	test_loopy_belief_propagation("../benchmark_files/dog.bif");
+	//test_loopy_belief_propagation("../benchmark_files/dog.bif");
 	//test_loopy_belief_propagation("../benchmark_files/alarm.bif");
 
     //test_file("dog.bif");
@@ -835,7 +836,9 @@ int main(void)
 
     delete_expression(expression);*/
 
-    printf("File Name,Propagation Type,Number of Nodes,Number of Edges,Diameter,Number of Iterations,BP Run Time(s)\n");
+    FILE * out = fopen("openmp_benchmark.csv", "w");
+    fprintf(out, "File Name,Propagation Type,Number of Nodes,Number of Edges,Diameter,Number of Iterations,BP Run Time(s)\n");
+    fflush(out);
 
 	/*run_tests_with_file("../benchmark_files/small/asia.bif", 1);
 	run_tests_with_file("../benchmark_files/small/cancer.bif", 1);
@@ -902,6 +905,21 @@ int main(void)
     run_tests_with_xml_file("../benchmark_files/xml/bf_40000_80000_3.xml", 1);
 
     run_tests_with_xml_file("../benchmark_files/xml/bf_80000_160000_2.xml", 1);*/
+
+    run_tests_with_xml_file("../benchmark_files/xml2/10_20.xml", 1, out);
+    run_tests_with_xml_file("../benchmark_files/xml2/100_200.xml", 1, out);
+    run_tests_with_xml_file("../benchmark_files/xml2/1000_2000.xml", 1, out);
+    run_tests_with_xml_file("../benchmark_files/xml2/10000_20000.xml", 1, out);
+    run_tests_with_xml_file("../benchmark_files/xml2/100000_200000.xml", 1, out);
+    run_tests_with_xml_file("../benchmark_files/xml2/200000_400000.xml", 1, out);
+    run_tests_with_xml_file("../benchmark_files/xml2/300000_600000.xml", 1, out);
+    run_tests_with_xml_file("../benchmark_files/xml2/400000_800000.xml", 1, out);
+    run_tests_with_xml_file("../benchmark_files/xml2/500000_1000000.xml", 1, out);
+    run_tests_with_xml_file("../benchmark_files/xml2/600000_1200000.xml", 1, out);
+    run_tests_with_xml_file("../benchmark_files/xml2/700000_1400000.xml", 1, out);
+    run_tests_with_xml_file("../benchmark_files/xml2/800000_1600000.xml", 1, out);
+    run_tests_with_xml_file("../benchmark_files/xml2/1000000_2000000.xml", 1, out);
+    //run_tests_with_xml_file("../benchmark_files/xml2/10000000_20000000.xml", 1, out);
 
     return 0;
 }
