@@ -446,6 +446,10 @@ unsigned int loopy_propagate_until_cuda(Graph_t graph, double convergence, unsig
     const int blockCount = (num_vertices + BLOCK_SIZE - 1)/ BLOCK_SIZE;
     num_iter = 0;
 
+    dim3 dimReduceBlock(num_vertices, 1, 1);
+    dim3 dimReduceGrid(blockCount, 1, 1);
+    int reduceSmemSize = (num_vertices <= 32) ? 2 * num_vertices * sizeof(double) : num_vertices * sizeof(double);
+
     for(i = 0; i < max_iterations; i+= BATCH_SIZE){
         for(j = 0; j < BATCH_SIZE; ++j) {
             loopy_propagate_main_loop<<<blockCount, BLOCK_SIZE >>>(num_vertices, num_edges, nodes, previous, current);
@@ -460,8 +464,8 @@ unsigned int loopy_propagate_until_cuda(Graph_t graph, double convergence, unsig
             previous = temp;
             num_iter++;
         }
-        //calculate_delta_6<<<blockCount, BLOCK_SIZE>>>(previous, current, delta, delta_array, num_vertices, is_pow_2, WARP_SIZE);
-        calculate_delta<<<blockCount, BLOCK_SIZE>>>(previous, current, delta, delta_array, num_vertices);
+        calculate_delta_6<<<dimReduceGrid, dimReduceBlock, reduceSmemSize>>>(previous, current, delta, delta_array, num_vertices, is_pow_2, WARP_SIZE);
+        //calculate_delta<<<blockCount, BLOCK_SIZE>>>(previous, current, delta, delta_array, num_vertices);
         err = cudaGetLastError();
         if (err != cudaSuccess) {
             fprintf(stderr, "Error: %s\n", cudaGetErrorString(err));
