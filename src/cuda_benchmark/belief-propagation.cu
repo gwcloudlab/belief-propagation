@@ -498,8 +498,8 @@ unsigned int loopy_propagate_until_cuda(Graph_t graph, double convergence, unsig
             num_iter++;
         }
         //calculate_delta_6<<<dimReduceGrid, dimReduceBlock, reduceSmemSize>>>(previous, current, delta, delta_array, num_vertices, is_pow_2, WARP_SIZE);
-        //calculate_delta<<<blockCount, BLOCK_SIZE>>>(previous, current, delta, delta_array, num_vertices);
-        calculate_delta_simple<<<blockCount, BLOCK_SIZE>>>(previous, current, delta, delta_array, num_vertices);
+        //calculate_delta<<<dimReduceGrid, dimReduceBlock, reduceSmemSize>>>(previous, current, delta, delta_array, num_vertices);
+        calculate_delta_simple<<<dimReduceGrid, dimReduceBlock, reduceSmemSize>>>(previous, current, delta, delta_array, num_vertices);
         err = cudaGetLastError();
         if (err != cudaSuccess) {
             fprintf(stderr, "Error: %s\n", cudaGetErrorString(err));
