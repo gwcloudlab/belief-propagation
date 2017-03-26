@@ -773,7 +773,7 @@ void run_test_loopy_belief_propagation(struct expression * expression, const cha
     graph_destroy(graph);
 }
 
-void run_tests_with_file(const char * file_name, unsigned int num_iterations){
+void run_tests_with_file(const char * file_name, unsigned int num_iterations, FILE * out){
     unsigned int i;
     struct expression * expr;
 
@@ -783,7 +783,7 @@ void run_tests_with_file(const char * file_name, unsigned int num_iterations){
     }
 
     for(i = 0; i < num_iterations; ++i){
-        run_test_loopy_belief_propagation(expr, file_name);
+        run_test_loopy_belief_propagation(expr, file_name, out);
     }
 
     delete_expression(expr);
