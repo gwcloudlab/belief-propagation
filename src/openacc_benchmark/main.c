@@ -395,6 +395,7 @@ int main(void)
     run_tests_with_xml_file("../benchmark_files/xml2/600000_1200000.xml", 1, out);
     //run_tests_with_xml_file("../benchmark_files/xml2/700000_1400000.xml", 1, out);
     run_tests_with_xml_file("../benchmark_files/xml2/800000_1600000.xml", 1, out);
+    //run_tests_with_xml_file("../benchmark_files/xml2/900000_1800000.xml", 1, out);
     run_tests_with_xml_file("../benchmark_files/xml2/1000000_2000000.xml", 1, out);
     //run_tests_with_xml_file("../benchmark_files/xml2/10000000_20000000.xml", 1, out);
 
