@@ -33,3 +33,9 @@ cd /home/trotsky/belief-propagation/src/openacc_benchmark
 cmake . -DCMAKE_BUILD_TYPE=Release
 make
 ./openacc_benchmark
+
+# build and run cuda benchmarks
+cd /home/trotsky/belief-propagation/src/cuda_benchmark
+cmake . -DCMAKE_BUILD_TYPE=Release
+make
+./cuda_benchmark
