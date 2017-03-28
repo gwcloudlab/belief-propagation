@@ -836,7 +836,7 @@ int main(void)
 
     delete_expression(expression);*/
 
-    FILE * out = fopen("openmp_benchmark.csv", "w");
+    FILE * out = fopen("cuda_benchmark.csv", "w");
     fprintf(out, "File Name,Propagation Type,Number of Nodes,Number of Edges,Diameter,Number of Iterations,BP Run Time(s)\n");
     fflush(out);
 
