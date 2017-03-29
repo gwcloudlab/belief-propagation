@@ -226,7 +226,7 @@ static void add_variable_discrete(struct expression * expr, Graph_t graph, unsig
 	char * node_name;
 	int num_vertices, char_index;
 
-	if(expr == NULL){
+	if(expr == NULL || expr->value == NULL){
 		return;
 	}
 
