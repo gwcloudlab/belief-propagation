@@ -33,6 +33,7 @@ create_graph(unsigned int num_vertices, unsigned int num_edges)
 	assert(g->variable_names);
     g->levels_to_nodes = (unsigned int *)malloc(sizeof(unsigned int) * 2 * num_vertices);
     assert(g->levels_to_nodes != NULL);
+    g->hash_table_created = 0;
     g->num_levels = 0;
 	g->total_num_vertices = num_vertices;
 	g->total_num_edges = num_edges;
@@ -155,6 +156,9 @@ int graph_edge_count(Graph_t g) {
 }
 
 void graph_destroy(Graph_t g) {
+    if(g->hash_table_created != 0){
+        hdestroy();
+    }
 	free(g->edges);
 	free(g->prev_edges);
 	free(g->nodes);

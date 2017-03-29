@@ -609,28 +609,33 @@ static void fill_in_probability_buffer_entry(struct expression * expr, double * 
 
 static unsigned int calculate_num_probabilities(char *node_name_buffer, unsigned int num_nodes, Graph_t graph){
 	unsigned int i, j, num_probabilities;
-	int found_index;
 	char * curr_name;
-	char * curr_node_name;
 	Node_t curr_node;
+    ENTRY e, *ep;
 
 	num_probabilities = 1;
 
+    if(graph->hash_table_created == 0){
+        // insert node names into hash
+        hcreate(graph->current_num_vertices);
+        for(i = 0; i < graph->current_num_vertices; ++i){
+            e.key = &(graph->node_names[i * CHAR_BUFFER_SIZE]);
+            curr_node = &(graph->nodes[i]);
+            e.data = (void *)curr_node->num_variables;
+            ep = hsearch(e, ENTER);
+            assert(ep != NULL);
+        }
+        graph->hash_table_created = 1;
+    }
+
 	for(i = 0; i < num_nodes; ++i){
 		curr_name = &(node_name_buffer[i * CHAR_BUFFER_SIZE]);
-		curr_node_name = NULL;
-		found_index = -1;
-		for(j = 0; j < graph->current_num_vertices; ++j){
-			curr_node_name = &(graph->node_names[j * CHAR_BUFFER_SIZE]);
-			if(strcmp(curr_name, curr_node_name) == 0){
-				found_index = j;
-				break;
-			}
-		}
-		assert(found_index < (int)graph->current_num_vertices);
-		curr_node = &(graph->nodes[found_index]);
 
-		num_probabilities *= curr_node->num_variables;
+        e.key = curr_name;
+        ep = hsearch(e, FIND);
+        assert(ep != NULL);
+
+		num_probabilities *= (unsigned int)ep->data;
 	}
 
 	return num_probabilities;
