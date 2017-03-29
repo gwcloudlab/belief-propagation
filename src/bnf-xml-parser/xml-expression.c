@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "xml-expression.h"
 
@@ -306,6 +307,9 @@ struct expression * parse_xml_file(const char * file_name){
     xmlDocPtr  doc;
     xmlParserCtxtPtr context;
     struct expression * root;
+
+    // ensure file path exists
+    assert( access(file_name, F_OK) != -1 );
 
     context = xmlNewParserCtxt();
     doc = xmlCtxtReadFile(context, file_name, NULL, XML_PARSE_HUGE);
