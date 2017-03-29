@@ -14,6 +14,7 @@
 
 #include "../node/node.h"
 #include "../edge/edge.h"
+#include <search.h>
 
 struct graph {
 	unsigned int total_num_vertices;
@@ -46,6 +47,8 @@ struct graph {
     char * observed_nodes;
 
 	char graph_name[CHAR_BUFFER_SIZE];
+
+	char hash_table_created;
 };
 typedef struct graph* Graph_t;
 
