@@ -239,45 +239,64 @@ static int count_edges(struct expression * expr){
 }
 
 static void add_variable_discrete(struct expression * expr, Graph_t graph, unsigned int * state_index){
+	struct expression * next;
 	char * node_name;
 	int num_vertices, char_index;
 
-	if(expr == NULL || expr->value == NULL){
+	if(expr == NULL){
 		return;
 	}
+	assert(expr->type == VARIABLE_VALUES_LIST);
+	next = expr;
+	while(next != NULL) {
 
-	num_vertices = graph->current_num_vertices;
+		num_vertices = graph->current_num_vertices;
 
-	char_index = num_vertices * MAX_STATES * CHAR_BUFFER_SIZE + *state_index * CHAR_BUFFER_SIZE;
-	node_name = &graph->variable_names[char_index];
-	strncpy(node_name, expr->value, CHAR_BUFFER_SIZE);
+		char_index = num_vertices * MAX_STATES * CHAR_BUFFER_SIZE + *state_index * CHAR_BUFFER_SIZE;
+		node_name = &graph->variable_names[char_index];
+		strncpy(node_name, expr->value, CHAR_BUFFER_SIZE);
 
-	//printf("Adding value: %s\n", expr->value);
+		//printf("Adding value: %s\n", expr->value);
 
-	*state_index += 1;
+		*state_index += 1;
 
-	add_variable_discrete(expr->left, graph, state_index);
-	add_variable_discrete(expr->right, graph, state_index);
+		next = next->left;
+	}
+
+	//add_variable_discrete(expr->left, graph, state_index);
+	//add_variable_discrete(expr->right, graph, state_index);
 
 }
 
 static void add_property_or_variable_discrete(struct expression * expr, Graph_t graph, unsigned int * state_index)
 {
+	struct expression * next;
 	int num_states;
 
 	if(expr == NULL){
 		return;
-	}
-
-	if(expr->type == VARIABLE_OR_PROBABILITY){
-		add_property_or_variable_discrete(expr->left, graph, state_index);
-		add_property_or_variable_discrete(expr->right, graph, state_index);
 	}
 	if(expr->type == VARIABLE_DISCRETE){
 		num_states = expr->int_value;
 		assert(num_states <= MAX_STATES);
 		add_variable_discrete(expr->left, graph, state_index);
 		assert((int)*state_index == num_states);
+		return;
+	}
+
+	if(expr->type == VARIABLE_OR_PROBABILITY){
+		next = expr;
+		while(next != NULL && next->type == VARIABLE_OR_PROBABILITY){
+			add_property_or_variable_discrete(next->right, graph, state_index);
+			next = next->left;
+		}
+		if(next != NULL){
+			add_property_or_variable_discrete(next, graph, state_index);
+		}
+	}
+	else{
+		add_property_or_variable_discrete(expr->left, graph, state_index);
+		add_property_or_variable_discrete(expr->right, graph, state_index);
 	}
 }
 
