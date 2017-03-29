@@ -144,6 +144,22 @@ static void reverse_probability_table(double * probability_table, int num_probab
 	}
 }
 
+static void fill_in_node_hash_table(Graph_t graph){
+	unsigned int i;
+	ENTRY e, *ep;
+
+	if(graph->hash_table_created == 0){
+		// insert node names into hash
+		hcreate(graph->current_num_vertices);
+		for(i = 0; i < graph->current_num_vertices; ++i){
+			e.key = &(graph->node_names[i * CHAR_BUFFER_SIZE]);
+			e.data = (void *)i;
+			ep = hsearch(e, ENTER);
+			assert(ep != NULL);
+		}
+		graph->hash_table_created = 1;
+	}
+}
 
 static int count_nodes(struct expression * expr){
 	struct expression * next;
@@ -507,18 +523,19 @@ static void fill_in_state_names(struct expression * expr, unsigned int count, un
 
 static Node_t find_node_by_name(char * name, Graph_t graph){
 	Node_t node;
-	char * node_name;
 	unsigned int i;
+    ENTRY e, *ep;
 
-	node = NULL;
+    fill_in_node_hash_table(graph);
 
-	for(i = 0; i < graph->current_num_vertices; ++i){
-		node_name = &(graph->node_names[i * CHAR_BUFFER_SIZE]);
-		if(strcmp(name, node_name) == 0){
-			node = &graph->nodes[i];
-			break;
-		}
-	}
+	e.key = name;
+    ep = hsearch(e, FIND);
+    assert(ep != NULL);
+
+    i = (unsigned int)ep->data;
+    assert(i < graph->current_num_vertices);
+
+    node = &graph->nodes[i];
 
 	assert(node != NULL);
 
@@ -608,25 +625,14 @@ static void fill_in_probability_buffer_entry(struct expression * expr, double * 
 }
 
 static unsigned int calculate_num_probabilities(char *node_name_buffer, unsigned int num_nodes, Graph_t graph){
-	unsigned int i, j, num_probabilities;
+	unsigned int i, node_index, num_probabilities;
 	char * curr_name;
 	Node_t curr_node;
     ENTRY e, *ep;
 
 	num_probabilities = 1;
 
-    if(graph->hash_table_created == 0){
-        // insert node names into hash
-        hcreate(graph->current_num_vertices);
-        for(i = 0; i < graph->current_num_vertices; ++i){
-            e.key = &(graph->node_names[i * CHAR_BUFFER_SIZE]);
-            curr_node = &(graph->nodes[i]);
-            e.data = (void *)curr_node->num_variables;
-            ep = hsearch(e, ENTER);
-            assert(ep != NULL);
-        }
-        graph->hash_table_created = 1;
-    }
+	fill_in_node_hash_table(graph);
 
 	for(i = 0; i < num_nodes; ++i){
 		curr_name = &(node_name_buffer[i * CHAR_BUFFER_SIZE]);
@@ -634,8 +640,10 @@ static unsigned int calculate_num_probabilities(char *node_name_buffer, unsigned
         e.key = curr_name;
         ep = hsearch(e, FIND);
         assert(ep != NULL);
+		node_index = (unsigned int)ep->data;
+		curr_node = &graph->nodes[node_index];
 
-		num_probabilities *= (unsigned int)ep->data;
+		num_probabilities *= curr_node->num_variables;
 	}
 
 	return num_probabilities;
