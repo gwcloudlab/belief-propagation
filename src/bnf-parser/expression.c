@@ -342,6 +342,8 @@ static void add_nodes_to_graph(struct expression * expr, Graph_t graph){
 }
 
 static void count_number_of_node_names(struct expression *expr, unsigned int * count){
+	struct expression * next;
+
 	if(expr == NULL){
 		return;
 	}
@@ -349,11 +351,16 @@ static void count_number_of_node_names(struct expression *expr, unsigned int * c
 		return;
 	}
 	if(expr->type == PROBABILITY_VARIABLE_NAMES){
-		*count += 1;
+		next = expr;
+		while(next != NULL){
+			*count += 1;
+			next = next->left;
+		}
 	}
-
-	count_number_of_node_names(expr->left, count);
-	count_number_of_node_names(expr->right, count);
+	else {
+		count_number_of_node_names(expr->left, count);
+		count_number_of_node_names(expr->right, count);
+	}
 }
 
 static void fill_in_node_names(struct expression *expr, char *buffer, unsigned int *curr_index){
