@@ -212,7 +212,16 @@ static int count_edges(struct expression * expr){
 	}
 
 	if(expr->type == PROBABILITY_VARIABLE_NAMES) {
-		count = 1;
+		count = 0;
+        next = expr;
+        while(next != NULL && next->type == PROBABILITY_VARIABLE_NAMES){
+            count += 1;
+            next = next->left;
+        }
+        if(next != NULL && next->type != PROBABILITY_VARIABLE_NAMES){
+            count += count_edges(next);
+        }
+        return count;
 	}
 	else if(expr->type == PROBABILITY_VARIABLES_LIST) {
 		count = -1;
