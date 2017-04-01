@@ -922,6 +922,7 @@ unsigned int loopy_propagate_until(Graph_t graph, double convergence, unsigned i
 
 		delta = 0.0;
 
+#pragma omp parallel default(none) shared(num_nodes, previous_edges, current_edges) private(j, diff, previous, current, k) reduction(+:delta)
 		for(j = 0; j < num_nodes; ++j){
 			previous = &previous_edges[j];
 			current = &current_edges[j];
@@ -929,7 +930,7 @@ unsigned int loopy_propagate_until(Graph_t graph, double convergence, unsigned i
 			for(k = 0; k < previous->x_dim; ++k){
 				diff = previous->message[k] - current->message[k];
 				if(diff != diff){
-					continue;
+					diff = 0.0;
 				}
 				delta += fabs(diff);
 			}
