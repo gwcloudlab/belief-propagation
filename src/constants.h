@@ -14,7 +14,7 @@
 
 #define WEIGHT_INFINITY 99999
 
-#define BATCH_SIZE 1
+#define BATCH_SIZE 10
 
 #define NUM_ITERATIONS 100000
 

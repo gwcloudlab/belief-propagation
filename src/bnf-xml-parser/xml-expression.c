@@ -307,9 +307,11 @@ struct expression * parse_xml_file(const char * file_name){
     xmlDocPtr  doc;
     xmlParserCtxtPtr context;
     struct expression * root;
+    int file_access;
 
     // ensure file path exists
-    assert( access(file_name, F_OK) != -1 );
+    file_access = access(file_name, F_OK);
+    assert( file_access != -1 );
 
     context = xmlNewParserCtxt();
     doc = xmlCtxtReadFile(context, file_name, NULL, XML_PARSE_HUGE);
