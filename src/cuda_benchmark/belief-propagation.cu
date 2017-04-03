@@ -19,6 +19,8 @@ static void CheckCudaErrorAux (const char *, unsigned, const char *, cudaError_t
 
 texture<unsigned int, cudaTextureType1D, cudaReadModeElementType> tex_dest_node_to_edges;
 texture<unsigned int, cudaTextureType1D, cudaReadModeElementType> tex_src_node_to_edges;
+texture<unsigned int, cudaTextureType1D, cudaReadModeElementType> tex_x_dim;
+texture<unsigned int, cudaTextureType1D, cudaReadModeElementType> tex_y_dim;
 
 __device__
 void init_message_buffer_cuda(double * buffer, double * node_states, unsigned int num_variables, unsigned int node_index){
@@ -61,13 +63,12 @@ void read_incoming_messages_cuda(double * message_buffer, double * previous_mess
 }
 
 __device__
-void send_message_for_edge_cuda(double * buffer, unsigned int edge_index, double * joint_probabilities, double * edge_messages,
-                                unsigned int * dim_src, unsigned int * dim_dest){
+void send_message_for_edge_cuda(double * buffer, unsigned int edge_index, double * joint_probabilities, double * edge_messages){
     unsigned int i, j, num_src, num_dest;
     double sum;
 
-    num_src = dim_src[edge_index];
-    num_dest = dim_dest[edge_index];
+    num_src = tex1D(tex_x_dim, edge_index);
+    num_dest = tex1D(tex_x_dim, edge_index);
 
     sum = 0.0;
     for(i = 0; i < num_src; ++i){
@@ -86,9 +87,8 @@ void send_message_for_edge_cuda(double * buffer, unsigned int edge_index, double
 }
 
 __device__
-void send_message_for_node_cuda(double * message_buffer, unsigned int current_num_edges, 
+void send_message_for_node_cuda(double * message_buffer, unsigned int current_num_edges,
                                 double * joint_probabilities, double * current_edge_messages,
-                                unsigned int * num_src, unsigned int * num_dest,
                                 unsigned int num_vertices, unsigned int idx){
     unsigned int start_index, end_index, j, edge_index;
 
@@ -102,7 +102,7 @@ void send_message_for_node_cuda(double * message_buffer, unsigned int current_nu
 
     for(j = start_index; j < end_index; ++j){
         edge_index = tex1D(tex_src_node_to_edges, j);
-        send_message_for_edge_cuda(message_buffer, edge_index, joint_probabilities, current_edge_messages, num_src, num_dest);
+        send_message_for_edge_cuda(message_buffer, edge_index, joint_probabilities, current_edge_messages);
     }
 }
 
@@ -158,7 +158,7 @@ void marginalize_node(unsigned int * node_num_vars, double * node_states, unsign
 __global__
 void loopy_propagate_main_loop(unsigned int num_vertices, unsigned int num_edges,
                                 unsigned int * node_num_vars, double * node_messages,
-                               double * joint_probabilities, unsigned int * num_src, unsigned int * num_dest,
+                               double * joint_probabilities,
                                double * previous_edge_messages, double * current_edge_messages){
     unsigned int idx, num_variables;
     double message_buffer[MAX_STATES];
@@ -173,7 +173,7 @@ void loopy_propagate_main_loop(unsigned int num_vertices, unsigned int num_edges
         read_incoming_messages_cuda(message_buffer, previous_edge_messages, num_edges, num_vertices, num_variables, idx);
         __syncthreads();
 
-        send_message_for_node_cuda(message_buffer, num_edges, joint_probabilities, current_edge_messages, num_src, num_dest, num_vertices, idx);
+        send_message_for_node_cuda(message_buffer, num_edges, joint_probabilities, current_edge_messages, num_vertices, idx);
         __syncthreads();
 
         marginalize_node(node_num_vars, node_messages, idx, current_edge_messages, num_vertices, num_edges);
@@ -183,13 +183,13 @@ void loopy_propagate_main_loop(unsigned int num_vertices, unsigned int num_edges
 }
 
 __device__
-double calculate_local_delta(unsigned int i, double * previous_messages, double * current_messages, unsigned int * num_src){
+double calculate_local_delta(unsigned int i, double * previous_messages, double * current_messages){
     double delta, diff;
     unsigned int k;
 
     delta = 0.0;
 
-    for(k = 0; k < num_src[i]; ++k){
+    for(k = 0; k < tex1D(tex_x_dim, i); ++k){
         diff = previous_messages[MAX_STATES * i + k] - current_messages[MAX_STATES * i + k];
         if(diff != diff){
             diff = 0.0;
@@ -201,7 +201,7 @@ double calculate_local_delta(unsigned int i, double * previous_messages, double 
 }
 
 __global__
-void calculate_delta(double * previous_messages, double * current_messages, unsigned int * num_src, double * delta, double * delta_array, unsigned int num_edges){
+void calculate_delta(double * previous_messages, double * current_messages, double * delta, double * delta_array, unsigned int num_edges){
     extern __shared__ double shared_delta[];
     unsigned int tid, idx, i, s;
 
@@ -210,7 +210,7 @@ void calculate_delta(double * previous_messages, double * current_messages, unsi
     i = blockIdx.x * (blockDim.x * 2) + threadIdx.x;
 
     if(idx < num_edges){
-        delta_array[idx] = calculate_local_delta(idx, previous_messages, current_messages, num_src);
+        delta_array[idx] = calculate_local_delta(idx, previous_messages, current_messages);
     }
     __syncthreads();
 
@@ -275,7 +275,6 @@ void calculate_delta(double * previous_messages, double * current_messages, unsi
 
 __global__
 void calculate_delta_6(double * previous_messages, double * current_messages, double * delta, double * delta_array,
-                       unsigned int * num_src,
                        unsigned int num_edges, char n_is_pow_2, unsigned int warp_size) {
     extern __shared__ double shared_delta[];
 
@@ -288,7 +287,7 @@ void calculate_delta_6(double * previous_messages, double * current_messages, do
     unsigned int grid_size = blockDim.x * 2 * gridDim.x;
 
     if(idx < num_edges){
-        delta_array[i] = calculate_local_delta(idx, previous_messages, current_messages, num_src);
+        delta_array[i] = calculate_local_delta(idx, previous_messages, current_messages);
     }
     __syncthreads();
 
@@ -373,7 +372,7 @@ void calculate_delta_6(double * previous_messages, double * current_messages, do
 }
 
 __global__
-void calculate_delta_simple(double * previous_messages, double * current_messages, unsigned int * num_src,
+void calculate_delta_simple(double * previous_messages, double * current_messages,
                             double * delta, double * delta_array, unsigned int num_edges) {
     extern __shared__ double shared_delta[];
     unsigned int tid, idx, i, s;
@@ -382,7 +381,7 @@ void calculate_delta_simple(double * previous_messages, double * current_message
     idx = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (idx < num_edges) {
-        delta_array[idx] = calculate_local_delta(idx, previous_messages, current_messages, num_src);
+        delta_array[idx] = calculate_local_delta(idx, previous_messages, current_messages);
     }
     __syncthreads();
 
@@ -406,33 +405,39 @@ void calculate_delta_simple(double * previous_messages, double * current_message
     }
 }
 
+static void prepare_unsigned_int_text(texture<unsigned int, cudaTextureType1D, cudaReadModeElementType> * tex){
+    tex->addressMode[0] = cudaAddressModeWrap;
+    tex->addressMode[1] = cudaAddressModeWrap;
+    tex->filterMode = cudaFilterModePoint;
+    tex->normalized = 1;
+}
+
 unsigned int loopy_propagate_until_cuda(Graph_t graph, double convergence, unsigned int max_iterations){
     unsigned int i, j, num_iter, num_vertices, num_edges;
     double * delta;
     double * delta_array;
     double previous_delta, host_delta;
-    double * host_delta_ptr;
     char is_pow_2;
-    
-    unsigned int * edges_x_dim;
-    unsigned int * edges_y_dim;
+
     double * edges_joint_probabilities;
-    
+
     double * current_messages;
     double * previous_messages;
     double * temp;
-    
+
     double * node_states;
     unsigned int * node_num_vars;
-    
+
     cudaError_t err;
 
     host_delta = 0.0;
 
-    struct cudaChannelFormatDesc channel_desc = cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindUnsigned);
+    struct cudaChannelFormatDesc channel_desc_unsigned_int = cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindUnsigned);
 
     struct cudaArray * dest_node_to_edges;
     struct cudaArray * src_node_to_edges;
+    struct cudaArray * edges_x_dim;
+    struct cudaArray * edges_y_dim;
 
     num_vertices = graph->current_num_vertices;
     num_edges = graph->current_num_edges;
@@ -445,48 +450,46 @@ unsigned int loopy_propagate_until_cuda(Graph_t graph, double convergence, unsig
     is_pow_2 = num_vertices % 2 == 0;
 
     // allocate data
-    CUDA_CHECK_RETURN(cudaMallocArray(&dest_node_to_edges, &channel_desc, graph->current_num_edges + graph->current_num_vertices, 1, cudaArrayDefault));
-    CUDA_CHECK_RETURN(cudaMallocArray(&src_node_to_edges, &channel_desc, graph->current_num_edges + graph->current_num_vertices, 1, cudaArrayDefault));
-    
-    CUDA_CHECK_RETURN(cudaMalloc((void **)&edges_x_dim, sizeof(unsigned int) * graph->current_num_edges));
-    CUDA_CHECK_RETURN(cudaMalloc((void **)&edges_y_dim, sizeof(unsigned int) * graph->current_num_edges));
+    CUDA_CHECK_RETURN(cudaMallocArray(&dest_node_to_edges, &channel_desc_unsigned_int, graph->current_num_edges + graph->current_num_vertices, 1, cudaArrayDefault));
+    CUDA_CHECK_RETURN(cudaMallocArray(&src_node_to_edges, &channel_desc_unsigned_int, graph->current_num_edges + graph->current_num_vertices, 1, cudaArrayDefault));
+    CUDA_CHECK_RETURN(cudaMallocArray(&edges_x_dim, &channel_desc_unsigned_int, graph->current_num_edges, 1, cudaArrayDefault));
+    CUDA_CHECK_RETURN(cudaMallocArray(&edges_y_dim, &channel_desc_unsigned_int, graph->current_num_edges, 1, cudaArrayDefault));
+
     CUDA_CHECK_RETURN(cudaMalloc((void **)&edges_joint_probabilities, sizeof(double) * MAX_STATES * MAX_STATES * graph->current_num_edges));
-    
+
     CUDA_CHECK_RETURN(cudaMalloc((void **)&current_messages, sizeof(double) * MAX_STATES * graph->current_num_edges));
     CUDA_CHECK_RETURN(cudaMalloc((void **)&previous_messages, sizeof(double) * MAX_STATES * graph->current_num_edges));
-    
+
     CUDA_CHECK_RETURN(cudaMalloc((void **)&node_states, sizeof(double) * MAX_STATES * graph->current_num_vertices));
     CUDA_CHECK_RETURN(cudaMalloc((void **)&node_num_vars, sizeof(unsigned int) * graph->current_num_vertices));
-    
+
     CUDA_CHECK_RETURN(cudaMalloc((void **)&delta, sizeof(double)));
     CUDA_CHECK_RETURN(cudaMalloc((void **)&delta_array, sizeof(double) * num_vertices));
 
     // copy data
-    CUDA_CHECK_RETURN(cudaMemcpy(edges_x_dim, graph->edges_x_dim, sizeof(unsigned int) * graph->current_num_edges, cudaMemcpyHostToDevice ));
-    CUDA_CHECK_RETURN(cudaMemcpy(edges_y_dim, graph->edges_y_dim, sizeof(unsigned int) * graph->current_num_edges, cudaMemcpyHostToDevice ));
     CUDA_CHECK_RETURN(cudaMemcpy(edges_joint_probabilities, graph->edges_joint_probabilities, sizeof(double) * MAX_STATES * MAX_STATES * graph->current_num_edges, cudaMemcpyHostToDevice ));
-    
+
     CUDA_CHECK_RETURN(cudaMemcpy(current_messages, graph->edges_messages, sizeof(double) * MAX_STATES * graph->current_num_edges, cudaMemcpyHostToDevice));
     CUDA_CHECK_RETURN(cudaMemcpy(current_messages, graph->last_edges_messages, sizeof(double) * MAX_STATES * graph->current_num_edges, cudaMemcpyHostToDevice));
-    
+
     CUDA_CHECK_RETURN(cudaMemcpy(node_num_vars, graph->node_num_vars, sizeof(unsigned int) * graph->current_num_vertices, cudaMemcpyHostToDevice));
-    CUDA_CHECK_RETURN(cudaMemcpy(node_num_vars, graph->node_states, sizeof(double) * MAX_STATES * graph->current_num_vertices, cudaMemcpyHostToDevice));
-    
-    CUDA_CHECK_RETURN(cudaMemcpyToArray(dest_node_to_edges, 0, 0, graph->dest_nodes_to_edges, sizeof(int) * (num_edges + num_vertices), cudaMemcpyHostToDevice));
-    CUDA_CHECK_RETURN(cudaMemcpyToArray(src_node_to_edges, 0, 0, graph->src_nodes_to_edges, sizeof(int) * (num_edges + num_vertices), cudaMemcpyHostToDevice));
+    CUDA_CHECK_RETURN(cudaMemcpy(node_states, graph->node_states, sizeof(double) * MAX_STATES * graph->current_num_vertices, cudaMemcpyHostToDevice));
+
+    CUDA_CHECK_RETURN(cudaMemcpyToArray(dest_node_to_edges, 0, 0, graph->dest_nodes_to_edges, sizeof(unsigned int) * (num_edges + num_vertices), cudaMemcpyHostToDevice));
+    CUDA_CHECK_RETURN(cudaMemcpyToArray(src_node_to_edges, 0, 0, graph->src_nodes_to_edges, sizeof(unsigned int) * (num_edges + num_vertices), cudaMemcpyHostToDevice));
+    CUDA_CHECK_RETURN(cudaMemcpyToArray(edges_x_dim, 0, 0, graph->edges_x_dim, sizeof(unsigned int) * num_edges, cudaMemcpyHostToDevice));
+    CUDA_CHECK_RETURN(cudaMemcpyToArray(edges_y_dim, 0, 0, graph->edges_y_dim, sizeof(unsigned int) * num_edges, cudaMemcpyHostToDevice));
+
     //bind textures
-    tex_src_node_to_edges.addressMode[0] = cudaAddressModeWrap;
-    tex_src_node_to_edges.addressMode[1] = cudaAddressModeWrap;
-    tex_src_node_to_edges.filterMode = cudaFilterModePoint;
-    tex_src_node_to_edges.normalized = 1;
+    prepare_unsigned_int_text(&tex_dest_node_to_edges);
+    prepare_unsigned_int_text(&tex_src_node_to_edges);
+    prepare_unsigned_int_text(&tex_x_dim);
+    prepare_unsigned_int_text(&tex_y_dim);
 
-    tex_dest_node_to_edges.addressMode[0] = cudaAddressModeWrap;
-    tex_dest_node_to_edges.addressMode[1] = cudaAddressModeWrap;
-    tex_dest_node_to_edges.filterMode = cudaFilterModePoint;
-    tex_dest_node_to_edges.normalized = 1;
-
-    CUDA_CHECK_RETURN(cudaBindTextureToArray(&tex_src_node_to_edges, src_node_to_edges, &channel_desc));
-    CUDA_CHECK_RETURN(cudaBindTextureToArray(&tex_dest_node_to_edges, dest_node_to_edges, &channel_desc));
+    CUDA_CHECK_RETURN(cudaBindTextureToArray(&tex_src_node_to_edges, src_node_to_edges, &channel_desc_unsigned_int));
+    CUDA_CHECK_RETURN(cudaBindTextureToArray(&tex_dest_node_to_edges, dest_node_to_edges, &channel_desc_unsigned_int));
+    CUDA_CHECK_RETURN(cudaBindTextureToArray(&tex_x_dim, edges_x_dim, &channel_desc_unsigned_int));
+    CUDA_CHECK_RETURN(cudaBindTextureToArray(&tex_y_dim, edges_x_dim, &channel_desc_unsigned_int));
 
     const int blockCount = (num_vertices + BLOCK_SIZE - 1)/ BLOCK_SIZE;
     num_iter = 0;
@@ -497,7 +500,7 @@ unsigned int loopy_propagate_until_cuda(Graph_t graph, double convergence, unsig
 
     for(i = 0; i < max_iterations; i+= BATCH_SIZE){
         for(j = 0; j < BATCH_SIZE; ++j) {
-            loopy_propagate_main_loop<<<blockCount, BLOCK_SIZE >>>(num_vertices, num_edges, node_num_vars, node_states, edges_joint_probabilities, edges_x_dim, edges_y_dim, previous_messages, current_messages);
+            loopy_propagate_main_loop<<<blockCount, BLOCK_SIZE >>>(num_vertices, num_edges, node_num_vars, node_states, edges_joint_probabilities, previous_messages, current_messages);
             err = cudaGetLastError();
             if (err != cudaSuccess) {
                 fprintf(stderr, "Error: %s\n", cudaGetErrorString(err));
@@ -509,15 +512,15 @@ unsigned int loopy_propagate_until_cuda(Graph_t graph, double convergence, unsig
             previous_messages = temp;
             num_iter++;
         }
-        //calculate_delta_6<<<dimReduceGrid, dimReduceBlock, reduceSmemSize>>>(previous_messages, current_messages, edges_x_dim, delta, delta_array, num_edges, is_pow_2, WARP_SIZE);
-        //calculate_delta<<<dimReduceGrid, dimReduceBlock, reduceSmemSize>>>(previous_messages, current_messages, edges_x_dim, delta, delta_array, num_edges);
-        calculate_delta_simple<<<dimReduceGrid, dimReduceBlock, reduceSmemSize>>>(previous_messages, current_messages, edges_x_dim, delta, delta_array, num_edges);
+        calculate_delta_6<<<dimReduceGrid, dimReduceBlock, reduceSmemSize>>>(previous_messages, current_messages, delta, delta_array, num_edges, is_pow_2, WARP_SIZE);
+        //calculate_delta<<<dimReduceGrid, dimReduceBlock, reduceSmemSize>>>(previous_messages, current_messages, delta, delta_array, num_edges);
+        //calculate_delta_simple<<<dimReduceGrid, dimReduceBlock, reduceSmemSize>>>(previous_messages, current_messages, delta, delta_array, num_edges);
         err = cudaGetLastError();
         if (err != cudaSuccess) {
             fprintf(stderr, "Error: %s\n", cudaGetErrorString(err));
         }
         CUDA_CHECK_RETURN(cudaMemcpy(&host_delta, delta, sizeof(double), cudaMemcpyDeviceToHost));
-        //printf("Current delta: %lf\n", host_delta);
+     //   printf("Current delta: %lf\n", host_delta);
 
         if(host_delta < convergence || fabs(host_delta - previous_delta) < convergence){
             break;
@@ -527,22 +530,22 @@ unsigned int loopy_propagate_until_cuda(Graph_t graph, double convergence, unsig
 
     // copy data back
     CUDA_CHECK_RETURN(cudaMemcpy(graph->node_states, node_states, sizeof(double) * MAX_STATES * num_vertices, cudaMemcpyDeviceToHost));
-    CUDA_CHECK_RETURN(cudaMemcpy(graph->edges_messages, current_messages, sizeof(double) * MAX_STATES * MAX_STATES * num_edges, cudaMemcpyDeviceToHost));
-    CUDA_CHECK_RETURN(cudaMemcpy(graph->last_edges_messages, previous_messages, sizeof(double) * MAX_STATES * MAX_STATES * num_edges, cudaMemcpyDeviceToHost));
+    CUDA_CHECK_RETURN(cudaMemcpy(graph->edges_messages, current_messages, sizeof(double) * MAX_STATES * num_edges, cudaMemcpyDeviceToHost));
+    CUDA_CHECK_RETURN(cudaMemcpy(graph->last_edges_messages, previous_messages, sizeof(double) * MAX_STATES * num_edges, cudaMemcpyDeviceToHost));
 
     CUDA_CHECK_RETURN(cudaFreeArray(dest_node_to_edges));
     CUDA_CHECK_RETURN(cudaFreeArray(src_node_to_edges));
-    
-    CUDA_CHECK_RETURN(cudaFree(edges_x_dim));
-    CUDA_CHECK_RETURN(cudaFree(edges_y_dim));
+    CUDA_CHECK_RETURN(cudaFreeArray(edges_x_dim));
+    CUDA_CHECK_RETURN(cudaFreeArray(edges_y_dim));
+
     CUDA_CHECK_RETURN(cudaFree(edges_joint_probabilities));
-    
+
     CUDA_CHECK_RETURN(cudaFree(current_messages));
     CUDA_CHECK_RETURN(cudaFree(previous_messages));
-    
+
     CUDA_CHECK_RETURN(cudaFree(node_states));
     CUDA_CHECK_RETURN(cudaFree(node_num_vars));
-    
+
     CUDA_CHECK_RETURN(cudaFree(delta));
     CUDA_CHECK_RETURN(cudaFree(delta_array));
 
