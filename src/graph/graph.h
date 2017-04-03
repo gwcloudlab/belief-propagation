@@ -12,8 +12,7 @@
 #ifndef GRAPH_H_
 #define GRAPH_H_
 
-#include "../node/node.h"
-#include "../edge/edge.h"
+#include "../constants.h"
 #include <search.h>
 
 struct graph {
@@ -23,13 +22,21 @@ struct graph {
 	unsigned int current_num_vertices;
 	unsigned int current_num_edges;
 
-	Edge_t edges;
-	Edge_t prev_edges;
+	unsigned int * edges_src_index;
+	unsigned int * edges_dest_index;
+	unsigned int * edges_x_dim;
+	unsigned int * edges_y_dim;
+	double * edges_joint_probabilities;
 
-	Edge_t * current;
-	Edge_t * previous;
+	double * edges_messages;
+	double * last_edges_messages;
 
-	Node_t nodes;
+	double ** current_edge_messages;
+    double ** previous_edge_messages;
+
+
+	double * node_states;
+	unsigned int * node_num_vars;
 
 	unsigned int * src_nodes_to_edges;
 	unsigned int * dest_nodes_to_edges;
@@ -59,12 +66,19 @@ void graph_add_node(Graph_t, unsigned int, const char *);
 void graph_add_and_set_node_state(Graph_t, unsigned int, const char *, double *);
 void graph_set_node_state(Graph_t, unsigned int, unsigned int, double *);
 
-void graph_add_edge(Graph_t, unsigned int, unsigned int, unsigned int, unsigned int, double **);
+void graph_add_edge(Graph_t, unsigned int, unsigned int, unsigned int, unsigned int, double *);
 
 void set_up_src_nodes_to_edges(Graph_t);
 void set_up_dest_nodes_to_edges(Graph_t);
 void init_levels_to_nodes(Graph_t);
 void calculate_diameter(Graph_t);
+
+void initialize_node(Graph_t, unsigned int, unsigned int);
+void node_set_state(Graph_t, unsigned int, unsigned int, double *);
+
+void init_edge(Graph_t, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, double *);
+void send_message(double *, unsigned int, unsigned int, double *, double *, unsigned int *, unsigned int *);
+
 /**
  * Get the counts
  */

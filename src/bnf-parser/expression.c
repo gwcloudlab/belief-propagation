@@ -263,7 +263,7 @@ static void add_variable_discrete(struct expression * expr, Graph_t graph, unsig
 
 		char_index = num_vertices * MAX_STATES * CHAR_BUFFER_SIZE + *state_index * CHAR_BUFFER_SIZE;
 		node_name = &graph->variable_names[char_index];
-		strncpy(node_name, expr->value, CHAR_BUFFER_SIZE);
+		strncpy(node_name, next->value, CHAR_BUFFER_SIZE);
 
 		//printf("Adding value: %s\n", expr->value);
 
@@ -556,8 +556,7 @@ static void fill_in_state_names(struct expression * expr, unsigned int count, un
 	fill_in_state_names(expr->right, count, current_index, buffer);
 }
 
-static Node_t find_node_by_name(char * name, Graph_t graph){
-	Node_t node;
+static unsigned int find_node_by_name(char * name, Graph_t graph){
 	unsigned int i;
     ENTRY e, *ep;
 
@@ -570,27 +569,23 @@ static Node_t find_node_by_name(char * name, Graph_t graph){
     i = (unsigned int)ep->data;
     assert(i < graph->current_num_vertices);
 
-    node = &graph->nodes[i];
 
-	assert(node != NULL);
-
-	return node;
+	return i;
 }
 
 static unsigned int calculate_entry_offset(char * state_names, unsigned int num_states, char * variable_names, int num_variables,
 								  Graph_t graph){
-    unsigned int i, j, k, pos, step, index, var_name_index;
+    unsigned int i, j, k, pos, step, index, var_name_index, node_index;
     char * state;
     char * node_state_name;
-    Node_t current_node;
 
 	int * indices = (int *)malloc(sizeof(int) * num_states);
 
 	for(i = 0; i < num_states; ++i){
 		state = &(state_names[i * CHAR_BUFFER_SIZE]);
-		current_node = find_node_by_name(&(variable_names[(i+1)*CHAR_BUFFER_SIZE]), graph);
-		for(j = 0; j < current_node->num_variables; ++j){
-			var_name_index =  current_node->index * MAX_STATES * CHAR_BUFFER_SIZE + j * CHAR_BUFFER_SIZE;
+		node_index = find_node_by_name(&(variable_names[(i+1)*CHAR_BUFFER_SIZE]), graph);
+		for(j = 0; j < graph->node_num_vars[node_index]; ++j){
+			var_name_index =  node_index * MAX_STATES * CHAR_BUFFER_SIZE + j * CHAR_BUFFER_SIZE;
 			node_state_name = &graph->variable_names[var_name_index];
 			if(strcmp(state, node_state_name) == 0){
 				indices[i] = j;
@@ -608,8 +603,8 @@ static unsigned int calculate_entry_offset(char * state_names, unsigned int num_
     step = 1;
     for(k = num_states; k > 0; --k){
 		pos += indices[k - 1] * step;
-		current_node = find_node_by_name(&(variable_names[k * CHAR_BUFFER_SIZE]), graph);
-		step *= current_node->num_variables;
+		node_index = find_node_by_name(&(variable_names[k * CHAR_BUFFER_SIZE]), graph);
+		step *= graph->node_num_vars[node_index];
 	}
 
 	free(indices);
@@ -662,7 +657,6 @@ static void fill_in_probability_buffer_entry(struct expression * expr, double * 
 static unsigned int calculate_num_probabilities(char *node_name_buffer, unsigned int num_nodes, Graph_t graph){
 	unsigned int i, node_index, num_probabilities;
 	char * curr_name;
-	Node_t curr_node;
     ENTRY e, *ep;
 
 	num_probabilities = 1;
@@ -676,9 +670,8 @@ static unsigned int calculate_num_probabilities(char *node_name_buffer, unsigned
         ep = hsearch(e, FIND);
         assert(ep != NULL);
 		node_index = (unsigned int)ep->data;
-		curr_node = &graph->nodes[node_index];
 
-		num_probabilities *= curr_node->num_variables;
+		num_probabilities *= graph->node_num_vars[node_index];
 	}
 
 	return num_probabilities;
@@ -744,16 +737,14 @@ static void update_node_in_graph(struct expression * expr, Graph_t graph){
 }
 
 static void insert_edges_into_graph(char * variable_buffer, unsigned int num_node_names, double * probability_buffer, unsigned int num_probabilities, Graph_t graph){
-	Node_t dest;
-	Node_t src;
-	unsigned int i, j, k, offset, slice, index, delta, next, diff;
-	double ** sub_graph;
-	double ** transpose;
+	unsigned int i, j, k, offset, slice, index, delta, next, diff, dest_index, src_index;
+	double sub_graph[MAX_STATES * MAX_STATES];
+	double transpose[MAX_STATES * MAX_STATES];
 
 	assert(num_node_names > 1);
 
-	dest = find_node_by_name(variable_buffer, graph);
-	slice = num_probabilities / dest->num_variables;
+	dest_index = find_node_by_name(variable_buffer, graph);
+	slice = num_probabilities / graph->node_num_vars[dest_index];
 
     /*
 	printf("Values for sinK: %s\n", variable_buffer);
@@ -767,22 +758,20 @@ static void insert_edges_into_graph(char * variable_buffer, unsigned int num_nod
 */
 	offset = 1;
 	for(i = num_node_names - 1; i > 0; --i){
-		src = find_node_by_name(&(variable_buffer[i * CHAR_BUFFER_SIZE]), graph);
+		src_index = find_node_by_name(&(variable_buffer[i * CHAR_BUFFER_SIZE]), graph);
         //printf("LOOKING AT src: %s\n", &(variable_buffer[i * CHAR_BUFFER_SIZE]));
 
-        delta = src->num_variables;
+        delta = graph->node_num_vars[src_index];
 
-		sub_graph = (double **)calloc(sizeof(double*), (size_t)src->num_variables);
-		transpose = (double **)calloc(sizeof(double*), (size_t)dest->num_variables);
-		for(j = 0; j < src->num_variables; ++j){
-			sub_graph[j] = (double *)calloc(sizeof(double), (size_t)dest->num_variables);
-		}
-		for(j = 0; j < dest->num_variables; ++j){
-			transpose[j] = (double *)calloc(sizeof(double), (size_t)src->num_variables);
+		for(k = 0; k < graph->node_num_vars[dest_index]; ++k){
+			for(j = 0; j < graph->node_num_vars[src_index]; ++j){
+				sub_graph[MAX_STATES * j + k] = 0.0;
+				transpose[MAX_STATES * k + j] = 0.0;
+			}
 		}
 
-		for(k = 0; k < dest->num_variables; ++k){
-			for(j = 0; j < src->num_variables; ++j){
+		for(k = 0; k < graph->node_num_vars[dest_index]; ++k){
+			for(j = 0; j < graph->node_num_vars[src_index]; ++j){
 				diff = 0;
 				index = j * offset + diff;
                 while(index <= slice) {
@@ -790,7 +779,7 @@ static void insert_edges_into_graph(char * variable_buffer, unsigned int num_nod
 					next = (j + 1) * offset + diff;
                     //printf("Current Index: %d; Next: %d; Delta: %d; Diff: %d\n", index, next, delta, diff);
                     while (index < next) {
-                        sub_graph[j][k] += probability_buffer[index + k * slice];
+                        sub_graph[j * MAX_STATES + k] += probability_buffer[index + k * slice];
                         index++;
                     }
 					index += delta * offset;
@@ -799,28 +788,19 @@ static void insert_edges_into_graph(char * variable_buffer, unsigned int num_nod
 			}
 		}
 
-		for(j = 0; j < src->num_variables; ++j){
-			for(k = 0; k < dest->num_variables; ++k){
-				transpose[k][j] = sub_graph[j][k];
+		for(j = 0; j < graph->node_num_vars[src_index]; ++j){
+			for(k = 0; k < graph->node_num_vars[dest_index]; ++k){
+				transpose[k * MAX_STATES + j] = sub_graph[j * MAX_STATES + k];
 			}
 		}
 
-		graph_add_edge(graph, src->index, dest->index, src->num_variables, dest->num_variables, sub_graph);
-		if(graph->observed_nodes[src->index] != 1 ){
-			graph_add_edge(graph, dest->index, src->index, dest->num_variables, src->num_variables, transpose);
+		graph_add_edge(graph, src_index, dest_index, graph->node_num_vars[src_index], graph->node_num_vars[dest_index], sub_graph);
+		if(graph->observed_nodes[src_index] != 1 ){
+			graph_add_edge(graph, dest_index, src_index, graph->node_num_vars[dest_index], graph->node_num_vars[src_index], transpose);
 		}
 
-		for(j = 0; j < src->num_variables; ++j){
-			free(sub_graph[j]);
-		}
-		free(sub_graph);
 
-		for(j = 0; j < dest->num_variables; ++j){
-			free(transpose[j]);
-		}
-		free(transpose);
-
-		offset *= src->num_variables;
+		offset *= graph->node_num_vars[src_index];
 	}
 }
 
@@ -963,13 +943,11 @@ static void add_edges_to_graph(struct expression * expr, Graph_t graph){
 static void reverse_node_names(Graph_t graph){
 	unsigned int i, j, index_1, index_2;
 	char temp[CHAR_BUFFER_SIZE];
-	Node_t curr_node;
 
 	for(i = 0; i < graph->current_num_vertices; ++i){
-		curr_node = &graph->nodes[i];
-		for(j = 0; j < curr_node->num_variables/2; ++j){
+		for(j = 0; j < graph->node_num_vars[i]/2; ++j){
 			index_1 = i * MAX_STATES * CHAR_BUFFER_SIZE + j * CHAR_BUFFER_SIZE;
-			index_2 = i * MAX_STATES * CHAR_BUFFER_SIZE + (curr_node->num_variables / 2 - j) * CHAR_BUFFER_SIZE;
+			index_2 = i * MAX_STATES * CHAR_BUFFER_SIZE + (graph->node_num_vars[i] / 2 - j) * CHAR_BUFFER_SIZE;
 			if(index_1 != index_2) {
 				strncpy(temp, &(graph->variable_names[index_1]), CHAR_BUFFER_SIZE);
 				strncpy(&(graph->variable_names[index_1]), &(graph->variable_names[index_2]), CHAR_BUFFER_SIZE);
