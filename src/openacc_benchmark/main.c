@@ -5,6 +5,7 @@
 #include "../bnf-parser/expression.h"
 #include "../bnf-parser/Parser.h"
 #include "../bnf-parser/Lexer.h"
+#include "../bnf-xml-parser/xml-expression.h"
 
 int yyparse(struct expression ** expr, yyscan_t scanner);
 
@@ -182,7 +183,7 @@ struct expression * parse_file(const char * file_name){
     return expression;
 }
 
-void run_test_belief_propagation(struct expression * expression, const char * file_name){
+void run_test_belief_propagation(struct expression * expression, const char * file_name, FILE * out){
 	Graph_t graph;
 	clock_t start, end;
 	double time_elapsed;
@@ -214,12 +215,13 @@ void run_test_belief_propagation(struct expression * expression, const char * fi
 	end = clock();
 
 	time_elapsed = (double)(end - start) / CLOCKS_PER_SEC;
-	printf("%s,regular,%d,%d,%d,2,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, time_elapsed);
+	fprintf(out, "%s,regular,%d,%d,%d,2,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, time_elapsed);
+    fflush(out);
 
 	graph_destroy(graph);
 }
 
-void run_test_loopy_belief_propagation(struct expression * expression, const char * file_name){
+void run_test_loopy_belief_propagation(struct expression * expression, const char * file_name, FILE * out){
 	Graph_t graph;
 	clock_t start, end;
 	double time_elapsed;
@@ -237,32 +239,48 @@ void run_test_loopy_belief_propagation(struct expression * expression, const cha
 	start = clock();
 	init_previous_edge(graph);
 
-	num_iterations = loopy_propagate_until_shared_buffer(graph, PRECISION, NUM_ITERATIONS);
+	num_iterations = loopy_progagate_until_acc(graph, PRECISION, NUM_ITERATIONS);
 	end = clock();
 
 	time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
 	//print_nodes(graph);
-	printf("%s,loopy,%d,%d,%d,%d,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
+	fprintf(out, "%s,loopy,%d,%d,%d,%d,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
+    fflush(out);
 
 	graph_destroy(graph);
 }
 
-void run_tests_with_file(const char * file_name, unsigned int num_iterations){
+void run_tests_with_file(const char * file_name, unsigned int num_iterations, FILE * out){
     unsigned int i;
     struct expression * expr;
 
     expr = parse_file(file_name);
     for(i = 0; i < num_iterations; ++i){
-        run_test_belief_propagation(expr, file_name);
+        run_test_belief_propagation(expr, file_name, out);
     }
 
     for(i = 0; i < num_iterations; ++i){
-        run_test_loopy_belief_propagation(expr, file_name);
+        run_test_loopy_belief_propagation(expr, file_name, out);
     }
 
     delete_expression(expr);
 }
 
+void run_tests_with_xml_file(const char * file_name, unsigned int num_iterations, FILE * out){
+    unsigned int i;
+    struct expression * expr;
+
+    expr = parse_xml_file(file_name);
+    /*for(i = 0; i < num_iterations; ++i){
+        run_test_belief_propagation(expr, file_name, out);
+    }*/
+
+    for(i = 0; i < num_iterations; ++i){
+        run_test_loopy_belief_propagation(expr, file_name, out);
+    }
+
+    delete_expression(expr);
+}
 
 int main(void)
 {
@@ -295,9 +313,11 @@ int main(void)
 
 	delete_expression(expression);*/
 
-	printf("File Name,Propagation Type,Number of Nodes,Number of Edges,Diameter,Number of Iterations,BP Run Time(s)\n");
+    FILE * out = fopen("openacc_benchmark.csv", "w");
+	fprintf(out, "File Name,Propagation Type,Number of Nodes,Number of Edges,Diameter,Number of Iterations,BP Run Time(s)\n");
+    fflush(out);
 
-	run_tests_with_file("../benchmark_files/small/asia.bif", 1);
+	/*run_tests_with_file("../benchmark_files/small/asia.bif", 1);
 	run_tests_with_file("../benchmark_files/small/cancer.bif", 1);
 	run_tests_with_file("../benchmark_files/small/earthquake.bif", 1);
 	run_tests_with_file("../benchmark_files/small/sachs.bif", 1);
@@ -324,6 +344,62 @@ int main(void)
 	//run_tests_with_file("../benchmark_files/very_large/munin.bif", 1);
 	run_tests_with_file("../benchmark_files/very_large/pathfinder.bif", 1);
     run_tests_with_file("../benchmark_files/very_large/pigs.bif", 1);
+
+    run_tests_with_xml_file("../benchmark_files/xml/bf_1000_2000_1.xml", 1);
+    run_tests_with_xml_file("../benchmark_files/xml/bf_1000_2000_2.xml", 1);
+    run_tests_with_xml_file("../benchmark_files/xml/bf_1000_2000_3.xml", 1);
+    run_tests_with_xml_file("../benchmark_files/xml/bf_2000_4000_1.xml", 1);
+    run_tests_with_xml_file("../benchmark_files/xml/bf_2000_4000_2.xml", 1);
+    run_tests_with_xml_file("../benchmark_files/xml/bf_2000_4000_3.xml", 1);
+    run_tests_with_xml_file("../benchmark_files/xml/bf_5000_10000_1.xml", 1);
+    run_tests_with_xml_file("../benchmark_files/xml/bf_5000_10000_2.xml", 1);
+    run_tests_with_xml_file("../benchmark_files/xml/bf_5000_10000_3.xml", 1);
+    run_tests_with_xml_file("../benchmark_files/xml/bf_10000_20000_1.xml", 1);
+    run_tests_with_xml_file("../benchmark_files/xml/bf_10000_20000_2.xml", 1);
+    run_tests_with_xml_file("../benchmark_files/xml/bf_10000_20000_3.xml", 1);
+    run_tests_with_xml_file("../benchmark_files/xml/bf_12000_24000_1.xml", 1);
+    run_tests_with_xml_file("../benchmark_files/xml/bf_12000_24000_2.xml", 1);
+    run_tests_with_xml_file("../benchmark_files/xml/bf_12000_24000_3.xml", 1);
+
+	/*run_tests_with_xml_file("../benchmark_files/xml/bf_15000_30000_1.xml", 1);
+	run_tests_with_xml_file("../benchmark_files/xml/bf_15000_30000_2.xml", 1);
+	run_tests_with_xml_file("../benchmark_files/xml/bf_15000_30000_3.xml", 1);
+
+	run_tests_with_xml_file("../benchmark_files/xml/bf_20000_40000_1.xml", 1);
+	run_tests_with_xml_file("../benchmark_files/xml/bf_20000_40000_2.xml", 1);
+	run_tests_with_xml_file("../benchmark_files/xml/bf_20000_40000_3.xml", 1);
+
+	run_tests_with_xml_file("../benchmark_files/xml/bf_25000_50000_1.xml", 1);
+	run_tests_with_xml_file("../benchmark_files/xml/bf_25000_50000_2.xml", 1);
+	run_tests_with_xml_file("../benchmark_files/xml/bf_25000_50000_3.xml", 1);
+
+	run_tests_with_xml_file("../benchmark_files/xml/bf_30000_60000_1.xml", 1);
+	run_tests_with_xml_file("../benchmark_files/xml/bf_30000_60000_2.xml", 1);
+	run_tests_with_xml_file("../benchmark_files/xml/bf_30000_60000_3.xml", 1);*/
+
+	/*run_tests_with_xml_file("../benchmark_files/xml/bf_40000_80000_1.xml", 1);
+	run_tests_with_xml_file("../benchmark_files/xml/bf_40000_80000_2.xml", 1);
+	run_tests_with_xml_file("../benchmark_files/xml/bf_40000_80000_3.xml", 1);
+
+	run_tests_with_xml_file("../benchmark_files/xml/bf_80000_160000_2.xml", 1);*/
+
+    run_tests_with_xml_file("../benchmark_files/xml2/10_20.xml", 1, out);
+    run_tests_with_xml_file("../benchmark_files/xml2/100_200.xml", 1, out);
+    run_tests_with_xml_file("../benchmark_files/xml2/1000_2000.xml", 1, out);
+    run_tests_with_xml_file("../benchmark_files/xml2/10000_20000.xml", 1, out);
+    run_tests_with_xml_file("../benchmark_files/xml2/100000_200000.xml", 1, out);
+    run_tests_with_xml_file("../benchmark_files/xml2/200000_400000.xml", 1, out);
+    //run_tests_with_xml_file("../benchmark_files/xml2/300000_600000.xml", 1, out);
+    run_tests_with_xml_file("../benchmark_files/xml2/400000_800000.xml", 1, out);
+    //run_tests_with_xml_file("../benchmark_files/xml2/500000_1000000.xml", 1, out);
+    run_tests_with_xml_file("../benchmark_files/xml2/600000_1200000.xml", 1, out);
+    //run_tests_with_xml_file("../benchmark_files/xml2/700000_1400000.xml", 1, out);
+    run_tests_with_xml_file("../benchmark_files/xml2/800000_1600000.xml", 1, out);
+    //run_tests_with_xml_file("../benchmark_files/xml2/900000_1800000.xml", 1, out);
+    run_tests_with_xml_file("../benchmark_files/xml2/1000000_2000000.xml", 1, out);
+    //run_tests_with_xml_file("../benchmark_files/xml2/10000000_20000000.xml", 1, out);
+
+    fclose(out);
 
 	return 0;
 }

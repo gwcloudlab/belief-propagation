@@ -122,3 +122,5 @@ dkms.conf
 Makefile
 CMakeCache.txt
 *.cbp
+
+src/benchmark_files/xml2/

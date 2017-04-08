@@ -216,7 +216,7 @@ void run_test_belief_propagation(struct expression * expression, const char * fi
     time_elapsed = (double)(end - start) / CLOCKS_PER_SEC;
     printf("%s,regular,%d,%d,%d,2,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, time_elapsed);
 
-	print_nodes(graph);
+	//print_nodes(graph);
 
     graph_destroy(graph);
 }
@@ -243,8 +243,9 @@ void run_test_loopy_belief_propagation(struct expression * expression, const cha
     end = clock();
 
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
-    print_nodes(graph);
+
     printf("%s,loopy,%d,%d,%d,%d,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
+	//print_nodes(graph);
 
     graph_destroy(graph);
 }
@@ -305,6 +306,7 @@ int main(void)
 	run_tests_with_file("../benchmark_files/small/sachs.bif", 1);
 	run_tests_with_file("../benchmark_files/small/survey.bif", 1);
 */
+	run_tests_with_file("../benchmark_files/dog.bif", 1);
 	run_tests_with_file("../benchmark_files/medium/alarm.bif", 1);
 /*	run_tests_with_file("../benchmark_files/medium/barley.bif", 1);
 	//run_tests_with_file("../benchmark_files/medium/child.bif", 1);

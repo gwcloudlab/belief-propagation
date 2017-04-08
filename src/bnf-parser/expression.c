@@ -144,8 +144,25 @@ static void reverse_probability_table(double * probability_table, int num_probab
 	}
 }
 
+static void fill_in_node_hash_table(Graph_t graph){
+	unsigned int i;
+	ENTRY e, *ep;
+
+	if(graph->hash_table_created == 0){
+		// insert node names into hash
+		hcreate(graph->current_num_vertices);
+		for(i = 0; i < graph->current_num_vertices; ++i){
+			e.key = &(graph->node_names[i * CHAR_BUFFER_SIZE]);
+			e.data = (void *)i;
+			ep = hsearch(e, ENTER);
+			assert(ep != NULL);
+		}
+		graph->hash_table_created = 1;
+	}
+}
 
 static int count_nodes(struct expression * expr){
+	struct expression * next;
 	int count;
 
 	count = 0;
@@ -157,17 +174,29 @@ static int count_nodes(struct expression * expr){
 		return count;
 	}
 
-	if(expr->type == VARIABLE_CONTENT){
-		count = 1;
+	if(expr->type == VARIABLE_DECLARATION){
+		return 1;
 	}
-
-	count += count_nodes(expr->left);
-	count += count_nodes(expr->right);
-
+	if(expr->type == VARIABLE_OR_PROBABILITY_DECLARATION){
+		next = expr;
+		while(next != NULL && next->type == VARIABLE_OR_PROBABILITY_DECLARATION){
+			count += count_nodes(next->right);
+			next = next->left;
+		}
+		if(next != NULL && next->type != VARIABLE_OR_PROBABILITY_DECLARATION){
+			count += count_nodes(next);
+		}
+	}
+	else {
+		count += count_nodes(expr->left);
+		count += count_nodes(expr->right);
+	}
 	return count;
 }
 
 static int count_edges(struct expression * expr){
+	struct expression * next;
+
 	int count;
 
 	count = 0;
@@ -183,7 +212,16 @@ static int count_edges(struct expression * expr){
 	}
 
 	if(expr->type == PROBABILITY_VARIABLE_NAMES) {
-		count = 1;
+		count = 0;
+        next = expr;
+        while(next != NULL && next->type == PROBABILITY_VARIABLE_NAMES){
+            count += 1;
+            next = next->left;
+        }
+        if(next != NULL && next->type != PROBABILITY_VARIABLE_NAMES){
+            count += count_edges(next);
+        }
+        return count;
 	}
 	else if(expr->type == PROBABILITY_VARIABLES_LIST) {
 		count = -1;
@@ -191,53 +229,83 @@ static int count_edges(struct expression * expr){
 	else {
 		count = 0;
 	}
-
-	count += count_edges(expr->left);
-	count += count_edges(expr->right);
+	if(expr->type == VARIABLE_OR_PROBABILITY_DECLARATION){
+		next = expr;
+		while(next != NULL && next->type == VARIABLE_OR_PROBABILITY_DECLARATION){
+			count += count_edges(next->right);
+			next = next->left;
+		}
+		if(next != NULL && next->type != VARIABLE_OR_PROBABILITY_DECLARATION){
+			count += count_edges(next);
+		}
+	}
+	else{
+		count += count_edges(expr->left);
+		count += count_edges(expr->right);
+	}
 
 	return count;
 }
 
 static void add_variable_discrete(struct expression * expr, Graph_t graph, unsigned int * state_index){
+	struct expression * next;
 	char * node_name;
 	int num_vertices, char_index;
 
 	if(expr == NULL){
 		return;
 	}
+	assert(expr->type == VARIABLE_VALUES_LIST);
+	next = expr;
+	while(next != NULL) {
 
-	num_vertices = graph->current_num_vertices;
+		num_vertices = graph->current_num_vertices;
 
-	char_index = num_vertices * MAX_STATES * CHAR_BUFFER_SIZE + *state_index * CHAR_BUFFER_SIZE;
-	node_name = &graph->variable_names[char_index];
-	strncpy(node_name, expr->value, CHAR_BUFFER_SIZE);
+		char_index = num_vertices * MAX_STATES * CHAR_BUFFER_SIZE + *state_index * CHAR_BUFFER_SIZE;
+		node_name = &graph->variable_names[char_index];
+		strncpy(node_name, next->value, CHAR_BUFFER_SIZE);
 
-	//printf("Adding value: %s\n", expr->value);
+		//printf("Adding value: %s\n", expr->value);
 
-	*state_index += 1;
+		*state_index += 1;
 
-	add_variable_discrete(expr->left, graph, state_index);
-	add_variable_discrete(expr->right, graph, state_index);
+		next = next->left;
+	}
+
+	//add_variable_discrete(expr->left, graph, state_index);
+	//add_variable_discrete(expr->right, graph, state_index);
 
 }
 
 static void add_property_or_variable_discrete(struct expression * expr, Graph_t graph, unsigned int * state_index)
 {
+	struct expression * next;
 	int num_states;
 
 	if(expr == NULL){
 		return;
-	}
-
-	if(expr->type == VARIABLE_OR_PROBABILITY){
-		add_property_or_variable_discrete(expr->left, graph, state_index);
-		add_property_or_variable_discrete(expr->right, graph, state_index);
 	}
 	if(expr->type == VARIABLE_DISCRETE){
 		num_states = expr->int_value;
 		assert(num_states <= MAX_STATES);
 		add_variable_discrete(expr->left, graph, state_index);
 		assert((int)*state_index == num_states);
+		return;
+	}
+
+	if(expr->type == VARIABLE_OR_PROBABILITY){
+		next = expr;
+		while(next != NULL && next->type == VARIABLE_OR_PROBABILITY){
+			add_property_or_variable_discrete(next->right, graph, state_index);
+			next = next->left;
+		}
+		if(next != NULL){
+			add_property_or_variable_discrete(next, graph, state_index);
+		}
+	}
+	else{
+		add_property_or_variable_discrete(expr->left, graph, state_index);
+		add_property_or_variable_discrete(expr->right, graph, state_index);
 	}
 }
 
@@ -264,6 +332,7 @@ static void add_node_to_graph(struct expression * expr, Graph_t graph){
 }
 
 static void add_nodes_to_graph(struct expression * expr, Graph_t graph){
+	struct expression * next;
 	if(expr == NULL){
 		return;
 	}
@@ -282,11 +351,27 @@ static void add_nodes_to_graph(struct expression * expr, Graph_t graph){
 	if(expr->type == PROBABILITY_DECLARATION){
 		return;
 	}
-	add_nodes_to_graph(expr->left, graph);
-	add_nodes_to_graph(expr->right, graph);
+
+	if(expr->type == VARIABLE_OR_PROBABILITY_DECLARATION){
+		next = expr;
+		while(next != NULL && next->type == VARIABLE_OR_PROBABILITY_DECLARATION){
+			add_nodes_to_graph(next->right, graph);
+			next = next->left;
+		}
+		if(next != NULL && next->type != VARIABLE_OR_PROBABILITY_DECLARATION){
+			add_nodes_to_graph(next, graph);
+		}
+	}
+
+	else {
+		add_nodes_to_graph(expr->left, graph);
+		add_nodes_to_graph(expr->right, graph);
+	}
 }
 
 static void count_number_of_node_names(struct expression *expr, unsigned int * count){
+	struct expression * next;
+
 	if(expr == NULL){
 		return;
 	}
@@ -294,14 +379,21 @@ static void count_number_of_node_names(struct expression *expr, unsigned int * c
 		return;
 	}
 	if(expr->type == PROBABILITY_VARIABLE_NAMES){
-		*count += 1;
+		next = expr;
+		while(next != NULL){
+			*count += 1;
+			next = next->left;
+		}
 	}
-
-	count_number_of_node_names(expr->left, count);
-	count_number_of_node_names(expr->right, count);
+	else {
+		count_number_of_node_names(expr->left, count);
+		count_number_of_node_names(expr->right, count);
+	}
 }
 
 static void fill_in_node_names(struct expression *expr, char *buffer, unsigned int *curr_index){
+	struct expression * next;
+
 	if(expr == NULL){
 		return;
 	}
@@ -314,8 +406,20 @@ static void fill_in_node_names(struct expression *expr, char *buffer, unsigned i
 		*curr_index += 1;
 	}
 
-	fill_in_node_names(expr->left, buffer, curr_index);
-	fill_in_node_names(expr->right, buffer, curr_index);
+	if(expr->type == VARIABLE_OR_PROBABILITY_DECLARATION){
+		next = expr;
+		while(next != NULL && next->type == VARIABLE_OR_PROBABILITY_DECLARATION){
+			fill_in_node_names(next->right, buffer, curr_index);
+			next = next->left;
+		}
+		if(next != NULL && next->type != VARIABLE_OR_PROBABILITY_DECLARATION){
+			fill_in_node_names(next, buffer, curr_index);
+		}
+	}
+	else {
+		fill_in_node_names(expr->left, buffer, curr_index);
+		fill_in_node_names(expr->right, buffer, curr_index);
+	}
 }
 
 static void fill_in_probability_table_value(struct expression *expr, double *probability_buffer,
@@ -452,40 +556,36 @@ static void fill_in_state_names(struct expression * expr, unsigned int count, un
 	fill_in_state_names(expr->right, count, current_index, buffer);
 }
 
-static Node_t find_node_by_name(char * name, Graph_t graph){
-	Node_t node;
-	char * node_name;
+static unsigned int find_node_by_name(char * name, Graph_t graph){
 	unsigned int i;
+    ENTRY e, *ep;
 
-	node = NULL;
+    fill_in_node_hash_table(graph);
 
-	for(i = 0; i < graph->current_num_vertices; ++i){
-		node_name = &(graph->node_names[i * CHAR_BUFFER_SIZE]);
-		if(strcmp(name, node_name) == 0){
-			node = &graph->nodes[i];
-			break;
-		}
-	}
+	e.key = name;
+    ep = hsearch(e, FIND);
+    assert(ep != NULL);
 
-	assert(node != NULL);
+    i = (unsigned int)ep->data;
+    assert(i < graph->current_num_vertices);
 
-	return node;
+
+	return i;
 }
 
 static unsigned int calculate_entry_offset(char * state_names, unsigned int num_states, char * variable_names, int num_variables,
 								  Graph_t graph){
-    unsigned int i, j, k, pos, step, index, var_name_index;
+    unsigned int i, j, k, pos, step, index, var_name_index, node_index;
     char * state;
     char * node_state_name;
-    Node_t current_node;
 
 	int * indices = (int *)malloc(sizeof(int) * num_states);
 
 	for(i = 0; i < num_states; ++i){
 		state = &(state_names[i * CHAR_BUFFER_SIZE]);
-		current_node = find_node_by_name(&(variable_names[(i+1)*CHAR_BUFFER_SIZE]), graph);
-		for(j = 0; j < current_node->num_variables; ++j){
-			var_name_index =  current_node->index * MAX_STATES * CHAR_BUFFER_SIZE + j * CHAR_BUFFER_SIZE;
+		node_index = find_node_by_name(&(variable_names[(i+1)*CHAR_BUFFER_SIZE]), graph);
+		for(j = 0; j < graph->node_num_vars[node_index]; ++j){
+			var_name_index =  node_index * MAX_STATES * CHAR_BUFFER_SIZE + j * CHAR_BUFFER_SIZE;
 			node_state_name = &graph->variable_names[var_name_index];
 			if(strcmp(state, node_state_name) == 0){
 				indices[i] = j;
@@ -503,8 +603,8 @@ static unsigned int calculate_entry_offset(char * state_names, unsigned int num_
     step = 1;
     for(k = num_states; k > 0; --k){
 		pos += indices[k - 1] * step;
-		current_node = find_node_by_name(&(variable_names[k * CHAR_BUFFER_SIZE]), graph);
-		step *= current_node->num_variables;
+		node_index = find_node_by_name(&(variable_names[k * CHAR_BUFFER_SIZE]), graph);
+		step *= graph->node_num_vars[node_index];
 	}
 
 	free(indices);
@@ -555,29 +655,23 @@ static void fill_in_probability_buffer_entry(struct expression * expr, double * 
 }
 
 static unsigned int calculate_num_probabilities(char *node_name_buffer, unsigned int num_nodes, Graph_t graph){
-	unsigned int i, j, num_probabilities;
-	int found_index;
+	unsigned int i, node_index, num_probabilities;
 	char * curr_name;
-	char * curr_node_name;
-	Node_t curr_node;
+    ENTRY e, *ep;
 
 	num_probabilities = 1;
 
+	fill_in_node_hash_table(graph);
+
 	for(i = 0; i < num_nodes; ++i){
 		curr_name = &(node_name_buffer[i * CHAR_BUFFER_SIZE]);
-		curr_node_name = NULL;
-		found_index = -1;
-		for(j = 0; j < graph->current_num_vertices; ++j){
-			curr_node_name = &(graph->node_names[j * CHAR_BUFFER_SIZE]);
-			if(strcmp(curr_name, curr_node_name) == 0){
-				found_index = j;
-				break;
-			}
-		}
-		assert(found_index < (int)graph->current_num_vertices);
-		curr_node = &(graph->nodes[found_index]);
 
-		num_probabilities *= curr_node->num_variables;
+        e.key = curr_name;
+        ep = hsearch(e, FIND);
+        assert(ep != NULL);
+		node_index = (unsigned int)ep->data;
+
+		num_probabilities *= graph->node_num_vars[node_index];
 	}
 
 	return num_probabilities;
@@ -643,16 +737,14 @@ static void update_node_in_graph(struct expression * expr, Graph_t graph){
 }
 
 static void insert_edges_into_graph(char * variable_buffer, unsigned int num_node_names, double * probability_buffer, unsigned int num_probabilities, Graph_t graph){
-	Node_t dest;
-	Node_t src;
-	unsigned int i, j, k, offset, slice, index, delta, next, diff;
-	double ** sub_graph;
-	double ** transpose;
+	unsigned int i, j, k, offset, slice, index, delta, next, diff, dest_index, src_index;
+	double sub_graph[MAX_STATES * MAX_STATES];
+	double transpose[MAX_STATES * MAX_STATES];
 
 	assert(num_node_names > 1);
 
-	dest = find_node_by_name(variable_buffer, graph);
-	slice = num_probabilities / dest->num_variables;
+	dest_index = find_node_by_name(variable_buffer, graph);
+	slice = num_probabilities / graph->node_num_vars[dest_index];
 
     /*
 	printf("Values for sinK: %s\n", variable_buffer);
@@ -666,22 +758,20 @@ static void insert_edges_into_graph(char * variable_buffer, unsigned int num_nod
 */
 	offset = 1;
 	for(i = num_node_names - 1; i > 0; --i){
-		src = find_node_by_name(&(variable_buffer[i * CHAR_BUFFER_SIZE]), graph);
+		src_index = find_node_by_name(&(variable_buffer[i * CHAR_BUFFER_SIZE]), graph);
         //printf("LOOKING AT src: %s\n", &(variable_buffer[i * CHAR_BUFFER_SIZE]));
 
-        delta = src->num_variables;
+        delta = graph->node_num_vars[src_index];
 
-		sub_graph = (double **)calloc(sizeof(double*), (size_t)src->num_variables);
-		transpose = (double **)calloc(sizeof(double*), (size_t)dest->num_variables);
-		for(j = 0; j < src->num_variables; ++j){
-			sub_graph[j] = (double *)calloc(sizeof(double), (size_t)dest->num_variables);
-		}
-		for(j = 0; j < dest->num_variables; ++j){
-			transpose[j] = (double *)calloc(sizeof(double), (size_t)src->num_variables);
+		for(k = 0; k < graph->node_num_vars[dest_index]; ++k){
+			for(j = 0; j < graph->node_num_vars[src_index]; ++j){
+				sub_graph[MAX_STATES * j + k] = 0.0;
+				transpose[MAX_STATES * k + j] = 0.0;
+			}
 		}
 
-		for(k = 0; k < dest->num_variables; ++k){
-			for(j = 0; j < src->num_variables; ++j){
+		for(k = 0; k < graph->node_num_vars[dest_index]; ++k){
+			for(j = 0; j < graph->node_num_vars[src_index]; ++j){
 				diff = 0;
 				index = j * offset + diff;
                 while(index <= slice) {
@@ -689,7 +779,7 @@ static void insert_edges_into_graph(char * variable_buffer, unsigned int num_nod
 					next = (j + 1) * offset + diff;
                     //printf("Current Index: %d; Next: %d; Delta: %d; Diff: %d\n", index, next, delta, diff);
                     while (index < next) {
-                        sub_graph[j][k] += probability_buffer[index + k * slice];
+                        sub_graph[j * MAX_STATES + k] += probability_buffer[index + k * slice];
                         index++;
                     }
 					index += delta * offset;
@@ -698,28 +788,19 @@ static void insert_edges_into_graph(char * variable_buffer, unsigned int num_nod
 			}
 		}
 
-		for(j = 0; j < src->num_variables; ++j){
-			for(k = 0; k < dest->num_variables; ++k){
-				transpose[k][j] = sub_graph[j][k];
+		for(j = 0; j < graph->node_num_vars[src_index]; ++j){
+			for(k = 0; k < graph->node_num_vars[dest_index]; ++k){
+				transpose[k * MAX_STATES + j] = sub_graph[j * MAX_STATES + k];
 			}
 		}
 
-		graph_add_edge(graph, src->index, dest->index, src->num_variables, dest->num_variables, sub_graph);
-		if(graph->observed_nodes[src->index] != 1 ){
-			graph_add_edge(graph, dest->index, src->index, dest->num_variables, src->num_variables, transpose);
+		graph_add_edge(graph, src_index, dest_index, graph->node_num_vars[src_index], graph->node_num_vars[dest_index], sub_graph);
+		if(graph->observed_nodes[src_index] != 1 ){
+			graph_add_edge(graph, dest_index, src_index, graph->node_num_vars[dest_index], graph->node_num_vars[src_index], transpose);
 		}
 
-		for(j = 0; j < src->num_variables; ++j){
-			free(sub_graph[j]);
-		}
-		free(sub_graph);
 
-		for(j = 0; j < dest->num_variables; ++j){
-			free(transpose[j]);
-		}
-		free(transpose);
-
-		offset *= src->num_variables;
+		offset *= graph->node_num_vars[src_index];
 	}
 }
 
@@ -776,6 +857,7 @@ static void add_edge_to_graph(struct expression * expr, Graph_t graph){
 }
 
 static void update_nodes_in_graph(struct expression * expr, Graph_t graph){
+	struct expression * next;
 	if(expr == NULL){
 		return;
 	}
@@ -793,6 +875,18 @@ static void update_nodes_in_graph(struct expression * expr, Graph_t graph){
 
 	if(expr->type == PROBABILITY_DECLARATION){
 		update_node_in_graph(expr, graph);
+		return;
+	}
+
+	if(expr->type == VARIABLE_OR_PROBABILITY_DECLARATION){
+		next = expr;
+		while(next != NULL && next->type == VARIABLE_OR_PROBABILITY_DECLARATION){
+			update_nodes_in_graph(next->right, graph);
+			next = next->left;
+		}
+		if(next != NULL && next->type != VARIABLE_OR_PROBABILITY_DECLARATION){
+			update_nodes_in_graph(next, graph);
+		}
 	}
 	else {
 		update_nodes_in_graph(expr->left, graph);
@@ -801,6 +895,7 @@ static void update_nodes_in_graph(struct expression * expr, Graph_t graph){
 }
 
 static void add_edges_to_graph(struct expression * expr, Graph_t graph){
+	struct expression * next;
 	if(expr == NULL){
 		return;
 	}
@@ -824,12 +919,21 @@ static void add_edges_to_graph(struct expression * expr, Graph_t graph){
         return;
     }
 
-
-
-
     if(expr->type == PROBABILITY_DECLARATION){
         add_edge_to_graph(expr, graph);
+		return;
     }
+
+	if(expr->type == VARIABLE_OR_PROBABILITY_DECLARATION){
+		next = expr;
+		while(next != NULL && next->type == VARIABLE_OR_PROBABILITY_DECLARATION){
+			add_edges_to_graph(next->right, graph);
+			next = next->left;
+		}
+		if(next != NULL && next->type != VARIABLE_OR_PROBABILITY_DECLARATION){
+			add_edges_to_graph(next, graph);
+		}
+	}
 	else {
 		add_edges_to_graph(expr->left, graph);
 		add_edges_to_graph(expr->right, graph);
@@ -839,13 +943,11 @@ static void add_edges_to_graph(struct expression * expr, Graph_t graph){
 static void reverse_node_names(Graph_t graph){
 	unsigned int i, j, index_1, index_2;
 	char temp[CHAR_BUFFER_SIZE];
-	Node_t curr_node;
 
 	for(i = 0; i < graph->current_num_vertices; ++i){
-		curr_node = &graph->nodes[i];
-		for(j = 0; j < curr_node->num_variables/2; ++j){
+		for(j = 0; j < graph->node_num_vars[i]/2; ++j){
 			index_1 = i * MAX_STATES * CHAR_BUFFER_SIZE + j * CHAR_BUFFER_SIZE;
-			index_2 = i * MAX_STATES * CHAR_BUFFER_SIZE + (curr_node->num_variables / 2 - j) * CHAR_BUFFER_SIZE;
+			index_2 = i * MAX_STATES * CHAR_BUFFER_SIZE + (graph->node_num_vars[i] / 2 - j) * CHAR_BUFFER_SIZE;
 			if(index_1 != index_2) {
 				strncpy(temp, &(graph->variable_names[index_1]), CHAR_BUFFER_SIZE);
 				strncpy(&(graph->variable_names[index_1]), &(graph->variable_names[index_2]), CHAR_BUFFER_SIZE);
