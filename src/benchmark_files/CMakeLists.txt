@@ -1,3 +1,5 @@
+project(benchmark_files)
+
 cmake_minimum_required(VERSION 2.8)
 
 configure_file(dog.bif dog.bif COPYONLY)
@@ -65,5 +67,26 @@ configure_file(xml/bf_25000_50000_3.xml xml/bf_25000_50000_3.xml COPYONLY)
 configure_file(xml/bf_30000_60000_1.xml xml/bf_30000_60000_1.xml COPYONLY)
 configure_file(xml/bf_30000_60000_2.xml xml/bf_30000_60000_2.xml COPYONLY)
 configure_file(xml/bf_30000_60000_3.xml xml/bf_30000_60000_3.xml COPYONLY)
+configure_file(xml/bf_40000_80000_1.xml xml/bf_40000_80000_1.xml COPYONLY)
+configure_file(xml/bf_40000_80000_2.xml xml/bf_40000_80000_2.xml COPYONLY)
+configure_file(xml/bf_40000_80000_3.xml xml/bf_40000_80000_3.xml COPYONLY)
+
+configure_file(xml/bf_80000_160000_2.xml xml/bf_80000_160000_2.xml COPYONLY)
 
 configure_file(dog.xml dog.xml COPYONLY)
+
+configure_file(xml2/10_20.xml xml2/10_20.xml COPYONLY)
+configure_file(xml2/100_200.xml xml2/100_200.xml COPYONLY)
+configure_file(xml2/1000_2000.xml xml2/1000_2000.xml COPYONLY)
+configure_file(xml2/10000_20000.xml xml2/10000_20000.xml COPYONLY)
+configure_file(xml2/100000_200000.xml xml2/100000_200000.xml COPYONLY)
+configure_file(xml2/200000_400000.xml xml2/200000_400000.xml COPYONLY)
+configure_file(xml2/300000_600000.xml xml2/300000_600000.xml COPYONLY)
+configure_file(xml2/400000_800000.xml xml2/400000_800000.xml COPYONLY)
+#configure_file(xml2/500000_1000000.xml xml2/500000_1000000.xml COPYONLY)
+#configure_file(xml2/600000_1200000.xml xml2/600000_1200000.xml COPYONLY)
+#configure_file(xml2/700000_1400000.xml xml2/700000_1400000.xml COPYONLY)
+#configure_file(xml2/800000_1600000.xml xml2/800000_1600000.xml COPYONLY)
+#configure_file(xml2/900000_1800000.xml xml2/900000_1800000.xml COPYONLY)
+#configure_file(xml2/1000000_2000000.xml xml2/1000000_2000000.xml COPYONLY)
+

@@ -8,8 +8,58 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "xml-expression.h"
+
+#if LIBXML_VERSION < 20901
+/**
+ * xmlXPathSetContextNode:
+ * @node: the node to to use as the context node
+ * @ctx:  the XPath context
+ *
+ * Sets 'node' as the context node. The node must be in the same
+ * document as that associated with the context.
+ *
+ * Returns -1 in case of error or 0 if successful
+ */
+int
+xmlXPathSetContextNode(xmlNodePtr node, xmlXPathContextPtr ctx) {
+    if ((node == NULL) || (ctx == NULL))
+        return(-1);
+
+    if (node->doc == ctx->doc) {
+        ctx->node = node;
+        return(0);
+    }
+    return(-1);
+}
+
+
+
+/**
+ * xmlXPathNodeEval:
+ * @node: the node to to use as the context node
+ * @str:  the XPath expression
+ * @ctx:  the XPath context
+ *
+ * Evaluate the XPath Location Path in the given context. The node 'node'
+ * is set as the context node. The context node is not restored.
+ *
+ * Returns the xmlXPathObjectPtr resulting from the evaluation or NULL.
+ *         the caller has to free the object.
+ */
+xmlXPathObjectPtr
+xmlXPathNodeEval(xmlNodePtr node, const xmlChar *str, xmlXPathContextPtr ctx) {
+    if (str == NULL)
+        return(NULL);
+    if (xmlXPathSetContextNode(node, ctx) < 0)
+        return(NULL);
+    return(xmlXPathEval(str, ctx));
+}
+
+
+#endif
 
 static xmlXPathObjectPtr get_node_set(xmlDocPtr doc, xmlChar * xpath){
     xmlXPathContextPtr context;
@@ -257,6 +307,11 @@ struct expression * parse_xml_file(const char * file_name){
     xmlDocPtr  doc;
     xmlParserCtxtPtr context;
     struct expression * root;
+    int file_access;
+
+    // ensure file path exists
+    file_access = access(file_name, F_OK);
+    assert( file_access != -1 );
 
     context = xmlNewParserCtxt();
     doc = xmlCtxtReadFile(context, file_name, NULL, XML_PARSE_HUGE);
