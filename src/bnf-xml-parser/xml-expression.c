@@ -209,7 +209,7 @@ static void process_floats(xmlDocPtr doc, xmlNodePtr node, struct expression * e
     while(split != NULL){
         if(strlen(split) > 0) {
             current = create_expression(FLOATING_POINT_LIST, current, NULL);
-            sscanf(split, "%lf", &current->double_value);
+            sscanf(split, "%f", &current->float_value);
         }
         split = strtok(NULL, " \t\n\r");
     }

@@ -153,7 +153,7 @@ union YYSTYPE
 
 	char word[50];
 	int int_value;
-	double double_value;
+	float float_value;
 	struct expression * expression;
 
 #line 160 "Parser.c" /* yacc.c:355  */
@@ -946,7 +946,7 @@ yystpcpy (char *yydest, const char *yysrc)
 # ifndef yytnamerr
 /* Copy to YYRES the contents of YYSTR after stripping away unnecessary
    quotes and backslashes, so that it's suitable for yyerror.  The
-   heuristic is that double-quoting is unnecessary unless the string
+   heuristic is that float-quoting is unnecessary unless the string
    contains an apostrophe, a comma, or backslash (other than
    backslash-backslash).  YYSTR is taken from yytname.  If YYRES is
    null, do not copy; instead, return the length of what the result
@@ -1783,7 +1783,7 @@ yyreduce:
   case 52:
 #line 238 "Parser.y" /* yacc.c:1646  */
     { struct expression * fp_list = create_expression(FLOATING_POINT_LIST, NULL, NULL);
-									 fp_list->double_value = (yyvsp[0].double_value);
+									 fp_list->float_value = (yyvsp[0].float_value);
 									 (yyval.expression) = fp_list;
 									}
 #line 1790 "Parser.c" /* yacc.c:1646  */
@@ -1792,7 +1792,7 @@ yyreduce:
   case 53:
 #line 242 "Parser.y" /* yacc.c:1646  */
     {struct expression * fp_list = create_expression(FLOATING_POINT_LIST, NULL, NULL);
-                                     									 fp_list->double_value = (double)(yyvsp[0].int_value);
+                                     									 fp_list->float_value = (float)(yyvsp[0].int_value);
                                      									 (yyval.expression) = fp_list;
 	                                }
 #line 1799 "Parser.c" /* yacc.c:1646  */
@@ -1802,7 +1802,7 @@ yyreduce:
 #line 246 "Parser.y" /* yacc.c:1646  */
     {
 	                                                    struct expression * fp_list = create_expression(FLOATING_POINT_LIST, (yyvsp[-1].expression), NULL);
-														 fp_list->double_value = (yyvsp[0].double_value);
+														 fp_list->float_value = (yyvsp[0].float_value);
 														 (yyval.expression) = fp_list;
 														}
 #line 1809 "Parser.c" /* yacc.c:1646  */
@@ -1812,7 +1812,7 @@ yyreduce:
 #line 252 "Parser.y" /* yacc.c:1646  */
     {
                                                             struct expression * fp_list = create_expression(FLOATING_POINT_LIST, (yyvsp[-1].expression), NULL);
-                                                             fp_list->double_value = (double)(yyvsp[0].int_value);
+                                                             fp_list->float_value = (float)(yyvsp[0].int_value);
                                                              (yyval.expression) = fp_list;
                                                             }
 #line 1819 "Parser.c" /* yacc.c:1646  */

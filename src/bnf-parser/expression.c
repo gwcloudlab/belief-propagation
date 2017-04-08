@@ -12,7 +12,7 @@ static struct expression * allocate_expression()
 	assert(expr != NULL);
 
 	expr->type = BLANK;
-	expr->double_value = 0.0;
+	expr->float_value = 0.0;
 	expr->int_value = 0;
 	expr->left = NULL;
 	expr->right = NULL;
@@ -109,7 +109,7 @@ void print_expression(struct expression * expr){
 
 	switch(expr->type){
 		case FLOATING_POINT_LIST:
-			printf("Double value: %lf\n", expr->double_value);
+			printf("Float value: %f\n", expr->float_value);
 			break;
 	}
 
@@ -133,9 +133,9 @@ static void reverse_buffer(char *buffer, int num_nodes){
 	}
 }
 
-static void reverse_probability_table(double * probability_table, int num_probabilities){
+static void reverse_probability_table(float * probability_table, int num_probabilities){
 	int i;
-	double temp;
+	float temp;
 
 	for(i = 0; i < num_probabilities/2; ++i){
 		temp = probability_table[i];
@@ -422,7 +422,7 @@ static void fill_in_node_names(struct expression *expr, char *buffer, unsigned i
 	}
 }
 
-static void fill_in_probability_table_value(struct expression *expr, double *probability_buffer,
+static void fill_in_probability_table_value(struct expression *expr, float *probability_buffer,
 											int num_probabilities, int *current_index){
 	if(expr == NULL){
 		return;
@@ -432,7 +432,7 @@ static void fill_in_probability_table_value(struct expression *expr, double *pro
 
 	if(expr->type == FLOATING_POINT_LIST){
         if(probability_buffer[*current_index] < 0) {
-            probability_buffer[*current_index] = expr->double_value;
+            probability_buffer[*current_index] = expr->float_value;
         }
 		*current_index += 1;
 	}
@@ -441,14 +441,14 @@ static void fill_in_probability_table_value(struct expression *expr, double *pro
 	fill_in_probability_table_value(expr->right, probability_buffer, num_probabilities, current_index);
 }
 
-static void fill_in_probability_table_table(struct expression * expr, double * probability_buffer, int num_elements, int * curr_index){
+static void fill_in_probability_table_table(struct expression * expr, float * probability_buffer, int num_elements, int * curr_index){
 	if(expr == NULL){
 		return;
 	}
 	assert(*curr_index < num_elements);
 	if(expr->type == FLOATING_POINT_LIST){
         while(expr != NULL && expr->type == FLOATING_POINT_LIST) {
-            probability_buffer[*curr_index] = expr->double_value;
+            probability_buffer[*curr_index] = expr->float_value;
             *curr_index += 1;
             expr = expr->left;
         }
@@ -459,7 +459,7 @@ static void fill_in_probability_table_table(struct expression * expr, double * p
 	fill_in_probability_table_table(expr->right, probability_buffer, num_elements, curr_index);
 }
 
-static void fill_in_probability_table_entry(struct expression * expr, double * probability_buffer, unsigned int num_probabilities,
+static void fill_in_probability_table_entry(struct expression * expr, float * probability_buffer, unsigned int num_probabilities,
 											unsigned int pos, unsigned int jump, unsigned int num_states, unsigned int * current_index){
     unsigned int index;
 	if(expr == NULL){
@@ -471,7 +471,7 @@ static void fill_in_probability_table_entry(struct expression * expr, double * p
     if(expr->type == FLOATING_POINT_LIST){
 		index = (num_states - *current_index - 1) * jump + pos;
 		index = index % num_probabilities;
-		probability_buffer[index] = expr->double_value;
+		probability_buffer[index] = expr->float_value;
         *current_index += 1;
     }
 
@@ -479,7 +479,7 @@ static void fill_in_probability_table_entry(struct expression * expr, double * p
     fill_in_probability_table_entry(expr->right, probability_buffer, num_probabilities, pos, jump, num_states, current_index);
 }
 
-static void fill_in_probability_buffer_default(struct expression * expr, double * probability_buffer, int num_probabilities){
+static void fill_in_probability_buffer_default(struct expression * expr, float * probability_buffer, int num_probabilities){
 	int current_index;
 	if(expr == NULL){
 		return;
@@ -499,7 +499,7 @@ static void fill_in_probability_buffer_default(struct expression * expr, double 
 	fill_in_probability_buffer_default(expr->right, probability_buffer, num_probabilities);
 }
 
-static void fill_in_probability_buffer_table(struct expression * expr, double * probability_buffer, int num_entries){
+static void fill_in_probability_buffer_table(struct expression * expr, float * probability_buffer, int num_entries){
 	int current_index;
 	if(expr == NULL){
 		return;
@@ -614,7 +614,7 @@ static unsigned int calculate_entry_offset(char * state_names, unsigned int num_
     return pos;
 }
 
-static void fill_in_probability_buffer_entry(struct expression * expr, double * probability_buffer,
+static void fill_in_probability_buffer_entry(struct expression * expr, float * probability_buffer,
 											 unsigned int num_probabilities,
 											 char * variables, unsigned int num_variables,
 											 unsigned int first_num_states,
@@ -680,7 +680,7 @@ static unsigned int calculate_num_probabilities(char *node_name_buffer, unsigned
 static void update_node_in_graph(struct expression * expr, Graph_t graph){
 	char * buffer;
 	char * node_names;
-	double * probability_buffer;
+	float * probability_buffer;
 	unsigned int index, num_node_names, num_probabilities;
     int node_index;
 
@@ -702,7 +702,7 @@ static void update_node_in_graph(struct expression * expr, Graph_t graph){
 
 	num_probabilities = calculate_num_probabilities(buffer, num_node_names, graph);
 
-	probability_buffer = (double *)malloc(sizeof(double) * num_probabilities);
+	probability_buffer = (float *)malloc(sizeof(float) * num_probabilities);
 	assert(probability_buffer);
     for(index = 0; index < num_probabilities; ++index){
         probability_buffer[index] = -1.0;
@@ -736,10 +736,10 @@ static void update_node_in_graph(struct expression * expr, Graph_t graph){
 	free(probability_buffer);
 }
 
-static void insert_edges_into_graph(char * variable_buffer, unsigned int num_node_names, double * probability_buffer, unsigned int num_probabilities, Graph_t graph){
+static void insert_edges_into_graph(char * variable_buffer, unsigned int num_node_names, float * probability_buffer, unsigned int num_probabilities, Graph_t graph){
 	unsigned int i, j, k, offset, slice, index, delta, next, diff, dest_index, src_index;
-	double sub_graph[MAX_STATES * MAX_STATES];
-	double transpose[MAX_STATES * MAX_STATES];
+	float sub_graph[MAX_STATES * MAX_STATES];
+	float transpose[MAX_STATES * MAX_STATES];
 
 	assert(num_node_names > 1);
 
@@ -806,7 +806,7 @@ static void insert_edges_into_graph(char * variable_buffer, unsigned int num_nod
 
 static void add_edge_to_graph(struct expression * expr, Graph_t graph){
     char * buffer;
-    double * probability_buffer;
+    float * probability_buffer;
     unsigned int index, num_node_names, num_probabilities, first_num_states;
 
     if(expr == NULL){
@@ -829,7 +829,7 @@ static void add_edge_to_graph(struct expression * expr, Graph_t graph){
     num_probabilities = calculate_num_probabilities(buffer, num_node_names, graph);
     first_num_states = calculate_num_probabilities(buffer, 1, graph);
 
-    probability_buffer = (double *)malloc(sizeof(double) * num_probabilities);
+    probability_buffer = (float *)malloc(sizeof(float) * num_probabilities);
     assert(probability_buffer);
     for(index = 0; index < num_probabilities; ++index){
         probability_buffer[index] = -1.0;
