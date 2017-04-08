@@ -86,7 +86,7 @@ union YYSTYPE
 
 	char word[50];
 	int int_value;
-	double double_value;
+	float float_value;
 	struct expression * expression;
 
 #line 93 "Parser.h" /* yacc.c:1909  */

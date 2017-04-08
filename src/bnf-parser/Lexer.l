@@ -70,7 +70,7 @@ FLOATING_POINT_LITERAL ([0-9]+\.[0-9]+({EXPONENT})?)|(\.[0-9]+({EXPONENT})?)|([0
 {L_PARENS} { return TOKEN_L_PARENS; }
 {R_PARENS} { return TOKEN_R_PARENS; }
 {SEMICOLON} { return TOKEN_SEMICOLON; }
-{FLOATING_POINT_LITERAL} { sscanf(yytext, "%lf", &yylval->double_value); return TOKEN_FLOATING_POINT_LITERAL; }
+{FLOATING_POINT_LITERAL} { sscanf(yytext, "%f", &yylval->float_value); return TOKEN_FLOATING_POINT_LITERAL; }
 {DECIMAL_LITERAL} { sscanf(yytext, "%d", &yylval->int_value); return TOKEN_DECIMAL_LITERAL; }
 {WORD} { strncpy(yylval->word, yytext, CHAR_BUFFER_SIZE); return TOKEN_WORD; }
 . { }

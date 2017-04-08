@@ -103,7 +103,7 @@ typedef unsigned int flex_uint32_t;
 /* Promotes a possibly negative, possibly signed char to an unsigned
  * integer for use as an array index.  If the signed char is negative,
  * we want to instead treat it as an 8-bit unsigned char, hence the
- * double cast.
+ * float cast.
  */
 #define YY_SC_TO_UI(c) ((unsigned int) (unsigned char) c)
 
@@ -1032,7 +1032,7 @@ YY_RULE_SETUP
 case 21:
 YY_RULE_SETUP
 #line 73 "Lexer.l"
-{ sscanf(yytext, "%lf", &yylval->double_value); return TOKEN_FLOATING_POINT_LITERAL; }
+{ sscanf(yytext, "%f", &yylval->float_value); return TOKEN_FLOATING_POINT_LITERAL; }
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
