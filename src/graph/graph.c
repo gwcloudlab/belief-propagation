@@ -5,6 +5,7 @@
 #include <math.h>
 
 #include "graph.h"
+#include "advisor-annotate.h"
 
 Graph_t
 create_graph(unsigned int num_vertices, unsigned int num_edges)
@@ -983,8 +984,10 @@ unsigned int loopy_propagate_until(Graph_t graph, float convergence, unsigned in
 	previous_delta = -1.0;
 	delta = 0.0;
 
+    ANNOTATE_SITE_BEGIN(loopy_propagate_until);
 	for(i = 0; i < max_iterations; ++i){
 		//printf("Current iteration: %d\n", i+1);
+        ANNOTATE_ITERATION_TASK(loopy_propagate_one_iteration);
 		loopy_propagate_one_iteration(graph);
 
 		delta = 0.0;
@@ -1007,6 +1010,7 @@ unsigned int loopy_propagate_until(Graph_t graph, float convergence, unsigned in
 		}
 		previous_delta = delta;
 	}
+    ANNOTATE_SITE_END(loopy_propagate_until);
 	if(i == max_iterations){
 		printf("No Convergence: previous: %f vs current: %f\n", previous_delta, delta);
 	}
