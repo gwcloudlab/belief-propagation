@@ -780,7 +780,7 @@ void run_test_loopy_belief_propagation(struct expression * expression, const cha
 
     set_up_src_nodes_to_edges(graph);
     set_up_dest_nodes_to_edges(graph);
-    calculate_diameter(graph);
+    //calculate_diameter(graph);
 
     start = clock();
     init_previous_edge(graph);
