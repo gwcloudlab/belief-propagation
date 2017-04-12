@@ -491,12 +491,12 @@ unsigned int loopy_propagate_until_cuda(Graph_t graph, float convergence, unsign
     CUDA_CHECK_RETURN(cudaBindTextureToArray(&tex_x_dim, edges_x_dim, &channel_desc_unsigned_int));
     CUDA_CHECK_RETURN(cudaBindTextureToArray(&tex_y_dim, edges_x_dim, &channel_desc_unsigned_int));
 
-    const int blockCount = (num_vertices + BLOCK_SIZE - 1)/ BLOCK_SIZE;
+    const int blockCount = (num_edges + BLOCK_SIZE - 1)/ BLOCK_SIZE;
     num_iter = 0;
 
-    dim3 dimReduceBlock(num_vertices, 1, 1);
+    dim3 dimReduceBlock(BLOCK_SIZE, 1, 1);
     dim3 dimReduceGrid(blockCount, 1, 1);
-    int reduceSmemSize = (num_vertices <= 32) ? 2 * num_vertices * sizeof(float) : num_vertices * sizeof(float);
+    int reduceSmemSize = (BLOCK_SIZE <= 32) ? 2 * BLOCK_SIZE * sizeof(float) : BLOCK_SIZE * sizeof(float);
 
     for(i = 0; i < max_iterations; i+= BATCH_SIZE){
         for(j = 0; j < BATCH_SIZE; ++j) {
@@ -929,12 +929,12 @@ int main(void)
 
     run_tests_with_xml_file("../benchmark_files/xml/bf_80000_160000_2.xml", 1);*/
 
-    run_tests_with_xml_file("../benchmark_files/xml2/10_20.xml", 1, out);
+    /*run_tests_with_xml_file("../benchmark_files/xml2/10_20.xml", 1, out);
     run_tests_with_xml_file("../benchmark_files/xml2/100_200.xml", 1, out);
-    run_tests_with_xml_file("../benchmark_files/xml2/1000_2000.xml", 1, out);
+    run_tests_with_xml_file("../benchmark_files/xml2/1000_2000.xml", 1, out);*/
     run_tests_with_xml_file("../benchmark_files/xml2/10000_20000.xml", 1, out);
-    run_tests_with_xml_file("../benchmark_files/xml2/100000_200000.xml", 1, out);
-    run_tests_with_xml_file("../benchmark_files/xml2/200000_400000.xml", 1, out);
+    /*run_tests_with_xml_file("../benchmark_files/xml2/100000_200000.xml", 1, out);
+    /*run_tests_with_xml_file("../benchmark_files/xml2/200000_400000.xml", 1, out);
     //run_tests_with_xml_file("../benchmark_files/xml2/300000_600000.xml", 1, out);
     run_tests_with_xml_file("../benchmark_files/xml2/400000_800000.xml", 1, out);
     //run_tests_with_xml_file("../benchmark_files/xml2/500000_1000000.xml", 1, out);
@@ -943,7 +943,7 @@ int main(void)
     run_tests_with_xml_file("../benchmark_files/xml2/800000_1600000.xml", 1, out);
     //run_tests_with_xml_file("../benchmark_files/xml2/900000_1800000.xml", 1, out);
     run_tests_with_xml_file("../benchmark_files/xml2/1000000_2000000.xml", 1, out);
-    //run_tests_with_xml_file("../benchmark_files/xml2/10000000_20000000.xml", 1, out);
+    //run_tests_with_xml_file("../benchmark_files/xml2/10000000_20000000.xml", 1, out);*/
 
     return 0;
 }
