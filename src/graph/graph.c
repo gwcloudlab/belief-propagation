@@ -1021,7 +1021,7 @@ static unsigned int loopy_propagate_iterations_acc(unsigned int num_vertices, un
 										   unsigned int max_iterations,
 										   float convergence){
 	unsigned int i, j, k, num_variables, num_iter;
-	float delta, previous_delta, penultimate_delta, diff;
+	float delta, previous_delta, diff;
 	float * prev_messages;
 	float * curr_messages;
 	float * temp;
@@ -1033,7 +1033,7 @@ static unsigned int loopy_propagate_iterations_acc(unsigned int num_vertices, un
 
 	num_iter = 0;
 
-	previous_delta = -1.0;
+	previous_delta = -1.0f;
 	delta = 0.0;
 
 	for(i = 0; i < max_iterations; i+= BATCH_SIZE){
