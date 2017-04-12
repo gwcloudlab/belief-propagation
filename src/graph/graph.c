@@ -981,7 +981,7 @@ unsigned int loopy_propagate_until(Graph_t graph, float convergence, unsigned in
 
 	num_edges = graph->current_num_edges;
 
-	previous_delta = -1.0;
+	previous_delta = -1.0f;
 	delta = 0.0;
 
     ANNOTATE_SITE_BEGIN(loopy_propagate_until);
@@ -990,7 +990,7 @@ unsigned int loopy_propagate_until(Graph_t graph, float convergence, unsigned in
         ANNOTATE_ITERATION_TASK(loopy_propagate_one_iteration);
 		loopy_propagate_one_iteration(graph);
 
-		delta = 0.0;
+		delta = 0.0f;
 
 #pragma omp parallel default(none) shared(previous_edge_messages, current_edge_messages, num_edges, edges_x_dim)  private(j, diff, k) reduction(+:delta)
 		for(j = 0; j < num_edges; ++j){
@@ -1025,7 +1025,7 @@ static unsigned int loopy_propagate_iterations_acc(unsigned int num_vertices, un
 										   unsigned int max_iterations,
 										   float convergence){
 	unsigned int i, j, k, num_variables, num_iter;
-	float delta, previous_delta, penultimate_delta, diff;
+	float delta, previous_delta, diff;
 	float * prev_messages;
 	float * curr_messages;
 	float * temp;
@@ -1037,7 +1037,7 @@ static unsigned int loopy_propagate_iterations_acc(unsigned int num_vertices, un
 
 	num_iter = 0;
 
-	previous_delta = -1.0;
+	previous_delta = -1.0f;
 	delta = 0.0;
 
 	for(i = 0; i < max_iterations; i+= BATCH_SIZE){
