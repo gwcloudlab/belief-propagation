@@ -1034,7 +1034,7 @@ static unsigned int loopy_propagate_iterations_acc(unsigned int num_vertices, un
 	num_iter = 0;
 
 	previous_delta = -1.0f;
-	delta = 0.0;
+	delta = 0.0f;
 
 	for(i = 0; i < max_iterations; i+= BATCH_SIZE){
 #pragma acc data present_or_copy(node_states[0:(MAX_STATES * num_vertices)], prev_messages[0:(MAX_STATES * num_edges)], curr_messages[0:(MAX_STATES * num_edges)]) present_or_copyin(dest_node_to_edges[0:(num_vertices + num_edges)], src_node_to_edges[0:(num_vertices + num_edges)], num_vars[0:num_vertices], joint_probabilities[0:(num_edges * MAX_STATES * MAX_STATES)], num_src[0:num_edges], num_dest[0:num_edges])
@@ -1079,13 +1079,13 @@ static unsigned int loopy_propagate_iterations_acc(unsigned int num_vertices, un
             }
 
 
-            delta = 0.0;
+            delta = 0.0f;
 #pragma acc kernels create(diff)
             for (j = 0; j < num_edges; ++j) {
                 for (k = 0; k < num_src[j]; ++k) {
                     diff = prev_messages[MAX_STATES * j + k] - curr_messages[MAX_STATES * j + k];
                     if (diff != diff) {
-                        diff = 0.0;
+                        diff = 0.0f;
                     }
                     delta += fabs(diff);
                 }
