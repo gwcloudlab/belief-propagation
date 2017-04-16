@@ -56,6 +56,7 @@ create_graph(unsigned int num_vertices, unsigned int num_edges)
 	g->current_num_vertices = 0;
 	g->current_num_edges = 0;
     g->diameter = -1;
+    g->max_degree = 0;
 	return g;
 }
 
@@ -150,7 +151,7 @@ void graph_add_edge(Graph_t graph, unsigned int src_index, unsigned int dest_ind
 }
 
 void set_up_src_nodes_to_edges(Graph_t graph){
-	unsigned int i, j, edge_index, num_vertices, num_edges;
+	unsigned int i, j, edge_index, num_vertices, num_edges, current_degree;
 
 	assert(graph->current_num_vertices == graph->total_num_vertices);
 	assert(graph->current_num_edges <= graph->total_num_edges);
@@ -160,15 +161,21 @@ void set_up_src_nodes_to_edges(Graph_t graph){
 	num_vertices = graph->total_num_vertices;
 	num_edges = graph->current_num_edges;
 
+    current_degree = 0;
+
 	for(i = 0; i < num_vertices; ++i){
 		graph->src_nodes_to_edges[i] = edge_index;
 		for(j = 0; j < num_edges; ++j){
 			if(graph->edges_src_index[j] == i){
 				graph->src_nodes_to_edges[edge_index] = j;
 				edge_index += 1;
+                current_degree++;
 			}
 		}
 	}
+    if(current_degree > graph->max_degree){
+        graph->max_degree = current_degree;
+    }
 }
 
 void set_up_dest_nodes_to_edges(Graph_t graph){
