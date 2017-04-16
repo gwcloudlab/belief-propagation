@@ -21,6 +21,7 @@ struct graph {
 
 	unsigned int current_num_vertices;
 	unsigned int current_num_edges;
+	unsigned int max_degree;
 
 	unsigned int * edges_src_index;
 	unsigned int * edges_dest_index;
