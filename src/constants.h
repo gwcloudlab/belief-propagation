@@ -22,6 +22,8 @@
 
 #define BLOCK_SIZE 256
 
+#define BLOCK_SIZE_2_D 16
+
 #define MAX_NUM_NODES 1048
 
 #define WARP_SIZE 32
