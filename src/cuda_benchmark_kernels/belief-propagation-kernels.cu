@@ -577,10 +577,10 @@ unsigned int loopy_propagate_until_cuda(Graph_t graph, float convergence, unsign
 
 
     const int blockEdge1dCount = (num_edges + BLOCK_SIZE - 1)/ BLOCK_SIZE;
-    const int blockEdge2dCount = (num_edges + BLOCK_SIZE_2_D - 1)/ BLOCK_SIZE_2_D;
-    const int blockNodeCount = (num_vertices + BLOCK_SIZE_2_D - 1)/BLOCK_SIZE_2_D;
-    const int blockStateCount = (MAX_STATES + BLOCK_SIZE_2_D - 1)/BLOCK_SIZE_2_D;
-    const int blockDegreeCount = (graph->max_degree + BLOCK_SIZE_2_D - 1)/BLOCK_SIZE_2_D;
+
+    const int blockNodeCount = (num_vertices + BLOCK_SIZE_2_D_X - 1)/BLOCK_SIZE_2_D_X;
+    const int blockStateCount = (MAX_STATES + BLOCK_SIZE_2_D_Y - 1)/BLOCK_SIZE_2_D_Y;
+    const int blockDegreeCount = (graph->max_degree + BLOCK_SIZE_2_D_Y - 1)/BLOCK_SIZE_2_D_Y;
 
     num_iter = 0;
 
@@ -588,22 +588,23 @@ unsigned int loopy_propagate_until_cuda(Graph_t graph, float convergence, unsign
     dim3 dimReduceGrid(blockEdge1dCount, 1, 1);
     int reduceSmemSize = (BLOCK_SIZE <= 32) ? 2 * BLOCK_SIZE * sizeof(float) : BLOCK_SIZE * sizeof(float);
 
-    dim3 dimInitMessageBuffer(BLOCK_SIZE_2_D, BLOCK_SIZE_2_D, 1);
+    dim3 dimInitMessageBuffer(BLOCK_SIZE_2_D_X, BLOCK_SIZE_2_D_Y, 1);
     dim3 dimInitGrid(blockNodeCount, blockStateCount, 1);
     dim3 dimDegreeGrid(blockNodeCount, blockDegreeCount, 1);
+    int reduce2DSmemSize = (BLOCK_SIZE_2_D_Y <= 32) ? 2 * BLOCK_SIZE_2_D_Y * sizeof(float) : BLOCK_SIZE_2_D_Y * sizeof(float);
 
     for(i = 0; i < max_iterations; i+= BATCH_SIZE){
         for(j = 0; j < BATCH_SIZE; ++j) {
             init_message_buffer_kernel<<<dimInitGrid, dimInitMessageBuffer>>>(message_buffer, node_states, node_num_vars, num_vertices);
             check_cuda_kernel_return_code();
             //CUDA_CHECK_RETURN(cudaMemcpy(&host_delta, delta, sizeof(float), cudaMemcpyDeviceToHost));
-            read_incoming_messages_kernel <<<dimDegreeGrid, dimInitMessageBuffer, reduceSmemSize>>>(message_buffer, previous_messages, dest_nodes_to_edges, num_edges, node_num_vars, num_vertices, is_pow_2, WARP_SIZE);
+            read_incoming_messages_kernel <<<dimDegreeGrid, dimInitMessageBuffer, reduce2DSmemSize>>>(message_buffer, previous_messages, dest_nodes_to_edges, num_edges, node_num_vars, num_vertices, is_pow_2, WARP_SIZE);
             check_cuda_kernel_return_code();
             //CUDA_CHECK_RETURN(cudaMemcpy(&host_delta, delta, sizeof(float), cudaMemcpyDeviceToHost));
             send_message_for_node_kernel<<<dimDegreeGrid, dimInitMessageBuffer>>>(message_buffer, num_edges, edges_joint_probabilities, current_messages, src_nodes_to_edges, edges_x_dim, edges_y_dim, num_vertices);
             check_cuda_kernel_return_code();
             //CUDA_CHECK_RETURN(cudaMemcpy(&host_delta, delta, sizeof(float), cudaMemcpyDeviceToHost));
-            marginalize_node_kernel<<<dimDegreeGrid, dimInitMessageBuffer, reduceSmemSize>>>(node_num_vars, message_buffer, node_states, current_messages, dest_nodes_to_edges, num_vertices, num_edges, is_pow_2, WARP_SIZE);
+            marginalize_node_kernel<<<dimDegreeGrid, dimInitMessageBuffer, reduce2DSmemSize>>>(node_num_vars, message_buffer, node_states, current_messages, dest_nodes_to_edges, num_vertices, num_edges, is_pow_2, WARP_SIZE);
             check_cuda_kernel_return_code();
             //CUDA_CHECK_RETURN(cudaMemcpy(&host_delta, delta, sizeof(float), cudaMemcpyDeviceToHost));
 
