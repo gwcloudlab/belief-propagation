@@ -711,7 +711,7 @@ void test_parse_file(char * file_name){
     FILE * in;
     Graph_t graph;
     clock_t start, end;
-    float time_elapsed;
+    double time_elapsed;
 
     assert(yylex_init(&scanner) == 0);
 
@@ -750,8 +750,8 @@ void test_parse_file(char * file_name){
     marginalize(graph);
     end = clock();
 
-    time_elapsed = (float)(end - start) / CLOCKS_PER_SEC;
-    printf("%s,regular,%d,%d,%f\n", file_name, graph->current_num_vertices, graph->current_num_edges, time_elapsed);
+    time_elapsed = (double)(end - start) / CLOCKS_PER_SEC;
+    printf("%s,regular,%d,%d,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, time_elapsed);
 
     //print_nodes(graph);
 
@@ -769,7 +769,7 @@ void test_loopy_belief_propagation(char * file_name){
     FILE * in;
     Graph_t graph;
     clock_t start, end;
-    float time_elapsed;
+    double time_elapsed;
 
     assert(yylex_init(&scanner) == 0);
 
@@ -799,9 +799,9 @@ void test_loopy_belief_propagation(char * file_name){
     loopy_propagate_until_cuda(graph, PRECISION, NUM_ITERATIONS);
     end = clock();
 
-    time_elapsed = (float)(end - start)/CLOCKS_PER_SEC;
+    time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
     //print_nodes(graph);
-    printf("%s,loopy,%d,%d,%f\n", file_name, graph->current_num_vertices, graph->current_num_edges, time_elapsed);
+    printf("%s,loopy,%d,%d,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, time_elapsed);
 
     delete_expression(expression);
 
@@ -834,7 +834,7 @@ struct expression * parse_file(const char * file_name){
 void run_test_belief_propagation(struct expression * expression, const char * file_name){
     Graph_t graph;
     clock_t start, end;
-    float time_elapsed;
+    double time_elapsed;
     unsigned int i;
 
     graph = build_graph(expression);
@@ -862,8 +862,8 @@ void run_test_belief_propagation(struct expression * expression, const char * fi
     marginalize(graph);
     end = clock();
 
-    time_elapsed = (float)(end - start) / CLOCKS_PER_SEC;
-    printf("%s,regular,%d,%d,%d,2,%f\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, time_elapsed);
+    time_elapsed = (double)(end - start) / CLOCKS_PER_SEC;
+    printf("%s,regular,%d,%d,%d,2,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, time_elapsed);
 
     graph_destroy(graph);
 }
@@ -871,7 +871,7 @@ void run_test_belief_propagation(struct expression * expression, const char * fi
 void run_test_loopy_belief_propagation(struct expression * expression, const char * file_name, FILE * out){
     Graph_t graph;
     clock_t start, end;
-    float time_elapsed;
+    double time_elapsed;
     unsigned int num_iterations;
 
     graph = build_graph(expression);
@@ -889,9 +889,9 @@ void run_test_loopy_belief_propagation(struct expression * expression, const cha
     num_iterations = loopy_propagate_until_cuda(graph, PRECISION, NUM_ITERATIONS);
     end = clock();
 
-    time_elapsed = (float)(end - start)/CLOCKS_PER_SEC;
+    time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
     //print_nodes(graph);
-    fprintf(out, "%s,loopy,%d,%d,%d,%d,%f\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
+    fprintf(out, "%s,loopy,%d,%d,%d,%d,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
     fflush(out);
 
     graph_destroy(graph);
