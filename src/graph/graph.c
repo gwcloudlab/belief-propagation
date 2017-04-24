@@ -1031,12 +1031,12 @@ static unsigned int loopy_propagate_iterations_acc(unsigned int num_vertices, un
 	previous_delta = -1.0f;
 	delta = 0.0f;
 
-	for(i = 0; i < max_iterations; i+= BATCH_SIZE){
-
-			#pragma acc data present_or_copyin(message_buffer, node_states[0:(MAX_STATES * num_vertices)], prev_messages[0:(MAX_STATES * num_edges)], curr_messages[0:(MAX_STATES * num_edges)], dest_node_to_edges[0:(num_vertices + num_edges)], src_node_to_edges[0:(num_vertices + num_edges)], num_vars[0:num_vertices], joint_probabilities[0:(num_edges * MAX_STATES * MAX_STATES)], num_src[0:num_edges], num_dest[0:num_edges])
-			#pragma acc kernels
+    for(i = 0; i < max_iterations; i+= BATCH_SIZE) {
+#pragma acc data present_or_copy(node_states[0:(MAX_STATES * num_vertices)], prev_messages[0:(MAX_STATES * num_edges)], curr_messages[0:(MAX_STATES * num_edges)]) present_or_copyin(dest_node_to_edges[0:(num_vertices + num_edges)], src_node_to_edges[0:(num_vertices + num_edges)], num_vars[0:num_vertices], joint_probabilities[0:(num_edges * MAX_STATES * MAX_STATES)], num_src[0:num_edges], num_dest[0:num_edges])
+        {
             //printf("Current iteration: %d\n", i+1);
             for (j = 0; j < BATCH_SIZE; ++j) {
+#pragma acc kernels
                 for (k = 0; k < num_vertices; ++k) {
                     num_variables = num_vars[k];
 
@@ -1057,12 +1057,15 @@ static unsigned int loopy_propagate_iterations_acc(unsigned int num_vertices, un
 
 
                     //send message
-                    send_message_for_node(src_node_to_edges, message_buffer, num_edges, joint_probabilities, curr_messages, num_src, num_dest, num_vertices, k);
+                    send_message_for_node(src_node_to_edges, message_buffer, num_edges, joint_probabilities,
+                                          curr_messages, num_src, num_dest, num_vertices, k);
 
                 }
 
+#pragma acc kernels
                 for (k = 0; k < num_vertices; ++k) {
-                    marginalize_node_acc(node_states, num_vars, k, curr_messages, dest_node_to_edges, num_vertices, num_edges);
+                    marginalize_node_acc(node_states, num_vars, k, curr_messages, dest_node_to_edges, num_vertices,
+                                         num_edges);
                 }
 
                 //swap previous and current
@@ -1074,8 +1077,7 @@ static unsigned int loopy_propagate_iterations_acc(unsigned int num_vertices, un
 
 
             delta = 0.0f;
-			//#pragma acc data copyout(delta) present_or_copyin(prev_messages[0:(MAX_STATES * num_edges)], curr_messages[0:(MAX_STATES * num_edges)])
-            #pragma acc kernels
+#pragma acc kernels
             for (j = 0; j < num_edges; ++j) {
                 for (k = 0; k < num_src[j]; ++k) {
                     diff = prev_messages[MAX_STATES * j + k] - curr_messages[MAX_STATES * j + k];
@@ -1085,16 +1087,12 @@ static unsigned int loopy_propagate_iterations_acc(unsigned int num_vertices, un
                     delta += fabs(diff);
                 }
             }
-
-		num_iter += BATCH_SIZE;
-
-		//printf("Current delta: %.6lf\n", delta);
-		//printf("Previous delta: %.6lf\n", previous_delta);
-		if(delta < convergence || fabs(delta - previous_delta) < convergence){
-			break;
-		}
-		previous_delta = delta;
-	}
+        }
+        if(delta < convergence || fabs(delta - previous_delta) < convergence){
+            break;
+        }
+        previous_delta = delta;
+    }
 	if(i == max_iterations) {
 		printf("No Convergence: previous: %f vs current: %f\n", previous_delta, delta);
 	}
