@@ -974,7 +974,7 @@ unsigned int loopy_propagate_until(Graph_t graph, float convergence, unsigned in
 
 	num_edges = graph->current_num_edges;
 
-	previous_delta = -1.0;
+	previous_delta = -1.0f;
 	delta = 0.0;
 
 	for(i = 0; i < max_iterations; ++i){
