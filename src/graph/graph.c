@@ -1020,6 +1020,9 @@ static unsigned int loopy_propagate_iterations_acc(unsigned int num_vertices, un
 	float * curr_messages;
 	float * temp;
 
+	prev_messages = *previous_messages;
+	curr_messages =  *current_messages;
+
 
 	float message_buffer[MAX_STATES];
 
