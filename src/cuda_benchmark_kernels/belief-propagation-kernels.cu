@@ -206,14 +206,12 @@ void marginalize_node_kernel(unsigned int * node_num_vars, float * message_buffe
                              unsigned int num_vertices,
                              unsigned int num_edges, char n_is_pow_2, unsigned int warp_size){
     unsigned int node_index, edge_index, temp_edge_index, i, num_variables, start_index, end_index, diff_index;
-    char has_incoming;
     float sum;
 
     node_index = blockIdx.x*blockDim.x + threadIdx.x;
     edge_index = blockIdx.y*blockDim.y + threadIdx.y;
 
     if(node_index < num_vertices) {
-        has_incoming = 0;
         num_variables = node_num_vars[node_index];
 
         if(edge_index == 0){
@@ -237,13 +235,10 @@ void marginalize_node_kernel(unsigned int * node_num_vars, float * message_buffe
             __syncthreads();
 
             combine_message_cuda(message_buffer, current_edges_messages, num_variables, node_index * MAX_STATES, temp_edge_index * MAX_STATES, num_edges, n_is_pow_2, warp_size);
-            if(edge_index == 0){
-                has_incoming = 1;
-            }
-            __syncthreads();
         }
+        __syncthreads();
         if(edge_index == 0){
-            if(has_incoming > 0) {
+            if(start_index < end_index) {
                 for (i = 0; i < num_variables; ++i) {
                     node_states[MAX_STATES * node_index + i] = message_buffer[MAX_STATES * node_index + i];
                 }

@@ -110,10 +110,7 @@ void marginalize_node(unsigned int * node_num_vars, float * node_states, unsigne
                         float * current_edges_messages, unsigned int * dest_nodes_to_edges,
                       unsigned int num_vertices, unsigned int num_edges){
     unsigned int i, num_variables, start_index, end_index, edge_index;
-    char has_incoming;
     float sum;
-
-    has_incoming = 0;
 
     num_variables = node_num_vars[idx];
 
@@ -135,9 +132,8 @@ void marginalize_node(unsigned int * node_num_vars, float * node_states, unsigne
         edge_index = dest_nodes_to_edges[i];
 
         combine_message_cuda(new_message, current_edges_messages, num_variables, MAX_STATES * edge_index);
-        has_incoming = 1;
     }
-    if(has_incoming == 1){
+    if(start_index < end_index){
         for(i = 0; i < num_variables; ++i){
             node_states[MAX_STATES * idx + i] = new_message[i];
         }
