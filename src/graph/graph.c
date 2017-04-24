@@ -1014,7 +1014,7 @@ static unsigned int loopy_propagate_iterations_acc(unsigned int num_vertices, un
 										   float * joint_probabilities, unsigned int * num_src, unsigned int * num_dest,
 										   unsigned int max_iterations,
 										   float convergence){
-	unsigned int i, j, k, num_variables, num_iter, num_messages;
+	unsigned int i, j, k, num_variables, num_iter;
 	float delta, previous_delta, diff;
 	float * prev_messages;
 	float * curr_messages;
@@ -1027,14 +1027,13 @@ static unsigned int loopy_propagate_iterations_acc(unsigned int num_vertices, un
 	float message_buffer[MAX_STATES];
 
 	num_iter = 0;
-    num_messages = MAX_STATES * num_edges;
 
 	previous_delta = -1.0f;
 	delta = 0.0f;
 
 	for(i = 0; i < max_iterations; i+= BATCH_SIZE){
 
-			#pragma acc data present_or_copy(message_buffer, node_states[0:(MAX_STATES * num_vertices)], prev_messages[0:(MAX_STATES * num_edges)], curr_messages[0:(MAX_STATES * num_edges)]) present_or_copyin(dest_node_to_edges[0:(num_vertices + num_edges)], src_node_to_edges[0:(num_vertices + num_edges)], num_vars[0:num_vertices], joint_probabilities[0:(num_edges * MAX_STATES * MAX_STATES)], num_src[0:num_edges], num_dest[0:num_edges])
+			#pragma acc data present_or_copyin(message_buffer, node_states[0:(MAX_STATES * num_vertices)], prev_messages[0:(MAX_STATES * num_edges)], curr_messages[0:(MAX_STATES * num_edges)], dest_node_to_edges[0:(num_vertices + num_edges)], src_node_to_edges[0:(num_vertices + num_edges)], num_vars[0:num_vertices], joint_probabilities[0:(num_edges * MAX_STATES * MAX_STATES)], num_src[0:num_edges], num_dest[0:num_edges])
 			#pragma acc kernels
             //printf("Current iteration: %d\n", i+1);
             for (j = 0; j < BATCH_SIZE; ++j) {
@@ -1075,6 +1074,8 @@ static unsigned int loopy_propagate_iterations_acc(unsigned int num_vertices, un
 
 
             delta = 0.0f;
+			//#pragma acc data copyout(delta) present_or_copyin(prev_messages[0:(MAX_STATES * num_edges)], curr_messages[0:(MAX_STATES * num_edges)])
+            #pragma acc kernels
             for (j = 0; j < num_edges; ++j) {
                 for (k = 0; k < num_src[j]; ++k) {
                     diff = prev_messages[MAX_STATES * j + k] - curr_messages[MAX_STATES * j + k];
