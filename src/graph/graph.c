@@ -31,10 +31,14 @@ create_graph(unsigned int num_vertices, unsigned int num_edges)
 	assert(g->node_states);
 	g->node_num_vars = (unsigned int *)malloc(sizeof(unsigned int) * num_vertices);
 	assert(g->node_num_vars);
-	g->src_nodes_to_edges = (unsigned int *)malloc(sizeof(unsigned int) * (num_vertices + num_edges));
-	assert(g->src_nodes_to_edges);
-	g->dest_nodes_to_edges = (unsigned int *)malloc(sizeof(unsigned int) * (num_vertices + num_edges));
-	assert(g->dest_nodes_to_edges);
+	g->src_nodes_to_edges_node_list = (unsigned int *)malloc(sizeof(unsigned int) * num_vertices);
+	assert(g->src_nodes_to_edges_node_list);
+	g->src_nodes_to_edges_edge_list = (unsigned int *)malloc(sizeof(unsigned int) * num_edges);
+	assert(g->src_nodes_to_edges_edge_list);
+	g->dest_nodes_to_edges_node_list = (unsigned int *)malloc(sizeof(unsigned int) * num_vertices);
+	assert(g->dest_nodes_to_edges_node_list);
+	g->dest_nodes_to_edges_edge_list = (unsigned int *)malloc(sizeof(unsigned int) * num_edges);
+	assert(g->dest_nodes_to_edges_edge_list);
 	g->node_names = (char *)malloc(sizeof(char) * CHAR_BUFFER_SIZE * num_vertices);
 	assert(g->node_names);
 	g->visited = (char *)calloc(sizeof(char), (size_t)num_vertices);
@@ -156,7 +160,7 @@ void set_up_src_nodes_to_edges(Graph_t graph){
 	assert(graph->current_num_vertices == graph->total_num_vertices);
 	assert(graph->current_num_edges <= graph->total_num_edges);
 
-	edge_index = graph->total_num_vertices;
+	edge_index = 0;
 
 	num_vertices = graph->total_num_vertices;
 	num_edges = graph->current_num_edges;
@@ -164,10 +168,10 @@ void set_up_src_nodes_to_edges(Graph_t graph){
     current_degree = 0;
 
 	for(i = 0; i < num_vertices; ++i){
-		graph->src_nodes_to_edges[i] = edge_index;
+		graph->src_nodes_to_edges_node_list[i] = edge_index;
 		for(j = 0; j < num_edges; ++j){
 			if(graph->edges_src_index[j] == i){
-				graph->src_nodes_to_edges[edge_index] = j;
+				graph->src_nodes_to_edges_edge_list[edge_index] = j;
 				edge_index += 1;
                 current_degree++;
 			}
@@ -184,16 +188,16 @@ void set_up_dest_nodes_to_edges(Graph_t graph){
 	assert(graph->current_num_vertices == graph->total_num_vertices);
 	assert(graph->current_num_edges <= graph->total_num_edges);
 
-	edge_index = graph->total_num_vertices;
+	edge_index = 0;
 
 	num_vertices = graph->total_num_vertices;
 	num_edges = graph->current_num_edges;
 
 	for(i = 0; i < num_vertices; ++i){
-		graph->dest_nodes_to_edges[i] = edge_index;
+		graph->dest_nodes_to_edges_node_list[i] = edge_index;
 		for(j = 0; j < num_edges; ++j){
 			if(graph->edges_dest_index[j] == i){
-				graph->dest_nodes_to_edges[edge_index] = j;
+				graph->dest_nodes_to_edges_edge_list[edge_index] = j;
 				edge_index += 1;
 			}
 		}
@@ -222,8 +226,11 @@ void graph_destroy(Graph_t g) {
 	free(g->edges_messages);
 	free(g->last_edges_messages);
 	
-	free(g->src_nodes_to_edges);
-	free(g->dest_nodes_to_edges);
+	free(g->src_nodes_to_edges_node_list);
+	free(g->src_nodes_to_edges_edge_list);
+	free(g->dest_nodes_to_edges_node_list);
+	free(g->dest_nodes_to_edges_edge_list);
+
 	free(g->node_names);
 	free(g->visited);
 	free(g->observed_nodes);
@@ -252,16 +259,16 @@ void propagate_using_levels_start(Graph_t g){
 		g->visited[node_index] = 1;
 
 		//send messages
-		start_index = g->src_nodes_to_edges[node_index];
+		start_index = g->src_nodes_to_edges_node_list[node_index];
 		if(node_index + 1 == num_vertices){
-			end_index = num_vertices + g->current_num_edges;
+			end_index = g->current_num_edges;
 		}
 		else {
-			end_index = g->src_nodes_to_edges[node_index + 1];
+			end_index = g->src_nodes_to_edges_node_list[node_index + 1];
 		}
 		for(i = start_index; i < end_index; ++i){
 			g->visited[node_index] = 1;
-			edge_index = g->src_nodes_to_edges[i];
+			edge_index = g->src_nodes_to_edges_edge_list[i];
 
 			send_message(g->node_states, MAX_STATES * node_index, edge_index, g->edges_joint_probabilities, g->edges_messages, g->edges_x_dim, g->edges_y_dim);
 
@@ -322,8 +329,10 @@ static inline void combine_message(float * dest, float * src, unsigned int lengt
 static void propagate_node_using_levels(Graph_t g, unsigned int current_node_index){
 	float message_buffer[MAX_STATES];
 	unsigned int i, j, num_variables, start_index, end_index, num_vertices, edge_index;
-	unsigned int * dest_nodes_to_edges;
-	unsigned int * src_nodes_to_edges;
+	unsigned int * dest_nodes_to_edges_nodes;
+	unsigned int * dest_nodes_to_edges_edges;
+	unsigned int * src_nodes_to_edges_nodes;
+	unsigned int * src_nodes_to_edges_edges;
 
 	num_variables = g->node_num_vars[current_node_index];
 
@@ -331,8 +340,10 @@ static void propagate_node_using_levels(Graph_t g, unsigned int current_node_ind
 	g->visited[current_node_index] = 1;
 
 	num_vertices = g->current_num_vertices;
-	dest_nodes_to_edges = g->dest_nodes_to_edges;
-	src_nodes_to_edges = g->src_nodes_to_edges;
+	dest_nodes_to_edges_nodes = g->dest_nodes_to_edges_node_list;
+	dest_nodes_to_edges_edges = g->dest_nodes_to_edges_edge_list;
+	src_nodes_to_edges_nodes = g->src_nodes_to_edges_node_list;
+	src_nodes_to_edges_edges = g->src_nodes_to_edges_edge_list;
 
 	// init buffer
 	for(i = 0; i < num_variables; ++i){
@@ -340,30 +351,30 @@ static void propagate_node_using_levels(Graph_t g, unsigned int current_node_ind
 	}
 
 	// get the edges feeding into this node
-	start_index = dest_nodes_to_edges[current_node_index];
+	start_index = dest_nodes_to_edges_nodes[current_node_index];
 	if(current_node_index + 1 == num_vertices){
-		end_index = num_vertices + g->current_num_edges;
+		end_index = g->current_num_edges;
 	}
 	else{
-		end_index = dest_nodes_to_edges[current_node_index + 1];
+		end_index = dest_nodes_to_edges_nodes[current_node_index + 1];
 	}
 	for(i = start_index; i < end_index; ++i){
-		edge_index = dest_nodes_to_edges[i];
+		edge_index = dest_nodes_to_edges_edges[i];
 
 		combine_message(message_buffer, g->edges_messages, num_variables, MAX_STATES * edge_index);
 	}
 
 	//send message
-	start_index = src_nodes_to_edges[current_node_index];
+	start_index = src_nodes_to_edges_nodes[current_node_index];
 	if(current_node_index + 1 == num_vertices){
-		end_index = num_vertices + g->current_num_edges;
+		end_index = g->current_num_edges;
 	}
 	else {
-		end_index = src_nodes_to_edges[current_node_index + 1];
+		end_index = src_nodes_to_edges_nodes[current_node_index + 1];
 	}
 
 	for(i = start_index; i < end_index; ++i){
-		edge_index = src_nodes_to_edges[i];
+		edge_index = src_nodes_to_edges_edges[i];
 		//ensure node hasn't been visited yet
 		if(g->visited[g->edges_dest_index[edge_index]] == 0){
 			/*printf("sending message on edge\n");
@@ -398,9 +409,11 @@ static void marginalize_node(Graph_t g, unsigned int node_index){
 	unsigned int i, num_variables, start_index, end_index, edge_index;
 	float sum;
 
-	unsigned int * dest_nodes_to_edges;
+	unsigned int * dest_nodes_to_edges_nodes;
+	unsigned int * dest_nodes_to_edges_edges;
 
-	dest_nodes_to_edges = g->dest_nodes_to_edges;
+	dest_nodes_to_edges_nodes = g->dest_nodes_to_edges_node_list;
+	dest_nodes_to_edges_edges = g->dest_nodes_to_edges_edge_list;
 
 	num_variables = g->node_num_vars[node_index];
 
@@ -409,16 +422,16 @@ static void marginalize_node(Graph_t g, unsigned int node_index){
 		new_message[i] = 1.0;
 	}
 
-	start_index = dest_nodes_to_edges[node_index];
+	start_index = dest_nodes_to_edges_nodes[node_index];
 	if(node_index + 1 == g->current_num_vertices){
-		end_index = g->current_num_vertices + g->current_num_edges;
+		end_index = g->current_num_edges;
 	}
 	else {
-		end_index = dest_nodes_to_edges[node_index + 1];
+		end_index = dest_nodes_to_edges_nodes[node_index + 1];
 	}
 
 	for(i = start_index; i < end_index; ++i){
-		edge_index = dest_nodes_to_edges[i];
+		edge_index = dest_nodes_to_edges_edges[i];
 
 		combine_message(new_message, g->edges_messages, num_variables, MAX_STATES * edge_index);
 	}
@@ -519,27 +532,29 @@ void print_edges(Graph_t g){
 }
 void print_src_nodes_to_edges(Graph_t g){
 	unsigned int i, j, start_index, end_index, num_vertices, edge_index;
-	unsigned int * src_node_to_edges;
+	unsigned int * src_node_to_edges_nodes;
+	unsigned int * src_node_to_edges_edges;
 
 	printf("src index -> edge index\n");
 
 
-	src_node_to_edges = g->src_nodes_to_edges;
+	src_node_to_edges_nodes = g->src_nodes_to_edges_node_list;
+	src_node_to_edges_edges = g->src_nodes_to_edges_edge_list;
 	num_vertices = g->total_num_vertices;
 
 	for(i = 0; i < num_vertices; ++i){
 		printf("Node -----\n");
 		print_node(g, i);
 		printf("Edges-------\n");
-		start_index = src_node_to_edges[i];
+		start_index = src_node_to_edges_nodes[i];
 		if(i + 1 == num_vertices){
-			end_index = num_vertices + g->current_num_edges;
+			end_index = g->current_num_edges;
 		}
 		else{
-			end_index = src_node_to_edges[i+1];
+			end_index = src_node_to_edges_nodes[i+1];
 		}
 		for(j = start_index; j < end_index; ++j){
-			edge_index = src_node_to_edges[j];
+			edge_index = src_node_to_edges_edges[j];
 			print_edge(g, edge_index);
 		}
 		printf("---------\n");
@@ -547,26 +562,28 @@ void print_src_nodes_to_edges(Graph_t g){
 }
 void print_dest_nodes_to_edges(Graph_t g){
 	unsigned int i, j, start_index, end_index, num_vertices, edge_index;
-	unsigned int * dest_node_to_edges;
+	unsigned int * dest_node_to_edges_nodes;
+	unsigned int * dest_node_to_edges_edges;
 
 	printf("dest index -> edge index\n");
 
-	dest_node_to_edges = g->dest_nodes_to_edges;
+	dest_node_to_edges_nodes = g->dest_nodes_to_edges_node_list;
+	dest_node_to_edges_edges = g->dest_nodes_to_edges_edge_list;
 	num_vertices = g->total_num_vertices;
 
 	for(i = 0; i < num_vertices; ++i){
 		printf("Node -----\n");
 		print_node(g, i);
 		printf("Edges-------\n");
-		start_index = dest_node_to_edges[i];
+		start_index = dest_node_to_edges_nodes[i];
 		if(i + 1 == num_vertices){
-			end_index = num_vertices + g->current_num_edges;
+			end_index = g->current_num_edges;
 		}
 		else{
-			end_index = dest_node_to_edges[i+1];
+			end_index = dest_node_to_edges_nodes[i+1];
 		}
 		for(j = start_index; j < end_index; ++j){
-			edge_index = dest_node_to_edges[j];
+			edge_index = dest_node_to_edges_edges[j];
 			print_edge(g, edge_index);
 		}
 		printf("---------\n");
@@ -575,24 +592,26 @@ void print_dest_nodes_to_edges(Graph_t g){
 
 void init_previous_edge(Graph_t graph){
 	unsigned int i, j, num_vertices, start_index, end_index, edge_index;
-	unsigned int * src_node_to_edges;
+	unsigned int * src_node_to_edges_nodes;
+	unsigned int * src_node_to_edges_edges;
 	float * previous_messages;
 
 	num_vertices = graph->current_num_vertices;
-	src_node_to_edges = graph->src_nodes_to_edges;
+	src_node_to_edges_nodes = graph->src_nodes_to_edges_node_list;
+	src_node_to_edges_edges = graph->src_nodes_to_edges_edge_list;
 	previous_messages = *graph->previous_edge_messages;
 
 	for(i = 0; i < num_vertices; ++i){
-		start_index = src_node_to_edges[i];
+		start_index = src_node_to_edges_nodes[i];
 		if(i + 1 >= num_vertices){
-			end_index = num_vertices + graph->current_num_edges;
+			end_index = graph->current_num_edges;
 		}
 		else
 		{
-			end_index = src_node_to_edges[i + 1];
+			end_index = src_node_to_edges_nodes[i + 1];
 		}
 		for(j = start_index; j < end_index; ++j){
-			edge_index = src_node_to_edges[j];
+			edge_index = src_node_to_edges_edges[j];
 
 			send_message(graph->node_states, MAX_STATES * i, edge_index, graph->edges_joint_probabilities, previous_messages, graph->edges_x_dim, graph->edges_y_dim);
 		}
@@ -604,12 +623,12 @@ void fill_in_leaf_nodes_in_index(Graph_t graph, unsigned int * start_index, unsi
 
     graph->levels_to_nodes[0] = *start_index;
     for(i = 0; i < graph->current_num_vertices; ++i){
-        edge_start_index = graph->dest_nodes_to_edges[i];
+        edge_start_index = graph->dest_nodes_to_edges_node_list[i];
         if(i + 1 == graph->current_num_vertices){
-            edge_end_index = graph->current_num_vertices + graph->current_num_edges;
+            edge_end_index = graph->current_num_edges;
         }
         else{
-            edge_end_index = graph->dest_nodes_to_edges[i + 1];
+            edge_end_index = graph->dest_nodes_to_edges_node_list[i + 1];
         }
 		diff = edge_end_index - edge_start_index;
 
@@ -627,15 +646,15 @@ void visit_node(Graph_t graph, unsigned int buffer_index, unsigned int * end_ind
     node_index = graph->levels_to_nodes[buffer_index];
     if(graph->visited[node_index] == 0){
         graph->visited[node_index] = 1;
-        edge_start_index = graph->src_nodes_to_edges[node_index];
-        if(node_index == graph->current_num_vertices){
-            edge_end_index = graph->current_num_vertices + graph->current_num_edges;
+        edge_start_index = graph->src_nodes_to_edges_node_list[node_index];
+        if(node_index + 1 == graph->current_num_vertices){
+            edge_end_index = graph->current_num_edges;
         }
         else{
-            edge_end_index = graph->src_nodes_to_edges[node_index + 1];
+            edge_end_index = graph->src_nodes_to_edges_node_list[node_index + 1];
         }
         for(i = edge_start_index; i < edge_end_index; ++i){
-			edge_index = graph->src_nodes_to_edges[i];
+			edge_index = graph->src_nodes_to_edges_edge_list[i];
             dest_node_index = graph->edges_dest_index[edge_index];
             visited = 0;
 			for(j = graph->current_num_vertices; j < *end_index; ++j){
@@ -707,21 +726,24 @@ static void initialize_message_buffer(float * message_buffer, float * node_state
 }
 
 #pragma acc routine
-static void read_incoming_messages(float * message_buffer, unsigned int * dest_node_to_edges, float * previous_messages,
+static void read_incoming_messages(float * message_buffer,
+								   unsigned int * dest_node_to_edges_nodes,
+								   unsigned int * dest_node_to_edges_edges,
+								   float * previous_messages,
                                    unsigned int current_num_edges, unsigned int num_vertices,
 								   unsigned int num_variables, unsigned int i){
 	unsigned int start_index, end_index, j, edge_index;
 
-	start_index = dest_node_to_edges[i];
+	start_index = dest_node_to_edges_nodes[i];
 	if(i + 1 >= num_vertices){
-		end_index = num_vertices + current_num_edges;
+		end_index = current_num_edges;
 	}
 	else{
-		end_index = dest_node_to_edges[i + 1];
+		end_index = dest_node_to_edges_nodes[i + 1];
 	}
 
 	for(j = start_index; j < end_index; ++j){
-		edge_index = dest_node_to_edges[j];
+		edge_index = dest_node_to_edges_edges[j];
 
 		combine_message(message_buffer, previous_messages, num_variables, MAX_STATES * edge_index);
 	}
@@ -755,22 +777,24 @@ static void send_message_for_edge(float * buffer, unsigned int edge_index,
 }
 
 #pragma acc routine
-static void send_message_for_node(unsigned int * src_node_to_edges, float * message_buffer, unsigned int current_num_edges,
+static void send_message_for_node(unsigned int * src_node_to_edges_nodes,
+								  unsigned int * src_node_to_edges_edges,
+								  float * message_buffer, unsigned int current_num_edges,
 								  float * joint_probabilities, float * edge_messages,
 								  unsigned int * num_src, unsigned int * num_dest,
 								  unsigned int num_vertices, unsigned int i){
 	unsigned int start_index, end_index, j, edge_index;
 
-	start_index = src_node_to_edges[i];
+	start_index = src_node_to_edges_nodes[i];
 	if(i + 1 >= num_vertices){
-		end_index = num_vertices + current_num_edges;
+		end_index = current_num_edges;
 	}
 	else {
-		end_index = src_node_to_edges[i + 1];
+		end_index = src_node_to_edges_nodes[i + 1];
 	}
     
 	for(j = start_index; j < end_index; ++j){
-		edge_index = src_node_to_edges[j];
+		edge_index = src_node_to_edges_edges[j];
 		/*printf("Sending on edge\n");
         print_edge(graph, edge_index);*/
 		send_message_for_edge(message_buffer, edge_index, joint_probabilities, edge_messages, num_src, num_dest);
@@ -786,16 +810,18 @@ static void marginalize_loopy_nodes(Graph_t graph, float * current_messages, uns
 	unsigned int * num_vars;
 	float new_message[MAX_STATES];
 
-	unsigned int * dest_nodes_to_edges;
+	unsigned int * dest_nodes_to_edges_nodes;
+	unsigned int * dest_nodes_to_edges_edges;
 
-	dest_nodes_to_edges = graph->dest_nodes_to_edges;
+	dest_nodes_to_edges_nodes = graph->dest_nodes_to_edges_node_list;
+	dest_nodes_to_edges_edges = graph->dest_nodes_to_edges_edge_list;
 	current_num_vertices = graph->current_num_vertices;
 	current_num_edges = graph->current_num_edges;
 	states = graph->node_states;
 	num_vars = graph->node_num_vars;
 
 
-#pragma omp parallel for default(none) shared(states, num_vars, num_vertices, current_num_vertices, current_num_edges, dest_nodes_to_edges, current_messages) private(i, j, num_variables, start_index, end_index, edge_index, sum, new_message)
+#pragma omp parallel for default(none) shared(states, num_vars, num_vertices, current_num_vertices, current_num_edges, dest_nodes_to_edges_nodes, dest_nodes_to_edges_edges, current_messages) private(i, j, num_variables, start_index, end_index, edge_index, sum, new_message)
 	for(j = 0; j < num_vertices; ++j) {
 
 		num_variables = num_vars[j];
@@ -806,15 +832,15 @@ static void marginalize_loopy_nodes(Graph_t graph, float * current_messages, uns
 		}
 
 
-		start_index = dest_nodes_to_edges[j];
+		start_index = dest_nodes_to_edges_nodes[j];
 		if (j + 1 == current_num_vertices) {
-			end_index = current_num_vertices + current_num_edges;
+			end_index = current_num_edges;
 		} else {
-			end_index = dest_nodes_to_edges[j + 1];
+			end_index = dest_nodes_to_edges_nodes[j + 1];
 		}
 
 		for (i = start_index; i < end_index; ++i) {
-			edge_index = dest_nodes_to_edges[i];
+			edge_index = dest_nodes_to_edges_edges[i];
 
 			combine_message(new_message, current_messages, num_variables, MAX_STATES * edge_index);
 
@@ -847,7 +873,8 @@ static void marginalize_loopy_nodes(Graph_t graph, float * current_messages, uns
 
 #pragma acc routine
 static void marginalize_node_acc(float * node_states, unsigned int * num_vars, unsigned int node_index,
-								 float * edge_messages, unsigned int * dest_nodes_to_edges,
+								 float * edge_messages,
+								 unsigned int * dest_nodes_to_edges_nodes, unsigned int * dest_nodes_to_edges_edges,
 								 unsigned int current_num_vertices, unsigned int current_num_edges){
 	unsigned int i, num_variables, start_index, end_index, edge_index;
 	float sum;
@@ -859,16 +886,16 @@ static void marginalize_node_acc(float * node_states, unsigned int * num_vars, u
 		new_message[i] = 1.0;
 	}
 
-	start_index = dest_nodes_to_edges[node_index];
+	start_index = dest_nodes_to_edges_nodes[node_index];
 	if(node_index + 1 == current_num_vertices){
-		end_index = current_num_vertices + current_num_edges;
+		end_index = current_num_edges;
 	}
 	else {
-		end_index = dest_nodes_to_edges[node_index + 1];
+		end_index = dest_nodes_to_edges_nodes[node_index + 1];
 	}
 
 	for(i = start_index; i < end_index; ++i){
-		edge_index = dest_nodes_to_edges[i];
+		edge_index = dest_nodes_to_edges_edges[i];
 
 		combine_message(new_message, edge_messages, num_variables, MAX_STATES * edge_index);
 
@@ -891,20 +918,23 @@ static void marginalize_node_acc(float * node_states, unsigned int * num_vars, u
 	}
 }
 
-static void marginalize_nodes_acc(float * node_states, unsigned int * num_vars, float * edge_messages, unsigned int * dest_nodes_to_edges,
+static void marginalize_nodes_acc(float * node_states, unsigned int * num_vars, float * edge_messages,
+								  unsigned int * dest_nodes_to_edges_nodes, unsigned int * dest_nodes_to_edges_edges,
 								  unsigned int current_num_vertices, unsigned int current_num_edges){
 	unsigned int i;
 
-#pragma omp parallel for default(none) shared(node_states, num_vars, edge_messages, dest_nodes_to_edges, current_num_vertices, current_num_edges) private(i)
+#pragma omp parallel for default(none) shared(node_states, num_vars, edge_messages, dest_nodes_to_edges_nodes, dest_nodes_to_edges_edges, current_num_vertices, current_num_edges) private(i)
 	for(i = 0; i < current_num_vertices; ++i){
-		marginalize_node_acc(node_states, num_vars, i, edge_messages, dest_nodes_to_edges, current_num_vertices, current_num_edges);
+		marginalize_node_acc(node_states, num_vars, i, edge_messages, dest_nodes_to_edges_nodes, dest_nodes_to_edges_edges, current_num_vertices, current_num_edges);
 	}
 }
 
 void loopy_propagate_one_iteration(Graph_t graph){
 	unsigned int i, num_variables, num_vertices, num_edges;
-	unsigned int * dest_node_to_edges;
-	unsigned int * src_node_to_edges;
+	unsigned int * dest_node_to_edges_nodes;
+	unsigned int * dest_node_to_edges_edges;
+	unsigned int * src_node_to_edges_nodes;
+	unsigned int * src_node_to_edges_edges;
 	unsigned int * num_vars;
 	float * node_states;
 	float * joint_probabilities;
@@ -923,20 +953,22 @@ void loopy_propagate_one_iteration(Graph_t graph){
 	float message_buffer[MAX_STATES];
 
 	num_vertices = graph->current_num_vertices;
-	dest_node_to_edges = graph->dest_nodes_to_edges;
-	src_node_to_edges = graph->src_nodes_to_edges;
+	dest_node_to_edges_nodes = graph->dest_nodes_to_edges_node_list;
+	dest_node_to_edges_edges = graph->dest_nodes_to_edges_edge_list;
+	src_node_to_edges_nodes = graph->src_nodes_to_edges_node_list;
+	src_node_to_edges_edges = graph->src_nodes_to_edges_edge_list;
     num_edges = graph->current_num_edges;
 	num_vars = graph->node_num_vars;
 	node_states = graph->node_states;
 
-#pragma omp parallel for default(none) shared(node_states, num_vars, num_vertices, dest_node_to_edges, src_node_to_edges, num_edges, previous_edge_messages, num_dest, num_src, current_edge_messages, joint_probabilities) private(message_buffer, i, num_variables)
+#pragma omp parallel for default(none) shared(node_states, num_vars, num_vertices, dest_node_to_edges_nodes, dest_node_to_edges_edges, src_node_to_edges_nodes, src_node_to_edges_edges, num_edges, previous_edge_messages, num_dest, num_src, current_edge_messages, joint_probabilities) private(message_buffer, i, num_variables)
     for(i = 0; i < num_vertices; ++i){
 		num_variables = num_vars[i];
 
 		initialize_message_buffer(message_buffer, node_states, i, num_variables);
 
 		//read incoming messages
-		read_incoming_messages(message_buffer, dest_node_to_edges, previous_edge_messages, num_edges, num_vertices, num_variables, i);
+		read_incoming_messages(message_buffer, dest_node_to_edges_nodes, dest_node_to_edges_edges, previous_edge_messages, num_edges, num_vertices, num_variables, i);
 
 /*
 		printf("Message at node\n");
@@ -949,7 +981,7 @@ void loopy_propagate_one_iteration(Graph_t graph){
 
 
 		//send message
-		send_message_for_node(src_node_to_edges, message_buffer, num_edges, joint_probabilities, current_edge_messages, num_src, num_dest, num_vertices, i);
+		send_message_for_node(src_node_to_edges_nodes, src_node_to_edges_edges, message_buffer, num_edges, joint_probabilities, current_edge_messages, num_src, num_dest, num_vertices, i);
 
 	}
 
@@ -1008,7 +1040,8 @@ unsigned int loopy_propagate_until(Graph_t graph, float convergence, unsigned in
 }
 
 static unsigned int loopy_propagate_iterations_acc(unsigned int num_vertices, unsigned int num_edges,
-										   unsigned int *dest_node_to_edges, unsigned int *src_node_to_edges,
+										   unsigned int *dest_node_to_edges_nodes, unsigned int *dest_node_to_edges_edges,
+										   unsigned int *src_node_to_edges_nodes, unsigned int *src_node_to_edges_edges,
 										   float * node_states, unsigned int * num_vars,
 										   float ** previous_messages, float ** current_messages,
 										   float * joint_probabilities, unsigned int * num_src, unsigned int * num_dest,
@@ -1032,7 +1065,7 @@ static unsigned int loopy_propagate_iterations_acc(unsigned int num_vertices, un
 	delta = 0.0f;
 
     for(i = 0; i < max_iterations; i+= BATCH_SIZE) {
-#pragma acc data present_or_copy(node_states[0:(MAX_STATES * num_vertices)], prev_messages[0:(MAX_STATES * num_edges)], curr_messages[0:(MAX_STATES * num_edges)]) present_or_copyin(dest_node_to_edges[0:(num_vertices + num_edges)], src_node_to_edges[0:(num_vertices + num_edges)], num_vars[0:num_vertices], joint_probabilities[0:(num_edges * MAX_STATES * MAX_STATES)], num_src[0:num_edges], num_dest[0:num_edges])
+#pragma acc data present_or_copy(node_states[0:(MAX_STATES * num_vertices)], prev_messages[0:(MAX_STATES * num_edges)], curr_messages[0:(MAX_STATES * num_edges)]) present_or_copyin(dest_node_to_edges_nodes[0:num_vertices], dest_node_to_edges_edges[0:num_edges], src_node_to_edges_nodes[0:num_vertices], src_node_to_edges_edges[0:num_edges], num_vars[0:num_vertices], joint_probabilities[0:(num_edges * MAX_STATES * MAX_STATES)], num_src[0:num_edges], num_dest[0:num_edges])
         {
             //printf("Current iteration: %d\n", i+1);
             for (j = 0; j < BATCH_SIZE; ++j) {
@@ -1043,7 +1076,7 @@ static unsigned int loopy_propagate_iterations_acc(unsigned int num_vertices, un
                     initialize_message_buffer(message_buffer, node_states, k, num_variables);
 
                     //read incoming messages
-                    read_incoming_messages(message_buffer, dest_node_to_edges, prev_messages, num_edges, num_vertices,
+                    read_incoming_messages(message_buffer, dest_node_to_edges_nodes, dest_node_to_edges_edges, prev_messages, num_edges, num_vertices,
                                            num_variables, k);
 
 /*
@@ -1057,14 +1090,14 @@ static unsigned int loopy_propagate_iterations_acc(unsigned int num_vertices, un
 
 
                     //send message
-                    send_message_for_node(src_node_to_edges, message_buffer, num_edges, joint_probabilities,
+                    send_message_for_node(src_node_to_edges_nodes, src_node_to_edges_edges, message_buffer, num_edges, joint_probabilities,
                                           curr_messages, num_src, num_dest, num_vertices, k);
 
                 }
 
 #pragma acc kernels
                 for (k = 0; k < num_vertices; ++k) {
-                    marginalize_node_acc(node_states, num_vars, k, curr_messages, dest_node_to_edges, num_vertices,
+                    marginalize_node_acc(node_states, num_vars, k, curr_messages, dest_node_to_edges_nodes, dest_node_to_edges_edges, num_vertices,
                                          num_edges);
                 }
 
@@ -1109,7 +1142,8 @@ unsigned int loopy_progagate_until_acc(Graph_t graph, float convergence, unsigne
 	print_edges(graph);
 */
 	iter = loopy_propagate_iterations_acc(graph->current_num_vertices, graph->current_num_edges,
-	graph->dest_nodes_to_edges, graph->src_nodes_to_edges,
+	graph->dest_nodes_to_edges_node_list, graph->dest_nodes_to_edges_edge_list,
+										  graph->src_nodes_to_edges_node_list, graph->src_nodes_to_edges_edge_list,
 	graph->node_states, graph->node_num_vars,
 	graph->previous_edge_messages, graph->current_edge_messages, graph->edges_joint_probabilities,
 										  graph->edges_x_dim, graph->edges_y_dim,
@@ -1147,15 +1181,15 @@ void calculate_diameter(Graph_t graph){
 		}
 	}
 	for(i = 0; i < graph->current_num_vertices; ++i){
-		 start_index = graph->src_nodes_to_edges[i];
+		 start_index = graph->src_nodes_to_edges_node_list[i];
 		if(i + 1 == graph->current_num_vertices){
-			end_index = graph->current_num_vertices + graph->current_num_edges;
+			end_index = graph->current_num_edges;
 		}
 		else{
-			end_index = graph->src_nodes_to_edges[i+1];
+			end_index = graph->src_nodes_to_edges_node_list[i+1];
 		}
 		for(j = start_index; j < end_index; ++j){
-			k = graph->src_nodes_to_edges[j];
+			k = graph->src_nodes_to_edges_edge_list[j];
 			g[i][graph->edges_dest_index[k]] = 1;
 		}
 	}

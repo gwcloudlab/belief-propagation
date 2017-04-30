@@ -39,8 +39,11 @@ struct graph {
 	float * node_states;
 	unsigned int * node_num_vars;
 
-	unsigned int * src_nodes_to_edges;
-	unsigned int * dest_nodes_to_edges;
+	unsigned int * src_nodes_to_edges_node_list;
+	unsigned int * src_nodes_to_edges_edge_list;
+
+	unsigned int * dest_nodes_to_edges_node_list;
+	unsigned int * dest_nodes_to_edges_edge_list;
 
 	unsigned int * levels_to_nodes;
 	unsigned int num_levels;
