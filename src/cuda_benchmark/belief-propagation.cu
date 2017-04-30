@@ -948,6 +948,8 @@ int main(void)
     run_tests_with_xml_file("../benchmark_files/xml2/1000000_2000000.xml", 1, out);
     //run_tests_with_xml_file("../benchmark_files/xml2/10000000_20000000.xml", 1, out);
 
+    fclose(out);
+
     return 0;
 }
 
