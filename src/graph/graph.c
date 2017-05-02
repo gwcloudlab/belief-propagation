@@ -219,10 +219,9 @@ void set_up_src_nodes_to_edges(Graph_t graph){
 
 	num_vertices = graph->total_num_vertices;
 
-    current_degree = 0;
-
 
 	for(i = 0; i < num_vertices; ++i){
+		current_degree = 0;
 		graph->src_nodes_to_edges_node_list[i] = edge_index;
 		sprintf(src_key, "%d", i);
         e.key = src_key;
@@ -234,12 +233,13 @@ void set_up_src_nodes_to_edges(Graph_t graph){
                 index = entry->indices[j];
                 graph->src_nodes_to_edges_edge_list[edge_index] = index;
                 edge_index += 1;
+				current_degree++;
             }
         }
+		if(current_degree > graph->max_degree){
+			graph->max_degree = current_degree;
+		}
 	}
-    if(current_degree > graph->max_degree){
-        graph->max_degree = current_degree;
-    }
 }
 
 void set_up_dest_nodes_to_edges(Graph_t graph){
