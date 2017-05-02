@@ -12,7 +12,12 @@
 #ifndef GRAPH_H_
 #define GRAPH_H_
 
+#ifndef __USE_GNU
+#define __USE_GNU
+#endif
+
 #include "../constants.h"
+
 #include <search.h>
 
 struct graph {
@@ -21,6 +26,7 @@ struct graph {
 
 	unsigned int current_num_vertices;
 	unsigned int current_num_edges;
+	unsigned int max_degree;
 
 	unsigned int * edges_src_index;
 	unsigned int * edges_dest_index;
@@ -38,8 +44,11 @@ struct graph {
 	float * node_states;
 	unsigned int * node_num_vars;
 
-	unsigned int * src_nodes_to_edges;
-	unsigned int * dest_nodes_to_edges;
+	unsigned int * src_nodes_to_edges_node_list;
+	unsigned int * src_nodes_to_edges_edge_list;
+
+	unsigned int * dest_nodes_to_edges_node_list;
+	unsigned int * dest_nodes_to_edges_edge_list;
 
 	unsigned int * levels_to_nodes;
 	unsigned int num_levels;
@@ -55,9 +64,20 @@ struct graph {
 
 	char graph_name[CHAR_BUFFER_SIZE];
 
-	char hash_table_created;
+    char node_hash_table_created;
+	struct hsearch_data *node_hash_table;
+
+    struct hsearch_data *src_node_to_edge_table;
+
+    struct hsearch_data *dest_node_to_edge_table;
+    char edge_tables_created;
 };
 typedef struct graph* Graph_t;
+
+struct htable_entry {
+    unsigned int indices[MAX_DEGREE];
+    unsigned int count;
+};
 
 /** create a new graph with n vertices labeled 0 to n-1 and no edges */
 Graph_t create_graph(unsigned int, unsigned int);

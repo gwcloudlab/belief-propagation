@@ -20,11 +20,18 @@
 
 #define PRECISION 1E-3f
 
-#define BLOCK_SIZE 256
+#define BLOCK_SIZE 1024
+
+#define BLOCK_SIZE_2_D_X 64
+
+#define BLOCK_SIZE_2_D_Y 16
 
 #define MAX_NUM_NODES 1048
 
 #define WARP_SIZE 32
 
+#define MAX_DEGREE 20
+
+#define CHARS_IN_KEY 20
 
 #endif /* CONSTANTS_H_ */
