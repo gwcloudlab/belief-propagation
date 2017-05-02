@@ -30,5 +30,8 @@
 
 #define WARP_SIZE 32
 
+#define MAX_DEGREE 20
+
+#define CHARS_IN_KEY 20
 
 #endif /* CONSTANTS_H_ */
