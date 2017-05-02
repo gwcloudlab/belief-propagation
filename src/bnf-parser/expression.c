@@ -148,16 +148,17 @@ static void fill_in_node_hash_table(Graph_t graph){
 	unsigned int i;
 	ENTRY e, *ep;
 
-	if(graph->hash_table_created == 0){
+	if(graph->node_hash_table_created == 0){
 		// insert node names into hash
-		hcreate(graph->current_num_vertices);
+        graph->node_hash_table = (struct hsearch_data *)calloc(sizeof(struct hsearch_data), 1);
+		hcreate_r(graph->current_num_vertices, graph->node_hash_table);
 		for(i = 0; i < graph->current_num_vertices; ++i){
 			e.key = &(graph->node_names[i * CHAR_BUFFER_SIZE]);
 			e.data = (void *)i;
-			ep = hsearch(e, ENTER);
-			assert(ep != NULL);
+			assert( hsearch_r(e, ENTER, &ep, graph->node_hash_table) != 0);
+
 		}
-		graph->hash_table_created = 1;
+		graph->node_hash_table_created = 1;
 	}
 }
 
@@ -563,7 +564,7 @@ static unsigned int find_node_by_name(char * name, Graph_t graph){
     fill_in_node_hash_table(graph);
 
 	e.key = name;
-    ep = hsearch(e, FIND);
+    assert( hsearch_r(e, FIND, &ep, graph->node_hash_table) != 0);
     assert(ep != NULL);
 
     i = (unsigned int)ep->data;
@@ -667,7 +668,7 @@ static unsigned int calculate_num_probabilities(char *node_name_buffer, unsigned
 		curr_name = &(node_name_buffer[i * CHAR_BUFFER_SIZE]);
 
         e.key = curr_name;
-        ep = hsearch(e, FIND);
+        assert(hsearch_r(e, FIND, &ep, graph->node_hash_table));
         assert(ep != NULL);
 		node_index = (unsigned int)ep->data;
 
