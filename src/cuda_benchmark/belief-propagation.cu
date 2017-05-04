@@ -279,7 +279,7 @@ void calculate_delta(float * previous_messages, float * current_messages, float 
 
 __global__
 void calculate_delta_6(float * previous_messages, float * current_messages, float * delta, float * delta_array,
-                       unsigned int * x_dim,
+                       unsigned int * edges_x_dim,
                        unsigned int num_edges, char n_is_pow_2, unsigned int warp_size) {
     extern __shared__ float shared_delta[];
 
@@ -292,7 +292,7 @@ void calculate_delta_6(float * previous_messages, float * current_messages, floa
     unsigned int grid_size = blockDim.x * 2 * gridDim.x;
 
     if(idx < num_edges){
-        delta_array[i] = calculate_local_delta(idx, previous_messages, current_messages, x_dim);
+        delta_array[idx] = calculate_local_delta(idx, previous_messages, current_messages, edges_x_dim);
     }
     __syncthreads();
 
@@ -474,7 +474,8 @@ unsigned int loopy_propagate_until_cuda(Graph_t graph, float convergence, unsign
     CUDA_CHECK_RETURN(cudaMalloc((void **)&node_num_vars, sizeof(unsigned int) * graph->current_num_vertices));
 
     CUDA_CHECK_RETURN(cudaMalloc((void **)&delta, sizeof(float)));
-    CUDA_CHECK_RETURN(cudaMalloc((void **)&delta_array, sizeof(float) * num_vertices));
+    CUDA_CHECK_RETURN(cudaMalloc((void **)&delta_array, sizeof(float) * num_edges));
+
 
     // copy data
     CUDA_CHECK_RETURN(cudaMemcpy(edges_joint_probabilities, graph->edges_joint_probabilities, sizeof(float) * MAX_STATES * MAX_STATES * graph->current_num_edges, cudaMemcpyHostToDevice ));
@@ -932,11 +933,11 @@ int main(void)
 
     run_tests_with_xml_file("../benchmark_files/xml/bf_80000_160000_2.xml", 1);*/
 
-    run_tests_with_xml_file("../benchmark_files/xml2/10_20.xml", 1, out);
+    /*run_tests_with_xml_file("../benchmark_files/xml2/10_20.xml", 1, out);
     run_tests_with_xml_file("../benchmark_files/xml2/100_200.xml", 1, out);
     run_tests_with_xml_file("../benchmark_files/xml2/1000_2000.xml", 1, out);
     run_tests_with_xml_file("../benchmark_files/xml2/10000_20000.xml", 1, out);
-    run_tests_with_xml_file("../benchmark_files/xml2/100000_200000.xml", 1, out);
+    run_tests_with_xml_file("../benchmark_files/xml2/100000_200000.xml", 1, out);*/
     run_tests_with_xml_file("../benchmark_files/xml2/200000_400000.xml", 1, out);
     //run_tests_with_xml_file("../benchmark_files/xml2/300000_600000.xml", 1, out);
     run_tests_with_xml_file("../benchmark_files/xml2/400000_800000.xml", 1, out);
