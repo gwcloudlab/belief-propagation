@@ -1217,6 +1217,7 @@ static unsigned int loopy_propagate_iterations_acc(unsigned int num_vertices, un
             break;
         }
         previous_delta = delta;
+        num_iter += BATCH_SIZE;
     }
 	if(i == max_iterations) {
 		printf("No Convergence: previous: %f vs current: %f\n", previous_delta, delta);
