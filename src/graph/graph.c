@@ -1053,7 +1053,7 @@ void loopy_propagate_one_iteration(Graph_t graph){
 	num_vars = graph->node_num_vars;
 	node_states = graph->node_states;
 
-#pragma omp parallel for default(none) shared(node_states, num_vars, num_vertices, dest_node_to_edges_nodes, dest_node_to_edges_edges, src_node_to_edges_nodes, src_node_to_edges_edges, num_edges, previous_edge_messages, num_dest, num_src, current_edge_messages, joint_probabilities) private(message_buffer, i, num_variables) schedule(dynamic, 8)
+#pragma omp parallel for default(none) shared(node_states, num_vars, num_vertices, dest_node_to_edges_nodes, dest_node_to_edges_edges, src_node_to_edges_nodes, src_node_to_edges_edges, num_edges, previous_edge_messages, num_dest, num_src, current_edge_messages, joint_probabilities) private(message_buffer, i, num_variables) schedule(dynamic, 16)
     for(i = 0; i < num_vertices; ++i){
 		num_variables = num_vars[i];
 
