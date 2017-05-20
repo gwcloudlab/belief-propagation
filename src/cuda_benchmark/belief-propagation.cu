@@ -64,18 +64,19 @@ __device__
 void send_message_for_edge_cuda(float * buffer, unsigned int edge_index, float * joint_probabilities,
                                 float * edge_messages, unsigned int * x_dim, unsigned int * y_dim){
     unsigned int i, j, num_src, num_dest;
-    float sum;
+    float sum, partial_sum;
 
     num_src = x_dim[edge_index];
     num_dest = y_dim[edge_index];
 
     sum = 0.0;
     for(i = 0; i < num_src; ++i){
-        edge_messages[edge_index * MAX_STATES + i] = 0.0;
+        partial_sum = 0.0;
         for(j = 0; j < num_dest; ++j){
-            edge_messages[edge_index * MAX_STATES + i] += joint_probabilities[MAX_STATES * MAX_STATES * edge_index + MAX_STATES * i + j] * buffer[j];
+            partial_sum += joint_probabilities[MAX_STATES * MAX_STATES * edge_index + MAX_STATES * i + j] * buffer[j];
         }
-        sum += edge_messages[edge_index * MAX_STATES + i];
+        sum += partial_sum;
+        edge_messages[edge_index * MAX_STATES + i] = partial_sum;
     }
     if(sum <= 0.0){
         sum = 1.0;
