@@ -9,7 +9,7 @@ static const int NUM_NODES = 4;
 static const int NUM_EDGES = 5;
 static const int NUM_VARIABLES = 2;
 
-void assert_value(double diff){
+void assert_value(float diff){
     assert(diff > -0.0001);
     assert(diff < 0.0001);
 }
@@ -17,7 +17,7 @@ void assert_value(double diff){
 void add_nodes(Graph_t graph){
     unsigned int node_index;
 
-	double y2[NUM_VARIABLES];
+	float y2[NUM_VARIABLES];
 	y2[0] = 1.0;
 	y2[1] = 0.0;
 
@@ -41,9 +41,9 @@ void add_nodes(Graph_t graph){
 }
 
 void add_edges(Graph_t graph){
-	double phi_1_2[MAX_STATES * MAX_STATES];
-	double phi_2_3[MAX_STATES * MAX_STATES];
-	double phi_2_4[MAX_STATES * MAX_STATES];
+	float phi_1_2[MAX_STATES * MAX_STATES];
+	float phi_2_3[MAX_STATES * MAX_STATES];
+	float phi_2_4[MAX_STATES * MAX_STATES];
 
 	phi_1_2[0] = 1.0;
 	phi_1_2[1] = 0.9;
@@ -71,7 +71,7 @@ void add_edges(Graph_t graph){
 
 void validate_nodes(Graph_t graph){
 	unsigned int node_index;
-	double value;
+	float value;
 
 	node_index = 0;
 

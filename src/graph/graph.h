@@ -12,7 +12,12 @@
 #ifndef GRAPH_H_
 #define GRAPH_H_
 
+#ifndef __USE_GNU
+#define __USE_GNU
+#endif
+
 #include "../constants.h"
+
 #include <search.h>
 
 struct graph {
@@ -21,25 +26,29 @@ struct graph {
 
 	unsigned int current_num_vertices;
 	unsigned int current_num_edges;
+	unsigned int max_degree;
 
 	unsigned int * edges_src_index;
 	unsigned int * edges_dest_index;
 	unsigned int * edges_x_dim;
 	unsigned int * edges_y_dim;
-	double * edges_joint_probabilities;
+	float * edges_joint_probabilities;
 
-	double * edges_messages;
-	double * last_edges_messages;
+	float * edges_messages;
+	float * last_edges_messages;
 
-	double ** current_edge_messages;
-    double ** previous_edge_messages;
+	float ** current_edge_messages;
+    float ** previous_edge_messages;
 
 
-	double * node_states;
+	float * node_states;
 	unsigned int * node_num_vars;
 
-	unsigned int * src_nodes_to_edges;
-	unsigned int * dest_nodes_to_edges;
+	unsigned int * src_nodes_to_edges_node_list;
+	unsigned int * src_nodes_to_edges_edge_list;
+
+	unsigned int * dest_nodes_to_edges_node_list;
+	unsigned int * dest_nodes_to_edges_edge_list;
 
 	unsigned int * levels_to_nodes;
 	unsigned int num_levels;
@@ -55,18 +64,29 @@ struct graph {
 
 	char graph_name[CHAR_BUFFER_SIZE];
 
-	char hash_table_created;
+    char node_hash_table_created;
+	struct hsearch_data *node_hash_table;
+
+    struct hsearch_data *src_node_to_edge_table;
+
+    struct hsearch_data *dest_node_to_edge_table;
+    char edge_tables_created;
 };
 typedef struct graph* Graph_t;
+
+struct htable_entry {
+    unsigned int indices[MAX_DEGREE];
+    unsigned int count;
+};
 
 /** create a new graph with n vertices labeled 0 to n-1 and no edges */
 Graph_t create_graph(unsigned int, unsigned int);
 
 void graph_add_node(Graph_t, unsigned int, const char *);
-void graph_add_and_set_node_state(Graph_t, unsigned int, const char *, double *);
-void graph_set_node_state(Graph_t, unsigned int, unsigned int, double *);
+void graph_add_and_set_node_state(Graph_t, unsigned int, const char *, float *);
+void graph_set_node_state(Graph_t, unsigned int, unsigned int, float *);
 
-void graph_add_edge(Graph_t, unsigned int, unsigned int, unsigned int, unsigned int, double *);
+void graph_add_edge(Graph_t, unsigned int, unsigned int, unsigned int, unsigned int, float *);
 
 void set_up_src_nodes_to_edges(Graph_t);
 void set_up_dest_nodes_to_edges(Graph_t);
@@ -74,10 +94,10 @@ void init_levels_to_nodes(Graph_t);
 void calculate_diameter(Graph_t);
 
 void initialize_node(Graph_t, unsigned int, unsigned int);
-void node_set_state(Graph_t, unsigned int, unsigned int, double *);
+void node_set_state(Graph_t, unsigned int, unsigned int, float *);
 
-void init_edge(Graph_t, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, double *);
-void send_message(double *, unsigned int, unsigned int, double *, double *, unsigned int *, unsigned int *);
+void init_edge(Graph_t, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, float *);
+void send_message(float *, unsigned int, unsigned int, float *, float *, unsigned int *, unsigned int *);
 
 /**
  * Get the counts
@@ -97,8 +117,8 @@ void reset_visited(Graph_t);
 void init_previous_edge(Graph_t);
 void loopy_propagate_one_iteration(Graph_t);
 
-unsigned int loopy_propagate_until(Graph_t, double convergence, unsigned int max_iterations);
-unsigned int loopy_progagate_until_acc(Graph_t, double convergence, unsigned int max_iterations);
+unsigned int loopy_propagate_until(Graph_t, float convergence, unsigned int max_iterations);
+unsigned int loopy_progagate_until_acc(Graph_t, float convergence, unsigned int max_iterations);
 
 void marginalize(Graph_t);
 
