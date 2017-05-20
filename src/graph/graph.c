@@ -858,6 +858,7 @@ static void send_message_for_edge(float * buffer, unsigned int edge_index,
 		for(j = 0; j < num_dest; ++j){
 			partial_sum += joint_probabilities[MAX_STATES * MAX_STATES * edge_index + MAX_STATES * i + j] * buffer[j];
 		}
+		edge_messages[edge_index * MAX_STATES + i] = partial_sum;
 		sum += partial_sum;
 	}
 	if(sum <= 0.0){
