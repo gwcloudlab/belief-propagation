@@ -120,7 +120,7 @@ void test_loopy_belief_propagation(char * file_name){
 		FILE * in;
 		Graph_t graph;
 		clock_t start, end;
-		double time_elapsed;
+	double time_elapsed;
 
 		assert(yylex_init(&scanner) == 0);
 
@@ -185,7 +185,7 @@ struct expression * parse_file(const char * file_name){
 void run_test_belief_propagation(struct expression * expression, const char * file_name){
     Graph_t graph;
     clock_t start, end;
-    double time_elapsed;
+	double time_elapsed;
     unsigned int i;
 
     graph = build_graph(expression);
@@ -224,7 +224,7 @@ void run_test_belief_propagation(struct expression * expression, const char * fi
 void run_test_loopy_belief_propagation(struct expression * expression, const char * file_name){
     Graph_t graph;
     clock_t start, end;
-    double time_elapsed;
+	double time_elapsed;
 	unsigned int num_iterations;
 
     graph = build_graph(expression);

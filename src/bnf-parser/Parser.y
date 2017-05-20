@@ -34,7 +34,7 @@ typedef void* yyscan_t;
 %union {
 	char word[50];
 	int int_value;
-	double double_value;
+	float float_value;
 	struct expression * expression;
 }
 
@@ -53,7 +53,7 @@ typedef void* yyscan_t;
 %token TOKEN_R_PARENS
 %token TOKEN_SEMICOLON
 %token <int_value> TOKEN_DECIMAL_LITERAL
-%token <double_value> TOKEN_FLOATING_POINT_LITERAL
+%token <float_value> TOKEN_FLOATING_POINT_LITERAL
 %token <word> TOKEN_WORD
 %token <word> TOKEN_PROPERTY
 
@@ -236,21 +236,21 @@ probability_table
 
 floating_point_list
 	: TOKEN_FLOATING_POINT_LITERAL { struct expression * fp_list = create_expression(FLOATING_POINT_LIST, NULL, NULL);
-									 fp_list->double_value = $1;
+									 fp_list->float_value = $1;
 									 $$ = fp_list;
 									}
 	| TOKEN_DECIMAL_LITERAL         {struct expression * fp_list = create_expression(FLOATING_POINT_LIST, NULL, NULL);
-                                     									 fp_list->double_value = (double)$1;
+                                     									 fp_list->float_value = (float)$1;
                                      									 $$ = fp_list;
 	                                }
 	| floating_point_list TOKEN_FLOATING_POINT_LITERAL {
 	                                                    struct expression * fp_list = create_expression(FLOATING_POINT_LIST, $1, NULL);
-														 fp_list->double_value = $2;
+														 fp_list->float_value = $2;
 														 $$ = fp_list;
 														}
 
     | floating_point_list TOKEN_DECIMAL_LITERAL {
                                                             struct expression * fp_list = create_expression(FLOATING_POINT_LIST, $1, NULL);
-                                                             fp_list->double_value = (double)$2;
+                                                             fp_list->float_value = (float)$2;
                                                              $$ = fp_list;
                                                             }

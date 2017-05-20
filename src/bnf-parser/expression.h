@@ -46,7 +46,7 @@ struct expression {
 	eType type;
 
 	char value[CHAR_BUFFER_SIZE];
-	double double_value;
+	float float_value;
 	int int_value;
 	struct expression *left;
 	struct expression *right;
