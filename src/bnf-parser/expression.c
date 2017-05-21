@@ -680,7 +680,6 @@ static unsigned int calculate_num_probabilities(char *node_name_buffer, unsigned
 
 static void update_node_in_graph(struct expression * expr, Graph_t graph){
 	char * buffer;
-	char * node_names;
 	float * probability_buffer;
 	unsigned int index, num_node_names, num_probabilities;
     int node_index;
@@ -706,7 +705,7 @@ static void update_node_in_graph(struct expression * expr, Graph_t graph){
 	probability_buffer = (float *)malloc(sizeof(float) * num_probabilities);
 	assert(probability_buffer);
     for(index = 0; index < num_probabilities; ++index){
-        probability_buffer[index] = -1.0;
+        probability_buffer[index] = -1.0f;
     }
 
 	fill_in_probability_buffer_table(expr, probability_buffer, num_probabilities);
@@ -720,16 +719,10 @@ static void update_node_in_graph(struct expression * expr, Graph_t graph){
 
 	reverse_probability_table(probability_buffer, num_probabilities);
 
-    node_index = -1;
-	node_names = graph->node_names;
-    for(index = 0; index < graph->current_num_vertices; ++index){
-        if(strcmp(buffer, &node_names[index * CHAR_BUFFER_SIZE]) == 0){
-            node_index = index;
-            break;
-        }
-    }
+	node_index = find_node_index_by_name(graph, buffer);
 
     assert(node_index >= 0);
+	assert(node_index < graph->current_num_vertices);
 
     graph_set_node_state(graph, (unsigned int)node_index, num_probabilities, probability_buffer);
 
