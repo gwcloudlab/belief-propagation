@@ -6,7 +6,7 @@
 
 #include "graph.h"
 
-static char src_key[CHARS_IN_KEY], dest_key[CHARS_IN_KEY];
+static char src_key[CHARS_IN_KEY], dest_key[CHARS_IN_KEY], node_name_key[CHARS_IN_KEY];
 
 Graph_t
 create_graph(unsigned int num_vertices, unsigned int num_edges)
@@ -51,6 +51,10 @@ create_graph(unsigned int num_vertices, unsigned int num_edges)
 	assert(g->variable_names);
     g->levels_to_nodes = (unsigned int *)malloc(sizeof(unsigned int) * 2 * num_vertices);
     assert(g->levels_to_nodes != NULL);
+
+	g->node_names_to_indices = (struct hsearch_data *)calloc(1, sizeof(struct hsearch_data));
+	assert(g->node_names_to_indices);
+	assert(hcreate_r(num_vertices, g->node_names_to_indices));
 	
 	g->current_edge_messages = &g->edges_messages;
     g->previous_edge_messages = &g->last_edges_messages;
@@ -114,13 +118,31 @@ void node_set_state(Graph_t graph, unsigned int node_index, unsigned int num_var
 
 void graph_add_node(Graph_t g, unsigned int num_variables, const char * name) {
 	unsigned int node_index;
+	ENTRY e, *ep;
 
 	node_index = g->current_num_vertices;
 
 	initialize_node(g, node_index, num_variables);
 	strncpy(&g->node_names[node_index * CHAR_BUFFER_SIZE], name, CHAR_BUFFER_SIZE);
+	strncpy(node_name_key, name, CHARS_IN_KEY);
+
+	e.key = node_name_key;
+	e.data = (void *)node_index;
+	assert(hsearch_r(e, ENTER,  &ep, g->node_names_to_indices));
 
 	g->current_num_vertices += 1;
+}
+
+unsigned int find_node_index_by_name(Graph_t g, char * buffer){
+	ENTRY e, *ep;
+
+	strncpy(node_name_key, buffer, CHARS_IN_KEY);
+	e.key = node_name_key;
+
+	assert(hsearch_r(e, FIND, &ep, g->node_names_to_indices));
+	assert(ep);
+
+	return (unsigned int)ep->data;
 }
 
 void graph_add_and_set_node_state(Graph_t g, unsigned int num_variables, const char * name, float * state){
@@ -308,6 +330,9 @@ void graph_destroy(Graph_t g) {
 		free(g->src_node_to_edge_table);
 		free(g->dest_node_to_edge_table);
     }
+
+	hdestroy_r(g->node_names_to_indices);
+	free(g->node_names_to_indices);
 
 	free(g->edges_src_index);
 	free(g->edges_dest_index);

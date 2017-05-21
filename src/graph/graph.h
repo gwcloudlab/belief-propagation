@@ -71,6 +71,8 @@ struct graph {
 
     struct hsearch_data *dest_node_to_edge_table;
     char edge_tables_created;
+
+	struct hsearch_data *node_names_to_indices;
 };
 typedef struct graph* Graph_t;
 
@@ -108,6 +110,7 @@ int graph_edge_count(Graph_t);
 /** free space **/
 void graph_destroy(Graph_t);
 
+unsigned int find_node_index_by_name(Graph_t, char *);
 
 void propagate_using_levels_start(Graph_t);
 void propagate_using_levels(Graph_t, unsigned int);
