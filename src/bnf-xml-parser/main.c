@@ -1,4 +1,5 @@
 #include "xml-expression.h"
+#include "../bnf-parser/expression.h"
 #include <stdlib.h>
 #include <assert.h>
 #include "../bnf-parser/Lexer.h"
@@ -29,12 +30,10 @@ struct expression * test_parse_file(char * file_name) {
 }
 
 int main() {
-    struct expression * xml_expr;
     struct expression * bif_expr;
 
-    xml_expr = parse_xml_file("../benchmark_files/dog.xml");
     bif_expr = test_parse_file("../benchmark_files/dog.bif");
-    Graph_t graph_xml = build_graph(xml_expr);
+    Graph_t graph_xml = parse_xml_file("../benchmark_files/dog.xml");
     Graph_t graph_bif = build_graph(bif_expr);
 
     assert(graph_xml->current_num_edges == graph_bif->current_num_edges);
@@ -47,10 +46,6 @@ int main() {
     print_nodes(graph_bif);
     print_edges(graph_bif);
 
-    if(xml_expr != NULL){
-        //print_expression(xml_expr);
-        delete_expression(xml_expr);
-    }
     if(bif_expr != NULL){
         delete_expression(bif_expr);
     }
@@ -72,13 +67,13 @@ int main() {
     if(graph_xml != NULL){
         graph_destroy(graph_xml);
     }*/
-    
-    xml_expr = parse_xml_file("../benchmark_files/xml2/10_20.xml");
-    assert(xml_expr);
-    graph_xml = build_graph(xml_expr);
+
+    graph_xml = parse_xml_file("../benchmark_files/xml2/10_20.xml");
     assert(graph_xml);
-    
-    delete_expression(xml_expr);
+    printf("Small graph\n");
+    print_nodes(graph_xml);
+    print_edges(graph_xml);
+
     graph_destroy(graph_xml);
 
     return 0;
