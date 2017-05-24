@@ -6,7 +6,7 @@
 
 #include "graph.h"
 
-static char src_key[CHARS_IN_KEY], dest_key[CHARS_IN_KEY], node_name_key[CHARS_IN_KEY];
+static char src_key[CHARS_IN_KEY], dest_key[CHARS_IN_KEY];
 
 
 Graph_t
@@ -210,24 +210,41 @@ void graph_add_edge(Graph_t graph, unsigned int src_index, unsigned int dest_ind
 	graph->current_num_edges += 1;
 }
 
-unsigned int find_node_index_by_name(Graph_t graph, char * buffer){
-    int node_index, i;
-    char * node_names;
+void fill_in_node_hash_table(Graph_t graph){
+	unsigned int i;
+	ENTRY e, *ep;
 
-    node_index = -1;
-    node_names = graph->node_names;
+	if(graph->node_hash_table_created == 0){
+		// insert node names into hash
+		graph->node_hash_table = (struct hsearch_data *)calloc(sizeof(struct hsearch_data), 1);
+		hcreate_r(graph->current_num_vertices, graph->node_hash_table);
+		for(i = 0; i < graph->current_num_vertices; ++i){
+			e.key = &(graph->node_names[i * CHAR_BUFFER_SIZE]);
+			e.data = (void *)i;
+			assert( hsearch_r(e, ENTER, &ep, graph->node_hash_table) != 0);
 
-    for(i = 0; i < graph->current_num_vertices; ++i){
-        if(strcmp(buffer, &node_names[i * CHAR_BUFFER_SIZE]) == 0){
-            node_index = i;
-            break;
-        }
-    }
-
-    assert(node_index >= 0);
-    assert(node_index < graph->current_num_vertices);
-    return (unsigned int)node_index;
+		}
+		graph->node_hash_table_created = 1;
+	}
 }
+
+unsigned int find_node_by_name(char * name, Graph_t graph){
+	unsigned int i;
+	ENTRY e, *ep;
+
+	fill_in_node_hash_table(graph);
+
+	e.key = name;
+	assert( hsearch_r(e, FIND, &ep, graph->node_hash_table) != 0);
+	assert(ep != NULL);
+
+	i = (unsigned int)ep->data;
+	assert(i < graph->current_num_vertices);
+
+
+	return i;
+}
+
 
 void set_up_src_nodes_to_edges(Graph_t graph){
 	unsigned int i, j, index, edge_index, num_vertices, current_degree;
