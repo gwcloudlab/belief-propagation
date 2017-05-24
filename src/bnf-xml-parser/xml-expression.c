@@ -308,7 +308,7 @@ static void add_observed_node_to_graph(xmlDocPtr doc, xmlNodePtr definition, Gra
         build_probabilities(doc, definition, probabilities, num_probabilities);
 
         fill_in_for_node_name(doc, definition, dest_node_name);
-        dest_node_index = find_node_index_by_name(graph, dest_node_name);
+        dest_node_index = find_node_by_name(dest_node_name, graph);
 
         graph_set_node_state(graph, dest_node_index, num_probabilities, probabilities);
     }
@@ -356,7 +356,7 @@ static void add_edges_to_graph(xmlDocPtr doc, xmlNodePtr definition, Graph_t gra
     build_probabilities(doc, definition, total_probabilities, num_probabilities);
 
     fill_in_for_node_name(doc, definition, dest_node_name);
-    dest_index = find_node_index_by_name(graph, dest_node_name);
+    dest_index = find_node_by_name(dest_node_name, graph);
     //assert(dest_index >= 0);
     //assert(dest_index < graph->current_num_vertices);
     slice = num_probabilities / graph->node_num_vars[dest_index];
@@ -367,7 +367,7 @@ static void add_edges_to_graph(xmlDocPtr doc, xmlNodePtr definition, Graph_t gra
         strncpy(src_node_name, (char *)value, CHAR_BUFFER_SIZE);
         xmlFree(value);
 
-        src_index = find_node_index_by_name(graph, src_node_name);
+        src_index = find_node_by_name(src_node_name, graph);
         //printf("Adding edge: (%s)->(%s)\n", src_node_name, dest_node_name);
         //printf("indices: (%d)->(%d)\n", src_index, dest_index);
         //assert(src_index >= 0);

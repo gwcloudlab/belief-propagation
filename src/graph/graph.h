@@ -99,6 +99,8 @@ void node_set_state(Graph_t, unsigned int, unsigned int, float *);
 void init_edge(Graph_t, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, float *);
 void send_message(float *, unsigned int, unsigned int, float *, float *, unsigned int *, unsigned int *);
 
+void fill_in_node_table(Graph_t);
+unsigned int find_node_by_name(char *, Graph_t);
 /**
  * Get the counts
  */
@@ -118,8 +120,6 @@ void loopy_propagate_one_iteration(Graph_t);
 
 unsigned int loopy_propagate_until(Graph_t, float convergence, unsigned int max_iterations);
 unsigned int loopy_progagate_until_acc(Graph_t, float convergence, unsigned int max_iterations);
-
-unsigned int find_node_index_by_name(Graph_t, char *);
 
 void marginalize(Graph_t);
 

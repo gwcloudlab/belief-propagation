@@ -144,24 +144,6 @@ static void reverse_probability_table(float * probability_table, int num_probabi
 	}
 }
 
-static void fill_in_node_hash_table(Graph_t graph){
-	unsigned int i;
-	ENTRY e, *ep;
-
-	if(graph->node_hash_table_created == 0){
-		// insert node names into hash
-        graph->node_hash_table = (struct hsearch_data *)calloc(sizeof(struct hsearch_data), 1);
-		hcreate_r(graph->current_num_vertices, graph->node_hash_table);
-		for(i = 0; i < graph->current_num_vertices; ++i){
-			e.key = &(graph->node_names[i * CHAR_BUFFER_SIZE]);
-			e.data = (void *)i;
-			assert( hsearch_r(e, ENTER, &ep, graph->node_hash_table) != 0);
-
-		}
-		graph->node_hash_table_created = 1;
-	}
-}
-
 static int count_nodes(struct expression * expr){
 	struct expression * next;
 	int count;
@@ -557,23 +539,6 @@ static void fill_in_state_names(struct expression * expr, unsigned int count, un
 	fill_in_state_names(expr->right, count, current_index, buffer);
 }
 
-static unsigned int find_node_by_name(char * name, Graph_t graph){
-	unsigned int i;
-    ENTRY e, *ep;
-
-    fill_in_node_hash_table(graph);
-
-	e.key = name;
-    assert( hsearch_r(e, FIND, &ep, graph->node_hash_table) != 0);
-    assert(ep != NULL);
-
-    i = (unsigned int)ep->data;
-    assert(i < graph->current_num_vertices);
-
-
-	return i;
-}
-
 static unsigned int calculate_entry_offset(char * state_names, unsigned int num_states, char * variable_names, int num_variables,
 								  Graph_t graph){
     unsigned int i, j, k, pos, step, index, var_name_index, node_index;
@@ -719,7 +684,7 @@ static void update_node_in_graph(struct expression * expr, Graph_t graph){
 
 	reverse_probability_table(probability_buffer, num_probabilities);
 
-	node_index = find_node_index_by_name(graph, buffer);
+	node_index = find_node_by_name(buffer, graph);
 
     assert(node_index >= 0);
 	assert(node_index < graph->current_num_vertices);
