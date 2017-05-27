@@ -20,6 +20,8 @@
 
 #define PRECISION 1E-3f
 
+#define BELIEF_BLOCK_SIZE 64
+
 #define BLOCK_SIZE 1024
 
 #define BLOCK_SIZE_2_D_X 64

@@ -22,9 +22,8 @@ void init_message_buffer_cuda(float * buffer, float * node_states, unsigned int 
     unsigned int j;
 
     for(j = 0; j < num_variables; ++j){
-        buffer[j] = node_states[MAX_STATES * node_index + j];
+        buffer[MAX_STATES * threadIdx.x + j] = node_states[MAX_STATES * node_index + j];
     }
-
 }
 
 __device__
@@ -33,7 +32,7 @@ void combine_message_cuda(float * dest, float * edge_messages, unsigned int leng
 
     for(i = 0; i < length; ++i){
         if(edge_messages[offset + i] == edge_messages[offset + i]){
-            dest[i] = dest[i] * edge_messages[offset + i];
+            dest[MAX_STATES * threadIdx.x + i] = dest[MAX_STATES * threadIdx.x + i] * edge_messages[offset + i];
         }
     }
 }
@@ -64,25 +63,34 @@ __device__
 void send_message_for_edge_cuda(float * buffer, unsigned int edge_index, float * joint_probabilities,
                                 float * edge_messages, unsigned int * x_dim, unsigned int * y_dim){
     unsigned int i, j, num_src, num_dest;
-    float sum, partial_sum;
+    float sum;
+    __shared__ float shared_joint_probabilities[MAX_STATES * MAX_STATES * BELIEF_BLOCK_SIZE];
+    __shared__ float partial_sums[BELIEF_BLOCK_SIZE];
+    __shared__ float shared_edge_messages[BELIEF_BLOCK_SIZE * MAX_STATES];
 
     num_src = x_dim[edge_index];
     num_dest = y_dim[edge_index];
 
-    sum = 0.0;
+    sum = 0.0f;
     for(i = 0; i < num_src; ++i){
-        partial_sum = 0.0;
         for(j = 0; j < num_dest; ++j){
-            partial_sum += joint_probabilities[MAX_STATES * MAX_STATES * edge_index + MAX_STATES * i + j] * buffer[j];
+            shared_joint_probabilities[MAX_STATES * MAX_STATES * threadIdx.x + MAX_STATES * i + j] = joint_probabilities[MAX_STATES * MAX_STATES * edge_index + MAX_STATES * i + j];
         }
-        sum += partial_sum;
-        edge_messages[edge_index * MAX_STATES + i] = partial_sum;
+    }
+
+    for(i = 0; i < num_src; ++i){
+        partial_sums[threadIdx.x] = 0.0f;
+        for(j = 0; j < num_dest; ++j){
+            partial_sums[threadIdx.x] += shared_joint_probabilities[MAX_STATES * MAX_STATES * threadIdx.x + MAX_STATES * i + j] * buffer[MAX_STATES * threadIdx.x + j];
+        }
+        sum += partial_sums[threadIdx.x];
+        shared_edge_messages[MAX_STATES * threadIdx.x + i] = partial_sums[threadIdx.x];
     }
     if(sum <= 0.0){
         sum = 1.0;
     }
     for(i = 0; i < num_src; ++i){
-        edge_messages[edge_index * MAX_STATES + i] = edge_messages[edge_index * MAX_STATES + i] / sum;
+        edge_messages[edge_index * MAX_STATES + i] = shared_edge_messages[MAX_STATES * threadIdx.x + i] / sum;
     }
 }
 
@@ -118,10 +126,12 @@ void marginalize_node(unsigned int * node_num_vars, float * node_states, unsigne
 
     num_variables = node_num_vars[idx];
 
-    float new_message[MAX_STATES];
+    __shared__ float new_message[MAX_STATES * BELIEF_BLOCK_SIZE];
+    __shared__ float shared_node_states[MAX_STATES * BELIEF_BLOCK_SIZE];
 
     for(i = 0; i < num_variables; ++i){
-        new_message[i] = 1.0;
+        new_message[MAX_STATES * threadIdx.x + i] = 1.0;
+        shared_node_states[MAX_STATES * threadIdx.x + i] = node_states[MAX_STATES * idx + i];
     }
 
     start_index = dest_nodes_to_edges_nodes[idx];
@@ -139,18 +149,18 @@ void marginalize_node(unsigned int * node_num_vars, float * node_states, unsigne
     }
     if(start_index < end_index){
         for(i = 0; i < num_variables; ++i){
-            node_states[MAX_STATES * idx + i] = new_message[i];
+            shared_node_states[MAX_STATES * threadIdx.x + i] = new_message[MAX_STATES * threadIdx.x + i];
         }
     }
     sum = 0.0;
     for(i = 0; i < num_variables; ++i){
-        sum += node_states[MAX_STATES * idx + i];
+        sum += shared_node_states[MAX_STATES * threadIdx.x + i];
     }
     if(sum <= 0.0){
         sum = 1.0;
     }
     for(i = 0; i < num_variables; ++i){
-        node_states[MAX_STATES * idx + i] = node_states[MAX_STATES * idx + i] / sum;
+        node_states[MAX_STATES * idx + i] = shared_node_states[MAX_STATES * threadIdx.x + i] / sum;
     }
 }
 
@@ -163,10 +173,10 @@ void loopy_propagate_main_loop(unsigned int num_vertices, unsigned int num_edges
                                unsigned int * dest_nodes_to_edges_nodes, unsigned int * dest_nodes_to_edges_edges,
                                unsigned int * edges_x_dim, unsigned int * edges_y_dim){
     unsigned int idx, num_variables;
-    float message_buffer[MAX_STATES];
+    __shared__ float message_buffer[MAX_STATES * BELIEF_BLOCK_SIZE];
 
-    idx = blockIdx.x*blockDim.x + threadIdx.x;
-    if(idx < num_vertices){
+
+    for(idx = blockIdx.x * blockDim.x + threadIdx.x; idx < num_vertices; idx += blockDim.x * gridDim.x){
         num_variables = node_num_vars[idx];
 
         init_message_buffer_cuda(message_buffer, node_messages, num_variables, idx);
@@ -179,9 +189,8 @@ void loopy_propagate_main_loop(unsigned int num_vertices, unsigned int num_edges
         __syncthreads();
 
         marginalize_node(node_num_vars, node_messages, idx, current_edge_messages, dest_nodes_to_edges_nodes, dest_nodes_to_edges_edges, num_vertices, num_edges);
+        __syncthreads();
     }
-
-    __syncthreads();
 }
 
 __device__
@@ -494,7 +503,7 @@ unsigned int loopy_propagate_until_cuda(Graph_t graph, float convergence, unsign
     CUDA_CHECK_RETURN(cudaMemcpy(edges_x_dim, graph->edges_x_dim, sizeof(unsigned int) * num_edges, cudaMemcpyHostToDevice));
     CUDA_CHECK_RETURN(cudaMemcpy(edges_y_dim, graph->edges_y_dim, sizeof(unsigned int) * num_edges, cudaMemcpyHostToDevice));
 
-    const int blockCount = (num_edges + BLOCK_SIZE - 1)/ BLOCK_SIZE;
+    const int blockCount = (num_edges + BELIEF_BLOCK_SIZE - 1)/ BELIEF_BLOCK_SIZE;
     num_iter = 0;
 
     dim3 dimReduceBlock(BLOCK_SIZE, 1, 1);
@@ -503,7 +512,7 @@ unsigned int loopy_propagate_until_cuda(Graph_t graph, float convergence, unsign
 
     for(i = 0; i < max_iterations; i+= BATCH_SIZE){
         for(j = 0; j < BATCH_SIZE; ++j) {
-            loopy_propagate_main_loop<<<blockCount, BLOCK_SIZE >>>(num_vertices, num_edges, node_num_vars, node_states, edges_joint_probabilities, previous_messages, current_messages, src_node_to_edges_nodes, src_node_to_edges_edges, src_node_to_edges_nodes, src_node_to_edges_edges, edges_x_dim, edges_y_dim);
+            loopy_propagate_main_loop<<<blockCount, BELIEF_BLOCK_SIZE >>>(num_vertices, num_edges, node_num_vars, node_states, edges_joint_probabilities, previous_messages, current_messages, src_node_to_edges_nodes, src_node_to_edges_edges, src_node_to_edges_nodes, src_node_to_edges_edges, edges_x_dim, edges_y_dim);
             err = cudaGetLastError();
             if (err != cudaSuccess) {
                 fprintf(stderr, "Error: %s\n", cudaGetErrorString(err));
@@ -997,12 +1006,12 @@ int main(void)
 
     run_tests_with_xml_file("../benchmark_files/xml/bf_80000_160000_2.xml", 1);*/
 
-    run_tests_with_xml_file("../benchmark_files/xml2/10_20.xml", 1, out);
+    /*run_tests_with_xml_file("../benchmark_files/xml2/10_20.xml", 1, out);
     run_tests_with_xml_file("../benchmark_files/xml2/100_200.xml", 1, out);
     run_tests_with_xml_file("../benchmark_files/xml2/1000_2000.xml", 1, out);
-    run_tests_with_xml_file("../benchmark_files/xml2/10000_20000.xml", 1, out);
+    run_tests_with_xml_file("../benchmark_files/xml2/10000_20000.xml", 1, out);*/
     run_tests_with_xml_file("../benchmark_files/xml2/100000_200000.xml", 1, out);
-    run_tests_with_xml_file("../benchmark_files/xml2/200000_400000.xml", 1, out);
+    /*run_tests_with_xml_file("../benchmark_files/xml2/200000_400000.xml", 1, out);
     //run_tests_with_xml_file("../benchmark_files/xml2/300000_600000.xml", 1, out);
     run_tests_with_xml_file("../benchmark_files/xml2/400000_800000.xml", 1, out);
     //run_tests_with_xml_file("../benchmark_files/xml2/500000_1000000.xml", 1, out);
@@ -1011,7 +1020,7 @@ int main(void)
     run_tests_with_xml_file("../benchmark_files/xml2/800000_1600000.xml", 1, out);
     //run_tests_with_xml_file("../benchmark_files/xml2/900000_1800000.xml", 1, out);
     run_tests_with_xml_file("../benchmark_files/xml2/1000000_2000000.xml", 1, out);
-    //run_tests_with_xml_file("../benchmark_files/xml2/10000000_20000000.xml", 1, out);
+    //run_tests_with_xml_file("../benchmark_files/xml2/10000000_20000000.xml", 1, out);*/
 
     fclose(out);
 
