@@ -16,21 +16,21 @@ module load libxml2
 module load cmake
 
 # build and run openacc benchmarks
-cd /home/***REMOVED***/belief-propagation/src/openacc_benchmark
+cd /home/trotsky/belief-propagation/src/openacc_benchmark
 cmake . -DCMAKE_BUILD_TYPE=Release
 make clean && make
 rm *csv
 nvprof --analysis-metrics -o openacc.nvprof ./openacc_benchmark
 
 # build and run cuda benchmarks
-cd /home/***REMOVED***/belief-propagation/src/cuda_benchmark
+cd /home/trotsky/belief-propagation/src/cuda_benchmark
 cmake . -DCMAKE_BUILD_TYPE=Release
 make clean && make
 rm *csv
 nvprof --analysis-metrics -o cuda.nvprof ./cuda_benchmark
 
 # build and run cuda kernels benchmarks
-cd /home/***REMOVED***/belief-propagation/src/cuda_benchmark_kernels
+cd /home/trotsky/belief-propagation/src/cuda_benchmark_kernels
 cmake . -DCMAKE_BUILD_TYPE=Release
 make clean && make
 rm *csv

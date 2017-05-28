@@ -2,7 +2,7 @@
  * graph.h
  *
  *  Created on: Feb 5, 2017
- *      Author: ***REMOVED***
+ *      Author: mjt5v
  */
 
 /**

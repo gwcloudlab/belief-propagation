@@ -2,7 +2,7 @@
  * expression.h
  *
  *  Created on: Feb 6, 2017
- *      Author: ***REMOVED***
+ *      Author: mjt5v
  */
 
 #ifndef EXPRESSION_H_
