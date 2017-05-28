@@ -343,7 +343,7 @@ void run_tests_with_xml_file(const char * file_name, unsigned int num_iterations
     }*/
 
     for(i = 0; i < num_iterations; ++i){
-        run_test_loopy_belief_propagation_xml_file(expr, file_name, out);
+        run_test_loopy_belief_propagation_xml_file(file_name, out);
     }
 }
 
