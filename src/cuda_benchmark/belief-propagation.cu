@@ -30,10 +30,15 @@ void init_message_buffer_cuda(float * buffer, float * node_states, unsigned int 
 __device__
 void combine_message_cuda(float * dest, float * edge_messages, unsigned int length, unsigned int offset){
     unsigned int i;
+    float message;
+    __shared__ float buffer[BLOCK_SIZE];
 
     for(i = 0; i < length; ++i){
-        if(edge_messages[offset + i] == edge_messages[offset + i]){
-            dest[i] = dest[i] * edge_messages[offset + i];
+        buffer[threadIdx.x] = dest[i];
+        message = edge_messages[offset + i];
+        if(message == message){
+            buffer[threadIdx.x] *= message;
+            dest[i] = buffer[threadIdx.x];
         }
     }
 }
@@ -64,25 +69,25 @@ __device__
 void send_message_for_edge_cuda(float * buffer, unsigned int edge_index, float * joint_probabilities,
                                 float * edge_messages, unsigned int * x_dim, unsigned int * y_dim){
     unsigned int i, j, num_src, num_dest;
-    float sum, partial_sum;
+    float sum;
+    __shared__ float partial_sums[BLOCK_SIZE * MAX_STATES];
 
     num_src = x_dim[edge_index];
     num_dest = y_dim[edge_index];
 
     sum = 0.0;
     for(i = 0; i < num_src; ++i){
-        partial_sum = 0.0;
+        partial_sums[threadIdx.x * MAX_STATES + i] = 0.0;
         for(j = 0; j < num_dest; ++j){
-            partial_sum += joint_probabilities[MAX_STATES * MAX_STATES * edge_index + MAX_STATES * i + j] * buffer[j];
+            partial_sums[threadIdx.x * MAX_STATES + i] += joint_probabilities[MAX_STATES * MAX_STATES * edge_index + MAX_STATES * i + j] * buffer[j];
         }
-        sum += partial_sum;
-        edge_messages[edge_index * MAX_STATES + i] = partial_sum;
+        sum += partial_sums[threadIdx.x * MAX_STATES + i];
     }
     if(sum <= 0.0){
         sum = 1.0;
     }
     for(i = 0; i < num_src; ++i){
-        edge_messages[edge_index * MAX_STATES + i] = edge_messages[edge_index * MAX_STATES + i] / sum;
+        edge_messages[edge_index * MAX_STATES + i] = partial_sums[threadIdx.x * MAX_STATES + i] / sum;
     }
 }
 
@@ -137,20 +142,20 @@ void marginalize_node(unsigned int * node_num_vars, float * node_states, unsigne
 
         combine_message_cuda(new_message, current_edges_messages, num_variables, MAX_STATES * edge_index);
     }
-    if(start_index < end_index){
+    if(start_index >= end_index){
         for(i = 0; i < num_variables; ++i){
-            node_states[MAX_STATES * idx + i] = new_message[i];
+            new_message[i] = 1.0;
         }
     }
     sum = 0.0;
     for(i = 0; i < num_variables; ++i){
-        sum += node_states[MAX_STATES * idx + i];
+        sum += new_message[i];
     }
     if(sum <= 0.0){
         sum = 1.0;
     }
     for(i = 0; i < num_variables; ++i){
-        node_states[MAX_STATES * idx + i] = node_states[MAX_STATES * idx + i] / sum;
+        node_states[MAX_STATES * idx + i] = new_message[i] / sum;
     }
 }
 
@@ -997,12 +1002,12 @@ int main(void)
 
     run_tests_with_xml_file("../benchmark_files/xml/bf_80000_160000_2.xml", 1);*/
 
-    run_tests_with_xml_file("../benchmark_files/xml2/10_20.xml", 1, out);
+    /*run_tests_with_xml_file("../benchmark_files/xml2/10_20.xml", 1, out);
     run_tests_with_xml_file("../benchmark_files/xml2/100_200.xml", 1, out);
     run_tests_with_xml_file("../benchmark_files/xml2/1000_2000.xml", 1, out);
-    run_tests_with_xml_file("../benchmark_files/xml2/10000_20000.xml", 1, out);
+    run_tests_with_xml_file("../benchmark_files/xml2/10000_20000.xml", 1, out);*/
     run_tests_with_xml_file("../benchmark_files/xml2/100000_200000.xml", 1, out);
-    run_tests_with_xml_file("../benchmark_files/xml2/200000_400000.xml", 1, out);
+    /*run_tests_with_xml_file("../benchmark_files/xml2/200000_400000.xml", 1, out);
     //run_tests_with_xml_file("../benchmark_files/xml2/300000_600000.xml", 1, out);
     run_tests_with_xml_file("../benchmark_files/xml2/400000_800000.xml", 1, out);
     //run_tests_with_xml_file("../benchmark_files/xml2/500000_1000000.xml", 1, out);
@@ -1012,7 +1017,7 @@ int main(void)
     //run_tests_with_xml_file("../benchmark_files/xml2/900000_1800000.xml", 1, out);
     run_tests_with_xml_file("../benchmark_files/xml2/1000000_2000000.xml", 1, out);
     //run_tests_with_xml_file("../benchmark_files/xml2/10000000_20000000.xml", 1, out);
-
+*/
     fclose(out);
 
     return 0;
