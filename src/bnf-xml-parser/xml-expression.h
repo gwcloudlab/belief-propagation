@@ -1,5 +1,4 @@
 //
-// Created by mjt5v on 3/6/17.
 //
 
 #ifndef PROJECT_XML_EXPRESSION_H
