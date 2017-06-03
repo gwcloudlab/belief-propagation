@@ -2,7 +2,6 @@
  * edge.h
  *
  *  Created on: Feb 5, 2017
- *      Author: ***REMOVED***
  */
 
 #ifndef EDGE_H_
