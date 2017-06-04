@@ -118,7 +118,9 @@ void init_previous_edge(Graph_t);
 void loopy_propagate_one_iteration(Graph_t);
 
 unsigned int loopy_propagate_until(Graph_t, float convergence, unsigned int max_iterations);
+unsigned int loopy_propagate_until_edge(Graph_t, float, unsigned int);
 unsigned int loopy_progagate_until_acc(Graph_t, float convergence, unsigned int max_iterations);
+unsigned int loopy_progagate_until_edge_acc(Graph_t, float, unsigned int);
 
 void marginalize(Graph_t);
 

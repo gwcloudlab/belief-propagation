@@ -319,6 +319,35 @@ void run_test_loopy_belief_propagation_xml_file(const char * file_name, FILE * o
 	graph_destroy(graph);
 }
 
+void run_test_loopy_belief_propagation_edge_xml_file(const char * file_name, FILE * out){
+	Graph_t graph;
+	clock_t start, end;
+	double time_elapsed;
+	unsigned int num_iterations;
+
+	graph = parse_xml_file(file_name);
+	assert(graph != NULL);
+	//print_nodes(graph);
+	//print_edges(graph);
+
+	set_up_src_nodes_to_edges(graph);
+	set_up_dest_nodes_to_edges(graph);
+	//calculate_diameter(graph);
+
+	start = clock();
+	init_previous_edge(graph);
+
+	num_iterations = loopy_progagate_until_edge_acc(graph, PRECISION, NUM_ITERATIONS);
+	end = clock();
+
+	time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
+	//print_nodes(graph);
+	fprintf(out, "%s,loopy-edge,%d,%d,%d,%d,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
+	fflush(out);
+
+	graph_destroy(graph);
+}
+
 void run_tests_with_file(const char * file_name, unsigned int num_iterations, FILE * out){
     unsigned int i;
     struct expression * expr;
@@ -345,6 +374,9 @@ void run_tests_with_xml_file(const char * file_name, unsigned int num_iterations
     for(i = 0; i < num_iterations; ++i){
         run_test_loopy_belief_propagation_xml_file(file_name, out);
     }
+	for(i = 0; i < num_iterations; ++i){
+		run_test_loopy_belief_propagation_edge_xml_file(file_name, out);
+	}
 }
 
 int main(void)

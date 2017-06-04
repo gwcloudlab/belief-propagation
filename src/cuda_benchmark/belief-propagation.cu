@@ -139,7 +139,7 @@ void marginalize_node(unsigned int * node_num_vars, float * node_states, unsigne
     }
     if(start_index < end_index){
         for(i = 0; i < num_variables; ++i){
-            node_states[MAX_STATES * idx + i] = new_message[i];
+            node_states[MAX_STATES * idx + i] *= new_message[i];
         }
     }
     sum = 0.0;
@@ -560,6 +560,8 @@ unsigned int loopy_propagate_until_cuda(Graph_t graph, float convergence, unsign
 
     return num_iter;
 }
+
+
 
 void test_ast(const char * expr)
 {
