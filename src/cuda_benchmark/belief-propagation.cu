@@ -189,25 +189,25 @@ static void send_message_for_edge_iteration_cuda(float * belief, unsigned int sr
                                                  float * joint_probabilities, float * edge_messages,
                                                  unsigned int * dim_src, unsigned int * dim_dest){
     unsigned int i, j, num_src, num_dest;
-    float sum, partial_sum, joint_prob;
+    float sum;
+    __shared__ float partial_sums[MAX_STATES * BLOCK_SIZE];
 
     num_src = dim_src[edge_index];
     num_dest = dim_dest[edge_index];
 
     sum = 0.0;
     for(i = 0; i < num_src; ++i){
-        partial_sum = 0.0;
+        partial_sums[MAX_STATES * threadIdx.x + i] = 0.0;
         for(j = 0; j < num_dest; ++j){
-            partial_sum += joint_probabilities[MAX_STATES * MAX_STATES * edge_index + MAX_STATES * i + j] * belief[MAX_STATES * src_index + j];
+            partial_sums[MAX_STATES * threadIdx.x + i] += joint_probabilities[MAX_STATES * MAX_STATES * edge_index + MAX_STATES * i + j] * belief[MAX_STATES * src_index + j];
         }
-        edge_messages[edge_index * MAX_STATES + i] = partial_sum;
-        sum += partial_sum;
+        sum += partial_sums[MAX_STATES * threadIdx.x + i];
     }
     if(sum <= 0.0){
         sum = 1.0;
     }
     for (i = 0; i < num_src; ++i) {
-        edge_messages[edge_index * MAX_STATES + i] = edge_messages[edge_index * MAX_STATES + i] / sum;
+        edge_messages[edge_index * MAX_STATES + i] = partial_sums[MAX_STATES * threadIdx.x + i] / sum;
     }
 }
 
@@ -231,18 +231,18 @@ void combine_loopy_edge_cuda(unsigned int edge_index, float * current_messages, 
     unsigned int i;
     unsigned int * address_as_uint;
     unsigned int old, assumed;
-    float current_message_value, current_belief_value;
+    __shared__ float current_message_value[BLOCK_SIZE], current_belief_value[BLOCK_SIZE];
 
     address_as_uint = (unsigned int *)current_messages;
 
     for(i = 0; i < num_variables; ++i){
-        current_message_value = current_messages[MAX_STATES * edge_index + i];
-        current_belief_value = belief[MAX_STATES * dest_node_index + i];
-        if(current_belief_value > 0.0f){
-            old = __float_as_uint(current_message_value);
+        current_message_value[threadIdx.x] = current_messages[MAX_STATES * edge_index + i];
+        current_belief_value[threadIdx.x] = belief[MAX_STATES * dest_node_index + i];
+        if(current_belief_value[threadIdx.x] > 0.0f){
+            old = __float_as_uint(current_message_value[threadIdx.x]);
             do{
                 assumed = old;
-                old = atomicCAS(address_as_uint, assumed, __float_as_uint(current_belief_value * __uint_as_float(assumed)));
+                old = atomicCAS(address_as_uint, assumed, __float_as_uint(current_belief_value[threadIdx.x] * __uint_as_float(assumed)));
             }while(assumed != old);
         }
     }
