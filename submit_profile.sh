@@ -19,19 +19,19 @@ module load cmake
 cd ${HOME}/belief-propagation/src/openacc_benchmark
 cmake . -DCMAKE_BUILD_TYPE=Release
 make clean && make
-rm *csv
+rm -f *csv
 nvprof --analysis-metrics -o openacc.nvprof ./openacc_benchmark
 
 # build and run cuda benchmarks
 cd ${HOME}/belief-propagation/src/cuda_benchmark
 cmake . -DCMAKE_BUILD_TYPE=Release
 make clean && make
-rm *csv
+rm -f *csv
 nvprof --analysis-metrics -o cuda.nvprof ./cuda_benchmark
 
 # build and run cuda kernels benchmarks
 cd ${HOME}/belief-propagation/src/cuda_benchmark_kernels
 cmake . -DCMAKE_BUILD_TYPE=Release
 make clean && make
-rm *csv
+rm -f *csv
 nvprof --analysis-metrics -o cuda_kernels.nvprof ./cuda_kernels_benchmark
