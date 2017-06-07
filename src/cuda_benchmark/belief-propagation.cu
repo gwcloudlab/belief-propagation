@@ -170,8 +170,7 @@ void loopy_propagate_main_loop(unsigned int num_vertices, unsigned int num_edges
     unsigned int idx, num_variables;
     float message_buffer[MAX_STATES];
 
-    idx = blockIdx.x*blockDim.x + threadIdx.x;
-    if(idx < num_vertices){
+    for(idx = blockIdx.x * blockDim.x + threadIdx.x; idx < num_vertices; idx += blockDim.x * gridDim.x){
         num_variables = node_num_vars[idx];
 
         init_message_buffer_cuda(message_buffer, node_messages, num_variables, idx);
@@ -219,13 +218,12 @@ static void send_message_for_edge_iteration_cuda(float * belief, unsigned int sr
 __global__
 void send_message_for_edge_iteration_cuda_kernel(unsigned int num_edges, unsigned int * edges_src_index, float * node_states, float * joint_probabilities, float * current_edge_messags,
                                           unsigned int * num_src, unsigned int * num_dest){
-    unsigned int i, src_node_index;
+    unsigned int idx, src_node_index;
 
-    i = blockIdx.x*blockDim.x + threadIdx.x;
-    if(i < num_edges){
-        src_node_index = edges_src_index[i];
+    for(idx = blockIdx.x * blockDim.x + threadIdx.x; idx < num_edges; idx += blockDim.x * gridDim.x){
+        src_node_index = edges_src_index[idx];
 
-        send_message_for_edge_iteration_cuda(node_states, src_node_index, i, joint_probabilities, current_edge_messags,
+        send_message_for_edge_iteration_cuda(node_states, src_node_index, idx, joint_probabilities, current_edge_messags,
                                              num_src, num_dest);
     }
 }
@@ -255,13 +253,12 @@ void combine_loopy_edge_cuda(unsigned int edge_index, float * current_messages, 
 
 __global__
 void combine_loopy_edge_cuda_kernel(unsigned int num_edges, unsigned int * edges_dest_index, float * current_edge_messages, float * node_states, unsigned int * num_dest){
-    unsigned i, dest_node_index;
+    unsigned idx, dest_node_index;
 
-    i = blockIdx.x*blockDim.x + threadIdx.x;
-    if(i < num_edges){
-        dest_node_index = edges_dest_index[i];
+    for(idx = blockIdx.x * blockDim.x + threadIdx.x; idx < num_edges; idx += blockDim.x * gridDim.x){
+        dest_node_index = edges_dest_index[idx];
 
-        combine_loopy_edge_cuda(i, current_edge_messages, dest_node_index, node_states, num_dest[i]);
+        combine_loopy_edge_cuda(idx, current_edge_messages, dest_node_index, node_states, num_dest[idx]);
     }
 }
 
@@ -270,8 +267,7 @@ void marginalize_loop_node_edge_kernel(float * belief, unsigned int * num_vars, 
     unsigned int i, idx, num_variables;
     float sum;
 
-    idx = blockIdx.x*blockDim.x + threadIdx.x;
-    if(idx < num_vertices){
+    for(idx = blockIdx.x * blockDim.x + threadIdx.x; idx < num_vertices; idx += blockDim.x * gridDim.x){
         num_variables = num_vars[idx];
         sum = 0.0f;
         for(i = 0; i < num_variables; ++i){
