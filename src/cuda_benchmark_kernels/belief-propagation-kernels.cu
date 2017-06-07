@@ -190,7 +190,7 @@ void marginalize_sum_node_kernel(unsigned int * node_num_vars, float * message_b
             if (edge_index == 0) {
                 sum[threadIdx.x] = 0.0;
             }
-            shared_message_buffer[threadIdx.x][threadIdx.y] = message_buffer[MAX_STATES * node_index + edge_index];
+            shared_message_buffer[threadIdx.x][threadIdx.y] *= message_buffer[MAX_STATES * node_index + edge_index];
             __syncthreads();
 
             atomicAdd(&sum[threadIdx.x], shared_message_buffer[threadIdx.x][threadIdx.y]);
