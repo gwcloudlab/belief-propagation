@@ -1112,7 +1112,7 @@ static void marginalize_nodes_acc(float * node_states, unsigned int * num_vars, 
 								  unsigned int current_num_vertices, unsigned int current_num_edges){
 	unsigned int i;
 
-#pragma omp parallel for default(none) shared(node_states, num_vars, edge_messages, dest_nodes_to_edges_nodes, dest_nodes_to_edges_edges, current_num_vertices, current_num_edges) private(i)
+#pragma acc kernels
 	for(i = 0; i < current_num_vertices; ++i){
 		marginalize_node_acc(node_states, num_vars, i, edge_messages, dest_nodes_to_edges_nodes, dest_nodes_to_edges_edges, current_num_vertices, current_num_edges);
 	}
@@ -1220,10 +1220,12 @@ void loopy_propagate_edge_one_iteration(Graph_t graph){
         dest_node_index = edges_dest_index[i];
 		combine_loopy_edge(i, current_edge_messages, dest_node_index, node_states, num_dest[i]);
     }
+	/*
 #pragma omp parallel default(none) shared(node_states, num_vars, num_nodes) private(i)
 	for(i = 0; i < num_nodes; ++i){
 		marginalize_loopy_node_edge(node_states, num_vars[i]);
-	}
+	}*/
+	marginalize_loopy_nodes(graph, current_edge_messages, num_nodes);
 
 }
 
@@ -1447,6 +1449,7 @@ static unsigned int loopy_propagate_iterations_edges_acc(unsigned int num_vertic
 														 float * joint_probabilities,
 														 unsigned int * edges_src_index, unsigned int * edges_dest_index,
 														 unsigned int * num_src, unsigned int * num_dest,
+														 unsigned int * dest_node_to_edges_node_list, unsigned int * dest_node_to_edges_edge_list,
 														 unsigned int max_iterations, float convergence){
 	unsigned int i, j, k, num_iter, src_node_index, dest_node_index;
 	float delta, previous_delta, diff;
@@ -1464,7 +1467,7 @@ static unsigned int loopy_propagate_iterations_edges_acc(unsigned int num_vertic
 	delta = 0.0f;
 
 	for(i = 0; i < max_iterations; i+= BATCH_SIZE) {
-#pragma acc data present_or_copy(node_states[0:(MAX_STATES * num_vertices)], prev_messages[0:(MAX_STATES * num_edges)], curr_messages[0:(MAX_STATES * num_edges)]) present_or_copyin(num_vars[0:num_vertices], joint_probabilities[0:(num_edges * MAX_STATES * MAX_STATES)], num_src[0:num_edges], num_dest[0:num_edges], edges_src_index[0:num_edges])
+#pragma acc data present_or_copy(node_states[0:(MAX_STATES * num_vertices)], prev_messages[0:(MAX_STATES * num_edges)], curr_messages[0:(MAX_STATES * num_edges)]) present_or_copyin(dest_node_to_edges_node_list[0:num_vertices], dest_node_to_edges_edge_list[0:num_edges], num_vars[0:num_vertices], joint_probabilities[0:(num_edges * MAX_STATES * MAX_STATES)], num_src[0:num_edges], num_dest[0:num_edges], edges_src_index[0:num_edges])
 		{
 			//printf("Current iteration: %d\n", i+1);
 			for (j = 0; j < BATCH_SIZE; ++j) {
@@ -1485,8 +1488,13 @@ static unsigned int loopy_propagate_iterations_edges_acc(unsigned int num_vertic
 					combine_loopy_edge(i, curr_messages, dest_node_index, node_states, num_dest[k]);
 				}
 #pragma acc kernels
+                /*
 				for(k = 0; k < num_vertices; ++k){
 					marginalize_loopy_node_edge(node_states, num_vars[k]);
+				}*/
+				for (k = 0; k < num_vertices; ++k) {
+					marginalize_node_acc(node_states, num_vars, k, curr_messages, dest_node_to_edges_node_list, dest_node_to_edges_edge_list, num_vertices,
+										 num_edges);
 				}
 
 
@@ -1537,6 +1545,7 @@ unsigned int loopy_progagate_until_edge_acc(Graph_t graph, float convergence, un
     graph->edges_joint_probabilities,
     graph->edges_src_index, graph->edges_dest_index,
     graph->edges_x_dim, graph->edges_y_dim,
+	graph->dest_nodes_to_edges_node_list, graph->dest_nodes_to_edges_edge_list,
     max_iterations, convergence);
 
     /*printf("===AFTER====\n");

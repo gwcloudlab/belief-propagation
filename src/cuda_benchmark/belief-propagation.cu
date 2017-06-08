@@ -160,6 +160,17 @@ void marginalize_node(unsigned int * node_num_vars, float * node_states, unsigne
 }
 
 __global__
+void marginalize_nodes(unsigned int * node_num_vars, float * node_states,
+                       float * current_edges_messages,
+                       unsigned int * dest_nodes_to_edges_nodes, unsigned int * dest_nodes_to_edges_edges,
+                       unsigned int num_vertices, unsigned int num_edges) {
+    unsigned int idx;
+    for(idx = blockIdx.x * blockDim.x + threadIdx.x; idx < num_vertices; idx += blockDim.x * gridDim.x){
+        marginalize_node(node_num_vars, node_states, idx, current_edges_messages, dest_nodes_to_edges_nodes, dest_nodes_to_edges_edges, num_vertices, num_edges);
+    }
+}
+
+__global__
 void loopy_propagate_main_loop(unsigned int num_vertices, unsigned int num_edges,
                                 unsigned int * node_num_vars, float * node_messages,
                                float * joint_probabilities,
@@ -678,6 +689,8 @@ unsigned int loopy_propagate_until_cuda_edge(Graph_t graph, float convergence, u
     unsigned int * num_vars;
     unsigned int * edges_src_index;
     unsigned int * edges_dest_index;
+    unsigned int * dest_nodes_to_edges_nodes;
+    unsigned int * dest_nodes_to_edges_edges;
 
     cudaError_t err;
 
@@ -707,6 +720,9 @@ unsigned int loopy_propagate_until_cuda_edge(Graph_t graph, float convergence, u
     CUDA_CHECK_RETURN(cudaMalloc((void **)&current_messages, sizeof(float) * MAX_STATES * graph->current_num_edges));
     CUDA_CHECK_RETURN(cudaMalloc((void **)&previous_messages, sizeof(float) * MAX_STATES * graph->current_num_edges));
 
+    CUDA_CHECK_RETURN(cudaMalloc((void **)&dest_nodes_to_edges_nodes, sizeof(unsigned int) * graph->current_num_vertices));
+    CUDA_CHECK_RETURN(cudaMalloc((void **)&dest_nodes_to_edges_edges, sizeof(unsigned int) * graph->current_num_edges));
+
     CUDA_CHECK_RETURN(cudaMalloc((void **)&delta, sizeof(float)));
     CUDA_CHECK_RETURN(cudaMalloc((void **)&delta_array, sizeof(float) * num_edges));
 
@@ -723,6 +739,9 @@ unsigned int loopy_propagate_until_cuda_edge(Graph_t graph, float convergence, u
     CUDA_CHECK_RETURN(cudaMemcpy(edges_src_index, graph->edges_src_index, sizeof(unsigned int) * graph->current_num_edges, cudaMemcpyHostToDevice));
     CUDA_CHECK_RETURN(cudaMemcpy(edges_dest_index, graph->edges_dest_index, sizeof(unsigned int) * graph->current_num_edges, cudaMemcpyHostToDevice));
 
+    CUDA_CHECK_RETURN(cudaMemcpy(dest_nodes_to_edges_nodes, graph->dest_nodes_to_edges_node_list, sizeof(unsigned int) * graph->current_num_vertices, cudaMemcpyHostToDevice));
+    CUDA_CHECK_RETURN(cudaMemcpy(dest_nodes_to_edges_edges, graph->dest_nodes_to_edges_edge_list, sizeof(unsigned int) * graph->current_num_edges, cudaMemcpyHostToDevice));
+
     const int edgeCount = (num_edges + BLOCK_SIZE - 1)/ BLOCK_SIZE;
     const int nodeCount = (num_vertices + BLOCK_SIZE - 1) / BLOCK_SIZE;
     num_iter = 0;
@@ -738,7 +757,9 @@ unsigned int loopy_propagate_until_cuda_edge(Graph_t graph, float convergence, u
             test_error();
             combine_loopy_edge_cuda_kernel<<<edgeCount, BLOCK_SIZE>>>(num_edges, edges_dest_index, current_messages, node_states, num_dest);
             test_error();
-            marginalize_loop_node_edge_kernel<<<nodeCount, BLOCK_SIZE>>>(node_states, num_vars, num_vertices);
+            //marginalize_loop_node_edge_kernel<<<nodeCount, BLOCK_SIZE>>>(node_states, num_vars, num_vertices);
+            marginalize_nodes<<<nodeCount, BLOCK_SIZE>>>(num_vars, node_states, current_messages,
+            dest_nodes_to_edges_nodes, dest_nodes_to_edges_edges, num_vertices, num_edges);
             test_error();
 
             num_iter++;
@@ -771,6 +792,9 @@ unsigned int loopy_propagate_until_cuda_edge(Graph_t graph, float convergence, u
     CUDA_CHECK_RETURN(cudaFree(num_vars));
     CUDA_CHECK_RETURN(cudaFree(edges_src_index));
     CUDA_CHECK_RETURN(cudaFree(edges_dest_index));
+
+    CUDA_CHECK_RETURN(cudaFree(dest_nodes_to_edges_nodes));
+    CUDA_CHECK_RETURN(cudaFree(dest_nodes_to_edges_edges));
 
     CUDA_CHECK_RETURN(cudaFree(delta));
     CUDA_CHECK_RETURN(cudaFree(delta_array));
