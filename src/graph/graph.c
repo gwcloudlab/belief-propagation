@@ -1240,7 +1240,7 @@ void loopy_propagate_edge_one_iteration(Graph_t graph){
 	edges_src_index = graph->edges_src_index;
 	edges_dest_index = graph->edges_dest_index;
 
-	memcpy(previous_edge_messages, current_edge_messages, num_edges * MAX_STATES);
+	memcpy(previous_edge_messages, current_edge_messages, num_edges * sizeof(struct belief));
 	#pragma omp parallel default(none) shared(node_states, joint_probabilities, current_edge_messages, edges_src_index, num_src, num_dest, num_edges) private(src_node_index, i)
     for(i = 0; i < num_edges; ++i){
         src_node_index = edges_src_index[i];
