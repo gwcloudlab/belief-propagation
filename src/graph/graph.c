@@ -1293,6 +1293,8 @@ unsigned int loopy_propagate_until_edge(Graph_t graph, float convergence, unsign
         for(j = 0; j < num_edges; ++j){
             for(k = 0; k < edges_x_dim[j]; ++k){
                 diff = previous_edge_messages[j].data[k] - current_edge_messages[j].data[k];
+				//printf("Previous: %f\n", previous_edge_messages[j].data[k]);
+				//printf("Current : %f\n", current_edge_messages[j].data[k]);
                 if(diff != diff){
                     diff = 0.0;
                 }
@@ -1341,6 +1343,8 @@ unsigned int loopy_propagate_until(Graph_t graph, float convergence, unsigned in
 		for(j = 0; j < num_edges; ++j){
 			for(k = 0; k < edges_x_dim[j]; ++k){
 				diff = previous_edge_messages[j].data[k] - current_edge_messages[j].data[k];
+				//printf("Previous Edge[%d][%d]: %f\n", j, k, previous_edge_messages[j].data[k]);
+				//printf("Current Edge[%d][%d]: %f\n", j, k, current_edge_messages[j].data[k]);
 				if(diff != diff){
 					diff = 0.0;
 				}
@@ -1348,8 +1352,6 @@ unsigned int loopy_propagate_until(Graph_t graph, float convergence, unsigned in
 			}
 		}
 
-		//printf("Current delta: %.6lf\n", delta);
-		//printf("Previous delta: %.6lf\n", previous_delta);
 		if(delta < convergence || fabs(delta - previous_delta) < convergence){
 			break;
 		}
@@ -1360,6 +1362,7 @@ unsigned int loopy_propagate_until(Graph_t graph, float convergence, unsigned in
 	if(i == max_iterations){
 		printf("No Convergence: previous: %f vs current: %f\n", previous_delta, delta);
 	}
+	assert(i > 0);
 	return i;
 }
 
