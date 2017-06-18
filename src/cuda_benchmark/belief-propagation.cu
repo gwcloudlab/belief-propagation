@@ -73,16 +73,19 @@ void send_message_for_edge_cuda(struct belief * buffer, unsigned int edge_index,
                                 struct belief * edge_messages, unsigned int * x_dim, unsigned int * y_dim){
     unsigned int i, j, num_src, num_dest;
     float sum;
+    struct joint_probability joint_probability;
     __shared__ float partial_sums[BLOCK_SIZE * MAX_STATES];
 
-    num_src = x_dim[edge_index];
-    num_dest = y_dim[edge_index];
+    joint_probability = joint_probabilities[edge_index];
+
+    num_src = joint_probability.dim_x;
+    num_dest = joint_probability.dim_y;
 
     sum = 0.0;
     for(i = 0; i < num_src; ++i){
         partial_sums[threadIdx.x * MAX_STATES + i] = 0.0;
         for(j = 0; j < num_dest; ++j){
-            partial_sums[threadIdx.x * MAX_STATES + i] += joint_probabilities[edge_index].data[i][j] * buffer->data[j];
+            partial_sums[threadIdx.x * MAX_STATES + i] += joint_probability.data[i][j] * buffer->data[j];
         }
         sum += partial_sums[threadIdx.x * MAX_STATES + i];
     }
@@ -268,7 +271,9 @@ void combine_loopy_edge_cuda(unsigned int edge_index, struct belief *current_mes
                 assumed = old;
                 old = atomicCAS(address_as_uint, assumed, __float_as_uint(current_belief_value[threadIdx.x] * __uint_as_float(assumed)));
             }while(assumed != old);
+            belief[dest_node_index].data[i] = current_belief_value[threadIdx.x];
         }
+        __syncthreads();
     }
 }
 
