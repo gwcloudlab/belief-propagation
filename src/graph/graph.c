@@ -450,15 +450,18 @@ void send_message(struct belief *states, unsigned int edge_index, struct joint_p
 				  unsigned int * edge_num_dest){
 	unsigned int i, j, num_src, num_dest;
 	float sum;
+    struct joint_probability joint_probability;
 
-	num_src = edge_num_src[edge_index];
-	num_dest = edge_num_dest[edge_index];
+    joint_probability = edge_joint_probabilities[edge_index];
+
+	num_src = joint_probability.dim_x;
+	num_dest = joint_probability.dim_y;
 
 	sum = 0.0;
 	for(i = 0; i < num_src; ++i){
 		edge_messages[edge_index].data[i] = 0.0;
 		for(j = 0; j < num_dest; ++j){
-            edge_messages[edge_index].data[i] += edge_joint_probabilities[edge_index].data[i][j] * states->data[j];
+            edge_messages[edge_index].data[i] += joint_probability.data[i][j] * states->data[j];
 		}
 		sum += edge_messages[edge_index].data[i];
 	}
@@ -915,16 +918,19 @@ static void send_message_for_edge(struct belief *buffer, unsigned int edge_index
 								  unsigned int * dim_dest) {
 	unsigned int i, j, num_src, num_dest;
 	float sum, partial_sum;
+    struct joint_probability joint_probability;
 
-	num_src = dim_src[edge_index];
-	num_dest = dim_dest[edge_index];
+    joint_probability = joint_probabilities[edge_index];
+
+	num_src = joint_probability.dim_x;
+	num_dest = joint_probability.dim_y;
 
 
 	sum = 0.0;
 	for(i = 0; i < num_src; ++i){
 		partial_sum = 0.0;
 		for(j = 0; j < num_dest; ++j){
-			partial_sum += joint_probabilities[edge_index].data[i][j] * buffer->data[j];
+			partial_sum += joint_probability.data[i][j] * buffer->data[j];
 		}
 		edge_messages[edge_index].data[i] = partial_sum;
 		sum += partial_sum;
