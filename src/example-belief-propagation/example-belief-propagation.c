@@ -16,55 +16,60 @@ void assert_value(float diff){
 
 void add_nodes(Graph_t graph){
     unsigned int node_index;
+	struct belief y2;
 
-	float y2[NUM_VARIABLES];
-	y2[0] = 1.0;
-	y2[1] = 0.0;
+	y2.size = NUM_VARIABLES;
+	y2.data[0] = 1.0;
+	y2.data[1] = 0.0;
 
 	graph_add_node(graph, NUM_VARIABLES, "x1");
 	graph_add_node(graph, NUM_VARIABLES, "x2");
 	graph_add_node(graph, NUM_VARIABLES, "x3");
-	graph_add_and_set_node_state(graph, NUM_VARIABLES, "y2", y2);
+	graph_add_and_set_node_state(graph, NUM_VARIABLES, "y2", &y2);
 
     // validate nodes inserted correctly
     assert(graph->current_num_vertices == 4);
 
     for(node_index = 0; node_index < 3; ++node_index) {
         assert(graph->node_num_vars[node_index] == 2);
-        assert_value(graph->node_states[MAX_STATES * node_index + 0] - 1.0);
-        assert_value(graph->node_states[MAX_STATES * node_index + 1] - 1.0);
+        assert_value(graph->node_states[node_index].data[0] - 1.0f);
+        assert_value(graph->node_states[node_index].data[1] - 1.0f);
     }
     node_index = 3;
     assert(graph->node_num_vars[node_index] == 2);
-    assert_value(graph->node_states[MAX_STATES * node_index + 0] - 1.0);
-    assert_value(graph->node_states[MAX_STATES * node_index + 1] - 0.0);
+    assert_value(graph->node_states[node_index].data[0] - 1.0f);
+    assert_value(graph->node_states[node_index].data[1] - 0.0f);
 }
 
 void add_edges(Graph_t graph){
-	float phi_1_2[MAX_STATES * MAX_STATES];
-	float phi_2_3[MAX_STATES * MAX_STATES];
-	float phi_2_4[MAX_STATES * MAX_STATES];
+	struct joint_probability phi_1_2, phi_2_3, phi_2_4;
 
-	phi_1_2[0] = 1.0;
-	phi_1_2[1] = 0.9;
-	phi_1_2[MAX_STATES + 0] = 0.9;
-	phi_1_2[MAX_STATES + 1] = 1.0;
+	phi_1_2.dim_x = 2;
+	phi_1_2.dim_y = 2;
+	phi_1_2.data[0][0] = 1.0;
+	phi_1_2.data[0][1] = 0.9;
+	phi_1_2.data[1][0] = 0.9;
+	phi_1_2.data[1][1] = 1.0;
 
-	phi_2_3[0] = 0.1;
-	phi_2_3[1] = 1.0;
-	phi_2_3[MAX_STATES + 0] = 1.0;
-	phi_2_3[MAX_STATES + 1] = 0.1;
+	phi_2_3.dim_x = 2;
+	phi_2_3.dim_y = 2;
+	phi_2_3.data[0][0] = 0.1;
+	phi_2_3.data[0][1] = 1.0;
+	phi_2_3.data[1][0] = 1.0;
+	phi_2_3.data[1][1] = 0.1;
 
-	phi_2_4[0] = 1.0;
-	phi_2_4[1] = 0.1;
-	phi_2_4[MAX_STATES + 0] = 0.1;
-	phi_2_4[MAX_STATES + 1] = 1.0;
+	phi_2_4.dim_x = 2;
+	phi_2_4.dim_y = 2;
+	phi_2_4.data[0][0] = 1.0;
+	phi_2_4.data[0][1] = 0.1;
+	phi_2_4.data[1][0] = 0.1;
+	phi_2_4.data[1][1] = 1.0;
 
-	graph_add_edge(graph, 0, 1, 2, 2, phi_1_2);
-	graph_add_edge(graph, 1, 0, 2, 2, phi_1_2);
-	graph_add_edge(graph, 1, 2, 2, 2, phi_2_3);
-	graph_add_edge(graph, 2, 1, 2, 2, phi_2_3);
-	graph_add_edge(graph, 3, 1, 2, 2, phi_2_4);
+	graph_add_edge(graph, 0, 1, 2, 2, &phi_1_2);
+	graph_add_edge(graph, 1, 0, 2, 2, &phi_1_2);
+	graph_add_edge(graph, 1, 2, 2, 2, &phi_2_3);
+	graph_add_edge(graph, 2, 1, 2, 2, &phi_2_3);
+	graph_add_edge(graph, 3, 1, 2, 2, &phi_2_4);
 
 
 }
@@ -76,33 +81,33 @@ void validate_nodes(Graph_t graph){
 	node_index = 0;
 
 	//x1
-	value = graph->node_states[MAX_STATES * node_index + 0] - 0.521531100478469;
+	value = graph->node_states[node_index].data[0] - 0.521531100478469f;
 	assert_value(value);
-	value = graph->node_states[MAX_STATES * node_index + 1] - 0.47846889952153115;
+	value = graph->node_states[node_index].data[1] - 0.47846889952153115f;
 	assert_value(value);
 
 	node_index++;
 
 	//x2
-	value = graph->node_states[MAX_STATES * node_index + 0] - 0.9090909090909091;
+	value = graph->node_states[node_index].data[0] - 0.9090909090909091f;
 	assert_value(value);
-	value = graph->node_states[MAX_STATES * node_index + 1] - 0.09090909090909091;
+	value = graph->node_states[node_index].data[1] - 0.09090909090909091f;
 	assert_value(value);
 
 	node_index++;
 
 	//x3
-	value = graph->node_states[MAX_STATES * node_index + 0] - 0.1652892561983471;
+	value = graph->node_states[node_index].data[0] - 0.1652892561983471f;
 	assert_value(value);
-	value = graph->node_states[MAX_STATES * node_index + 1] - 0.8347107438016529;
+	value = graph->node_states[node_index].data[1] - 0.8347107438016529f;
 	assert_value(value);
 
 	node_index++;
 
 	//y2
-	value = graph->node_states[MAX_STATES * node_index + 0] - 1.0;
+	value = graph->node_states[node_index].data[0] - 1.0f;
 	assert_value(value);
-	value = graph->node_states[MAX_STATES * node_index + 1] - 0.0;
+	value = graph->node_states[node_index].data[1] - 0.0f;
 	assert_value(value);
 }
 

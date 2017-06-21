@@ -19,6 +19,17 @@
 
 #include <search.h>
 
+struct belief {
+    float data[MAX_DEGREE];
+    unsigned int size;
+};
+
+struct joint_probability {
+    float data[MAX_DEGREE][MAX_DEGREE];
+    unsigned int dim_x;
+    unsigned int dim_y;
+};
+
 struct graph {
 	unsigned int total_num_vertices;
 	unsigned int total_num_edges;
@@ -31,16 +42,16 @@ struct graph {
 	unsigned int * edges_dest_index;
 	unsigned int * edges_x_dim;
 	unsigned int * edges_y_dim;
-	float * edges_joint_probabilities;
+	struct joint_probability * edges_joint_probabilities;
 
-	float * edges_messages;
-	float * last_edges_messages;
+	struct belief * edges_messages;
+	struct belief * last_edges_messages;
 
-	float ** current_edge_messages;
-    float ** previous_edge_messages;
+	struct belief ** current_edge_messages;
+    struct belief ** previous_edge_messages;
 
 
-	float * node_states;
+	struct belief * node_states;
 	unsigned int * node_num_vars;
 
 	unsigned int * src_nodes_to_edges_node_list;
@@ -82,10 +93,10 @@ struct htable_entry {
 Graph_t create_graph(unsigned int, unsigned int);
 
 void graph_add_node(Graph_t, unsigned int, const char *);
-void graph_add_and_set_node_state(Graph_t, unsigned int, const char *, float *);
-void graph_set_node_state(Graph_t, unsigned int, unsigned int, float *);
+void graph_add_and_set_node_state(Graph_t, unsigned int, const char *, struct belief *);
+void graph_set_node_state(Graph_t, unsigned int, unsigned int, struct belief *);
 
-void graph_add_edge(Graph_t, unsigned int, unsigned int, unsigned int, unsigned int, float *);
+void graph_add_edge(Graph_t, unsigned int, unsigned int, unsigned int, unsigned int, struct joint_probability *);
 
 void set_up_src_nodes_to_edges(Graph_t);
 void set_up_dest_nodes_to_edges(Graph_t);
@@ -93,12 +104,12 @@ void init_levels_to_nodes(Graph_t);
 void calculate_diameter(Graph_t);
 
 void initialize_node(Graph_t, unsigned int, unsigned int);
-void node_set_state(Graph_t, unsigned int, unsigned int, float *);
+void node_set_state(Graph_t, unsigned int, unsigned int, struct belief *);
 
-void init_edge(Graph_t, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, float *);
-void send_message(float *, unsigned int, unsigned int, float *, float *, unsigned int *, unsigned int *);
+void init_edge(Graph_t, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, struct joint_probability *);
+void send_message(struct belief *, unsigned int, struct joint_probability *, struct belief *, unsigned int *, unsigned int *);
 
-void fill_in_node_table(Graph_t);
+void fill_in_node_hash_table(Graph_t);
 unsigned int find_node_by_name(char *, Graph_t);
 /**
  * Get the counts
