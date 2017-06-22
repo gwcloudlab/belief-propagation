@@ -1071,7 +1071,7 @@ static void marginalize_loopy_nodes(Graph_t graph, struct belief *current_messag
 static void combine_loopy_edge(unsigned int edge_index, struct belief *current_messages,
 							   unsigned int dest_node_index, struct belief *belief,
 							   unsigned int num_variables){
-    unsigned int i;
+    int i;
     for(i = 0; i < num_variables; ++i){
 		#pragma omp atomic
 		#pragma acc atomic
@@ -1082,7 +1082,7 @@ static void combine_loopy_edge(unsigned int edge_index, struct belief *current_m
 #pragma acc routine
 static void marginalize_loopy_node_edge(struct belief *belief,
 								   unsigned int num_variables){
-	unsigned int i;
+	int i;
 	float sum;
 
 	sum = 0.0f;
@@ -1101,7 +1101,8 @@ static void marginalize_node_acc(struct belief *node_states, unsigned int * num_
 								 struct belief *edge_messages,
 								 unsigned int * dest_nodes_to_edges_nodes, unsigned int * dest_nodes_to_edges_edges,
 								 unsigned int current_num_vertices, unsigned int current_num_edges){
-	unsigned int i, num_variables, start_index, end_index, edge_index;
+	int i;
+    unsigned int num_variables, start_index, end_index, edge_index;
 	float sum;
     struct belief new_belief;
 
@@ -1148,7 +1149,7 @@ static void marginalize_nodes_acc(struct belief *node_states, unsigned int * num
                                   struct belief *edge_messages,
 								  unsigned int * dest_nodes_to_edges_nodes, unsigned int * dest_nodes_to_edges_edges,
 								  unsigned int current_num_vertices, unsigned int current_num_edges){
-	unsigned int i;
+	int i;
 
 #pragma acc kernels
 	for(i = 0; i < current_num_vertices; ++i){
@@ -1157,7 +1158,8 @@ static void marginalize_nodes_acc(struct belief *node_states, unsigned int * num
 }
 
 void loopy_propagate_one_iteration(Graph_t graph){
-	unsigned int i, num_variables, num_vertices, num_edges;
+	int i;
+    unsigned int num_variables, num_vertices, num_edges;
 	unsigned int * dest_node_to_edges_nodes;
 	unsigned int * dest_node_to_edges_edges;
 	unsigned int * src_node_to_edges_nodes;
@@ -1222,7 +1224,8 @@ void loopy_propagate_one_iteration(Graph_t graph){
 
 
 void loopy_propagate_edge_one_iteration(Graph_t graph){
-    unsigned int i, num_edges, num_nodes, src_node_index, dest_node_index;
+    int i;
+    unsigned int num_edges, num_nodes, src_node_index, dest_node_index;
     struct belief *node_states;
     struct joint_probability *joint_probabilities;
     struct belief *current_edge_messages;
@@ -1268,7 +1271,8 @@ void loopy_propagate_edge_one_iteration(Graph_t graph){
 }
 
 unsigned int loopy_propagate_until_edge(Graph_t graph, float convergence, unsigned int max_iterations){
-    unsigned int i, j, k, num_edges;
+    int j, k;
+    unsigned int i, num_edges;
     float delta, diff, previous_delta;
     struct belief *previous_edge_messages;
     struct belief *current_edge_messages;
@@ -1318,7 +1322,8 @@ unsigned int loopy_propagate_until_edge(Graph_t graph, float convergence, unsign
 }
 
 unsigned int loopy_propagate_until(Graph_t graph, float convergence, unsigned int max_iterations){
-	unsigned int i, j, k, num_edges;
+	int j, k;
+    unsigned int i, num_edges;
 	float delta, diff, previous_delta;
 	struct belief *previous_edge_messages;
 	struct belief *current_edge_messages;
@@ -1374,7 +1379,8 @@ static unsigned int loopy_propagate_iterations_acc(unsigned int num_vertices, un
 										   struct joint_probability *joint_probabilities, unsigned int * num_src, unsigned int * num_dest,
 										   unsigned int max_iterations,
 										   float convergence){
-	unsigned int i, j, k, num_variables, num_iter;
+	int j, k;
+    unsigned int i, num_variables, num_iter;
 	float delta, previous_delta, diff;
 	struct belief *prev_messages;
 	struct belief *curr_messages;
@@ -1492,7 +1498,8 @@ static unsigned int loopy_propagate_iterations_edges_acc(unsigned int num_vertic
 														 unsigned int * num_src, unsigned int * num_dest,
 														 unsigned int * dest_node_to_edges_node_list, unsigned int * dest_node_to_edges_edge_list,
 														 unsigned int max_iterations, float convergence){
-	unsigned int i, j, k, l, num_iter, src_node_index, dest_node_index;
+	int j, k, l;
+    unsigned int i, num_iter, src_node_index, dest_node_index;
 	float delta, previous_delta, diff;
 	struct belief *prev_messages;
 	struct belief *curr_messages;
