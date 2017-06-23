@@ -8,6 +8,8 @@
 
 #define CHAR_BUFFER_SIZE 50
 
+#define AVG_STATES 2
+
 #define MAX_STATES 10
 
 #define DEFAULT_STATE 1.0
