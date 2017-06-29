@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 2.8)
+find_package(LibXml2 REQUIRED)
 
-include_directories(${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/src/benchmark_files)
+include_directories(${CMAKE_SOURCE_DIR}/src)
 
 add_executable(test_simple_expression test_simple_expression.c ${CMAKE_SOURCE_DIR}/src/bnf-parser/bnf-wrapper.c ${CMAKE_SOURCE_DIR}/src/bnf-parser/Parser.c ${CMAKE_SOURCE_DIR}/src/bnf-parser/Lexer.c ${CMAKE_SOURCE_DIR}/src/bnf-parser/expression.c ${CMAKE_SOURCE_DIR}/src/graph/graph.c)
 add_executable(test_small_expressions test_small_expressions.c ${CMAKE_SOURCE_DIR}/src/bnf-parser/bnf-wrapper.c ${CMAKE_SOURCE_DIR}/src/bnf-parser/Parser.c ${CMAKE_SOURCE_DIR}/src/bnf-parser/Lexer.c ${CMAKE_SOURCE_DIR}/src/bnf-parser/expression.c ${CMAKE_SOURCE_DIR}/src/graph/graph.c)
@@ -13,3 +14,7 @@ add_test(test_small_expressions test_small_expressions)
 add_test(test_medium_expressions test_medium_expressions)
 add_test(test_large_expressions test_large_expressions)
 add_test(test_very_large_expressions test_very_large_expressions)
+
+include_directories(${LIBXML2_INCLUDE_DIR})
+add_executable(test_xml_expressions test_xml_expressions.c ${CMAKE_SOURCE_DIR}/src/bnf-xml-parser/xml-expression.c ${CMAKE_SOURCE_DIR}/src/bnf-xml-parser/bnf-xml-wrapper.c ${CMAKE_SOURCE_DIR}/src/bnf-parser/bnf-wrapper.c ${CMAKE_SOURCE_DIR}/src/bnf-parser/Parser.c ${CMAKE_SOURCE_DIR}/src/bnf-parser/Lexer.c ${CMAKE_SOURCE_DIR}/src/bnf-parser/expression.c ${CMAKE_SOURCE_DIR}/src/graph/graph.c)
+target_link_libraries(test_xml_expressions ${LIBXML2_LIBRARIES})
