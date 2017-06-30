@@ -12,5 +12,8 @@
 struct expression * test_parse_xml_file(char *);
 void test_dog_files(const char *);
 void test_sample_xml_file(const char *);
+void run_test_belief_propagation_xml_file(const char *, FILE *);
+void run_test_loopy_belief_propagation_xml_file(const char *, FILE *);
+void run_test_loopy_belief_propagation_edge_xml_file(const char *, FILE *);
 
 #endif //BNF_XML_WRAPPER_H
