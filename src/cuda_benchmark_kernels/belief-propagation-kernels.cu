@@ -1,21 +1,4 @@
-#include <stdio.h>
-#include <assert.h>
-#include <time.h>
-#include <math.h>
-#include <cuda_runtime.h>
-#include <device_launch_parameters.h>
-
-extern "C" {
-#include "../bnf-parser/expression.h"
-#include "../bnf-parser/Parser.h"
-#include "../bnf-parser/Lexer.h"
-#include "../bnf-xml-parser/xml-expression.h"
-}
-
-int yyparse(struct expression ** expr, yyscan_t scanner);
-
-static void CheckCudaErrorAux (const char *, unsigned, const char *, cudaError_t);
-#define CUDA_CHECK_RETURN(value) CheckCudaErrorAux(__FILE__,__LINE__, #value, value)
+#include "belief-propagation-kernels.hpp"
 
 __global__
 void init_message_buffer_kernel(struct belief *message_buffer,
@@ -81,8 +64,7 @@ void read_incoming_messages_kernel(struct belief *message_buffer, struct belief 
 __device__
 void send_message_for_edge_cuda(struct belief * message_buffer, unsigned int edge_index, unsigned int node_index,
                                 struct joint_probability * joint_probabilities,
-                                struct belief * edge_messages,
-                                unsigned int * x_dim, unsigned int * y_dim){
+                                struct belief * edge_messages){
     unsigned int i, j, num_src, num_dest;
     float sum;
     struct joint_probability joint_probability;
@@ -114,7 +96,6 @@ void send_message_for_node_kernel(struct belief *message_buffer, unsigned int cu
                                   struct joint_probability *joint_probabilities, struct belief *current_edge_messages,
                                   unsigned int * src_node_to_edges_nodes,
                                   unsigned int * src_node_to_edges_edges,
-                                  unsigned int * edges_x_dim, unsigned int * edges_y_dim,
                                   unsigned int num_vertices){
     unsigned int node_index, edge_index, start_index, end_index, diff_index;
 
@@ -131,7 +112,7 @@ void send_message_for_node_kernel(struct belief *message_buffer, unsigned int cu
         diff_index = end_index - start_index;
         if (edge_index < diff_index) {
             edge_index = src_node_to_edges_edges[edge_index + start_index];
-            send_message_for_edge_cuda(message_buffer, edge_index, node_index, joint_probabilities, current_edge_messages, edges_x_dim, edges_y_dim);
+            send_message_for_edge_cuda(message_buffer, edge_index, node_index, joint_probabilities, current_edge_messages);
         }
     }
 }
@@ -228,10 +209,9 @@ void calculate_delta(struct belief * previous_messages, struct belief * current_
     unsigned int tid, idx, i, s;
 
     tid = threadIdx.x;
-    idx = blockIdx.x*blockDim.x + threadIdx.x;
     i = blockIdx.x * (blockDim.x * 2) + threadIdx.x;
 
-    if(idx < num_edges){
+    for(idx = blockIdx.x*blockDim.x + threadIdx.x; idx < num_edges; idx += blockDim.x * gridDim.x){
         delta_array[idx] = calculate_local_delta(idx, previous_messages, current_messages, edges_x_dim);
     }
     __syncthreads();
@@ -304,12 +284,12 @@ void calculate_delta_6(struct belief *previous_messages, struct belief *current_
     unsigned int offset;
     // perform first level of reduce
     // reading from global memory, writing to shared memory
-    unsigned int idx =  blockIdx.x*blockDim.x + threadIdx.x;
+    unsigned int idx;
     unsigned int tid = threadIdx.x;
     unsigned int i = blockIdx.x * blockDim.x * 2 + threadIdx.x;
     unsigned int grid_size = blockDim.x * 2 * gridDim.x;
 
-    if(idx < num_edges){
+    for(idx = blockIdx.x*blockDim.x + threadIdx.x; idx < num_edges; idx += blockDim.x * gridDim.x){
         delta_array[idx] = calculate_local_delta(idx, previous_messages, current_messages, edges_x_dim);
     }
     __syncthreads();
@@ -402,12 +382,13 @@ void calculate_delta_simple(struct belief * previous_messages, struct belief * c
     unsigned int tid, idx, i, s;
 
     tid = threadIdx.x;
-    idx = blockIdx.x * blockDim.x + threadIdx.x;
 
-    if (idx < num_edges) {
+    for(idx = blockIdx.x*blockDim.x + threadIdx.x; idx < num_edges; idx += blockDim.x * gridDim.x){
         delta_array[idx] = calculate_local_delta(idx, previous_messages, current_messages, edges_x_dim);
     }
     __syncthreads();
+
+    idx = blockIdx.x * blockDim.x + threadIdx.x;
 
     shared_delta[tid] = (idx < num_edges) ? delta_array[idx] : 0;
 
@@ -436,7 +417,7 @@ static void prepare_unsigned_int_text(texture<unsigned int, cudaTextureType1D, c
     tex->normalized = 1;
 }
 
-static void check_cuda_kernel_return_code(){
+void check_cuda_kernel_return_code(){
     cudaError_t err;
 
     err = cudaGetLastError();
@@ -446,7 +427,7 @@ static void check_cuda_kernel_return_code(){
     }
 }
 
-unsigned int loopy_propagate_until_cuda(Graph_t graph, float convergence, unsigned int max_iterations){
+unsigned int loopy_propagate_until_cuda_kernels(Graph_t graph, float convergence, unsigned int max_iterations){
     unsigned int i, j, num_iter, num_vertices, num_edges;
     float * delta;
     float * delta_array;
@@ -556,7 +537,7 @@ unsigned int loopy_propagate_until_cuda(Graph_t graph, float convergence, unsign
             read_incoming_messages_kernel <<<dimMessagesGrid, dimMessagesBuffer>>>(message_buffer, previous_messages, dest_nodes_to_edges_nodes, dest_nodes_to_edges_edges, num_edges, node_num_vars, num_vertices, is_pow_2, WARP_SIZE);
             check_cuda_kernel_return_code();
             //CUDA_CHECK_RETURN(cudaMemcpy(&host_delta, delta, sizeof(float), cudaMemcpyDeviceToHost));
-            send_message_for_node_kernel<<<dimInitGrid, dimInitMessageBuffer>>>(message_buffer, num_edges, edges_joint_probabilities, current_messages, src_nodes_to_edges_nodes, src_nodes_to_edges_edges, edges_x_dim, edges_y_dim, num_vertices);
+            send_message_for_node_kernel<<<dimInitGrid, dimInitMessageBuffer>>>(message_buffer, num_edges, edges_joint_probabilities, current_messages, src_nodes_to_edges_nodes, src_nodes_to_edges_edges, num_vertices);
             check_cuda_kernel_return_code();
             //CUDA_CHECK_RETURN(cudaMemcpy(&host_delta, delta, sizeof(float), cudaMemcpyDeviceToHost));
             marginalize_node_combine_kernel<<<dimMessagesGrid, dimMessagesBuffer>>>(node_num_vars, message_buffer, node_states, current_messages, dest_nodes_to_edges_nodes, dest_nodes_to_edges_edges, num_vertices, num_edges, is_pow_2, WARP_SIZE);
@@ -616,112 +597,7 @@ unsigned int loopy_propagate_until_cuda(Graph_t graph, float convergence, unsign
     return num_iter;
 }
 
-void test_ast(const char * expr)
-{
-    struct expression * expression;
-    yyscan_t scanner;
-    YY_BUFFER_STATE state;
-
-    assert(yylex_init(&scanner) == 0);
-
-    assert(scanner != NULL);
-    assert(strlen(expr) > 0);
-
-    state = yy_scan_string(expr, scanner);
-
-    assert(yyparse(&expression, scanner) == 0);
-    yy_delete_buffer(state, scanner);
-    yylex_destroy(scanner);
-
-    assert(expression != NULL);
-
-    delete_expression(expression);
-}
-
-void test_file(const char * file_path)
-{
-    struct expression * expression;
-    yyscan_t scanner;
-    YY_BUFFER_STATE state;
-    FILE * in;
-
-    assert(yylex_init(&scanner) == 0);
-
-    in = fopen(file_path, "r");
-
-    yyset_in(in, scanner);
-
-    assert(yyparse(&expression, scanner) == 0);
-    //yy_delete_buffer(state, scanner);
-    yylex_destroy(scanner);
-
-    fclose(in);
-
-    assert(expression != NULL);
-
-    delete_expression(expression);
-}
-
-void test_parse_file(char * file_name){
-    unsigned int i;
-    struct expression * expression;
-    yyscan_t scanner;
-    YY_BUFFER_STATE state;
-    FILE * in;
-    Graph_t graph;
-    clock_t start, end;
-    double time_elapsed;
-
-    assert(yylex_init(&scanner) == 0);
-
-    in = fopen(file_name, "r");
-
-    yyset_in(in, scanner);
-
-    assert(yyparse(&expression, scanner) == 0);
-    //yy_delete_buffer(state, scanner);
-    yylex_destroy(scanner);
-
-    fclose(in);
-
-    assert(expression != NULL);
-
-    graph = build_graph(expression);
-    //print_nodes(graph);
-    //print_edges(graph);
-
-    set_up_src_nodes_to_edges(graph);
-    set_up_dest_nodes_to_edges(graph);
-
-    start = clock();
-    init_levels_to_nodes(graph);
-    //print_levels_to_nodes(graph);
-
-    propagate_using_levels_start(graph);
-    for(i = 1; i < graph->num_levels - 1; ++i){
-        propagate_using_levels(graph, i);
-    }
-    reset_visited(graph);
-    for(i = graph->num_levels - 1; i > 0; --i){
-        propagate_using_levels(graph, i);
-    }
-
-    marginalize(graph);
-    end = clock();
-
-    time_elapsed = (double)(end - start) / CLOCKS_PER_SEC;
-    printf("%s,regular,%d,%d,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, time_elapsed);
-
-    //print_nodes(graph);
-
-    assert(graph != NULL);
-
-    delete_expression(expression);
-
-    graph_destroy(graph);
-}
-
-void test_loopy_belief_propagation(char * file_name){
+void test_loopy_belief_propagation_kernels(char * file_name){
     struct expression * expression;
     yyscan_t scanner;
     YY_BUFFER_STATE state;
@@ -755,7 +631,7 @@ void test_loopy_belief_propagation(char * file_name){
     start = clock();
     init_previous_edge(graph);
 
-    loopy_propagate_until_cuda(graph, PRECISION, NUM_ITERATIONS);
+    loopy_propagate_until_cuda_kernels(graph, PRECISION, NUM_ITERATIONS);
     end = clock();
 
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
@@ -767,104 +643,7 @@ void test_loopy_belief_propagation(char * file_name){
     graph_destroy(graph);
 }
 
-struct expression * parse_file(const char * file_name){
-    struct expression * expression;
-    yyscan_t scanner;
-    YY_BUFFER_STATE state;
-    FILE * in;
-
-    assert(yylex_init(&scanner) == 0);
-
-    in = fopen(file_name, "r");
-
-    yyset_in(in, scanner);
-
-    assert(yyparse(&expression, scanner) == 0);
-    //yy_delete_buffer(state, scanner);
-    yylex_destroy(scanner);
-
-    fclose(in);
-
-    assert(expression != NULL);
-
-    return expression;
-}
-
-void run_test_belief_propagation(struct expression * expression, const char * file_name){
-    Graph_t graph;
-    clock_t start, end;
-    double time_elapsed;
-    unsigned int i;
-
-    graph = build_graph(expression);
-    assert(graph != NULL);
-    //print_nodes(graph);
-    //print_edges(graph);
-
-    set_up_src_nodes_to_edges(graph);
-    set_up_dest_nodes_to_edges(graph);
-    calculate_diameter(graph);
-
-    start = clock();
-    init_levels_to_nodes(graph);
-    //print_levels_to_nodes(graph);
-
-    propagate_using_levels_start(graph);
-    for(i = 1; i < graph->num_levels - 1; ++i){
-        propagate_using_levels(graph, i);
-    }
-    reset_visited(graph);
-    for(i = graph->num_levels - 1; i > 0; --i){
-        propagate_using_levels(graph, i);
-    }
-
-    marginalize(graph);
-    end = clock();
-
-    time_elapsed = (double)(end - start) / CLOCKS_PER_SEC;
-    printf("%s,regular,%d,%d,%d,2,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, time_elapsed);
-
-    graph_destroy(graph);
-}
-
-void run_test_belief_propagation_xml_file(const char * file_name){
-    Graph_t graph;
-    clock_t start, end;
-    double time_elapsed;
-    unsigned int i;
-
-    graph = parse_xml_file(file_name);
-    assert(graph != NULL);
-    //print_nodes(graph);
-    //print_edges(graph);
-
-    set_up_src_nodes_to_edges(graph);
-    set_up_dest_nodes_to_edges(graph);
-    calculate_diameter(graph);
-
-    start = clock();
-    init_levels_to_nodes(graph);
-    //print_levels_to_nodes(graph);
-
-    propagate_using_levels_start(graph);
-    for(i = 1; i < graph->num_levels - 1; ++i){
-        propagate_using_levels(graph, i);
-    }
-    reset_visited(graph);
-    for(i = graph->num_levels - 1; i > 0; --i){
-        propagate_using_levels(graph, i);
-    }
-
-    marginalize(graph);
-    end = clock();
-
-    time_elapsed = (double)(end - start) / CLOCKS_PER_SEC;
-    printf("%s,regular,%d,%d,%d,2,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, time_elapsed);
-
-    graph_destroy(graph);
-}
-
-void run_test_loopy_belief_propagation(struct expression * expression, const char * file_name, FILE * out){
+void run_test_loopy_belief_propagation_kernels(struct expression * expression, const char * file_name, FILE * out){
     Graph_t graph;
     clock_t start, end;
     double time_elapsed;
@@ -882,7 +661,7 @@ void run_test_loopy_belief_propagation(struct expression * expression, const cha
     start = clock();
     init_previous_edge(graph);
 
-    num_iterations = loopy_propagate_until_cuda(graph, PRECISION, NUM_ITERATIONS);
+    num_iterations = loopy_propagate_until_cuda_kernels(graph, PRECISION, NUM_ITERATIONS);
     end = clock();
 
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
@@ -894,7 +673,7 @@ void run_test_loopy_belief_propagation(struct expression * expression, const cha
 }
 
 
-void run_test_loopy_belief_propagation_xml_file(const char * file_name, FILE * out){
+void run_test_loopy_belief_propagation_xml_file_kernels(const char * file_name, FILE * out){
     Graph_t graph;
     clock_t start, end;
     double time_elapsed;
@@ -912,7 +691,7 @@ void run_test_loopy_belief_propagation_xml_file(const char * file_name, FILE * o
     start = clock();
     init_previous_edge(graph);
 
-    num_iterations = loopy_propagate_until_cuda(graph, PRECISION, NUM_ITERATIONS);
+    num_iterations = loopy_propagate_until_cuda_kernels(graph, PRECISION, NUM_ITERATIONS);
     end = clock();
 
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
@@ -921,157 +700,6 @@ void run_test_loopy_belief_propagation_xml_file(const char * file_name, FILE * o
     fflush(out);
 
     graph_destroy(graph);
-}
-
-
-void run_tests_with_file(const char * file_name, unsigned int num_iterations, FILE * out){
-    unsigned int i;
-    struct expression * expr;
-
-    expr = parse_file(file_name);
-    for(i = 0; i < num_iterations; ++i){
-        run_test_belief_propagation(expr, file_name);
-    }
-
-    for(i = 0; i < num_iterations; ++i){
-        run_test_loopy_belief_propagation(expr, file_name, out);
-    }
-
-    delete_expression(expr);
-}
-
-void run_tests_with_xml_file(const char * file_name, unsigned int num_iterations, FILE * out){
-    unsigned int i;
-
-    /*for(i = 0; i < num_iterations; ++i){
-        run_test_belief_propagation(expr, file_name);
-    }*/
-
-    for(i = 0; i < num_iterations; ++i){
-        run_test_loopy_belief_propagation_xml_file(file_name, out);
-    }
-}
-
-int main(void)
-{
-/*
-	extern int yydebug;
-	yydebug = 1;
-/*
-	struct expression * expression = NULL;
-	const char test[] = "// Bayesian Network in the Interchange Format\n// Produced by BayesianNetworks package in JavaBayes\n// Output created Sun Nov 02 17:49:49 GMT+00:00 1997\n// Bayesian network \nnetwork \"Dog-Problem\" { //5 variables and 5 probability distributions\nproperty \"credal-set constant-density-bounded 1.1\" ;\n}variable  \"light-on\" { //2 values\ntype discrete[2] {  \"true\"  \"false\" };\nproperty \"position = (218, 195)\" ;\n}\nvariable  \"bowel-problem\" { //2 values\ntype discrete[2] {  \"true\"  \"false\" };\nproperty \"position = (335, 99)\" ;\n}";
-	test_ast(test);
-
-  	test_parse_file("dog.bif");
-	test_parse_file("alarm.bif");
-
-	test_parse_file("very_large/andes.bif");
-	test_loopy_belief_propagation("very_large/andes.bif");
-
-	test_parse_file("Diabetes.bif");
-	test_loopy_belief_propagation("Diabetes.bif");
-*/
-	//test_loopy_belief_propagation("../benchmark_files/dog.bif");
-	//test_loopy_belief_propagation("../benchmark_files/alarm.bif");
-
-    //test_file("dog.bif");
-    //test_file("alarm.bif");
-
-    /*expression = read_file("alarm.bif");
-
-    assert(expression != NULL);
-
-    delete_expression(expression);*/
-
-    FILE * out = fopen("cuda_kernels_benchmark.csv", "w");
-    fprintf(out, "File Name,Propagation Type,Number of Nodes,Number of Edges,Diameter,Number of Iterations,BP Run Time(s)\n");
-    fflush(out);
-
-	/*run_tests_with_file("../benchmark_files/small/asia.bif", 1);
-	run_tests_with_file("../benchmark_files/small/cancer.bif", 1);
-	run_tests_with_file("../benchmark_files/small/earthquake.bif", 1);
-	run_tests_with_file("../benchmark_files/small/sachs.bif", 1);
-	run_tests_with_file("../benchmark_files/small/survey.bif", 1);
-/*
-	run_tests_with_file("../benchmark_files/medium/alarm.bif", 1);
-	run_tests_with_file("../benchmark_files/medium/barley.bif", 1);
-	//run_tests_with_file("../benchmark_files/medium/child.bif", 1);
-	run_tests_with_file("../benchmark_files/medium/hailfinder.bif", 1);
-	run_tests_with_file("../benchmark_files/medium/insurance.bif", 1);
-	run_tests_with_file("../benchmark_files/medium/mildew.bif", 1);
-	run_tests_with_file("../benchmark_files/medium/water.bif", 1);
-
-	run_tests_with_file("../benchmark_files/large/hepar2.bif", 1);
-	run_tests_with_file("../benchmark_files/large/win95pts.bif", 1);
-
-    run_tests_with_file("../benchmark_files/very_large/andes.bif", 1);
-    run_tests_with_file("../benchmark_files/very_large/diabetes.bif", 1);
-    run_tests_with_file("../benchmark_files/very_large/link.bif", 1);
-    run_tests_with_file("../benchmark_files/very_large/munin1.bif", 1);
-    run_tests_with_file("../benchmark_files/very_large/munin2.bif", 1);
-    run_tests_with_file("../benchmark_files/very_large/munin3.bif", 1);
-    run_tests_with_file("../benchmark_files/very_large/munin4.bif", 1);
-	//run_tests_with_file("../benchmark_files/very_large/munin.bif", 1);
-	run_tests_with_file("../benchmark_files/very_large/pathfinder.bif", 1);
-    run_tests_with_file("../benchmark_files/very_large/pigs.bif", 1);
-
-    run_tests_with_xml_file("../benchmark_files/xml/bf_1000_2000_1.xml", 1);
-    run_tests_with_xml_file("../benchmark_files/xml/bf_1000_2000_2.xml", 1);
-    run_tests_with_xml_file("../benchmark_files/xml/bf_1000_2000_3.xml", 1);
-    run_tests_with_xml_file("../benchmark_files/xml/bf_2000_4000_1.xml", 1);
-    run_tests_with_xml_file("../benchmark_files/xml/bf_2000_4000_2.xml", 1);
-    run_tests_with_xml_file("../benchmark_files/xml/bf_2000_4000_3.xml", 1);
-    run_tests_with_xml_file("../benchmark_files/xml/bf_5000_10000_1.xml", 1);
-    run_tests_with_xml_file("../benchmark_files/xml/bf_5000_10000_2.xml", 1);
-    run_tests_with_xml_file("../benchmark_files/xml/bf_5000_10000_3.xml", 1);
-    run_tests_with_xml_file("../benchmark_files/xml/bf_10000_20000_1.xml", 1);
-    run_tests_with_xml_file("../benchmark_files/xml/bf_10000_20000_2.xml", 1);
-    run_tests_with_xml_file("../benchmark_files/xml/bf_10000_20000_3.xml", 1);
-    run_tests_with_xml_file("../benchmark_files/xml/bf_12000_24000_1.xml", 1);
-    run_tests_with_xml_file("../benchmark_files/xml/bf_12000_24000_2.xml", 1);
-    run_tests_with_xml_file("../benchmark_files/xml/bf_12000_24000_3.xml", 1);*/
-
-    /*run_tests_with_xml_file("../benchmark_files/xml/bf_15000_30000_1.xml", 1);
-    run_tests_with_xml_file("../benchmark_files/xml/bf_15000_30000_2.xml", 1);
-    run_tests_with_xml_file("../benchmark_files/xml/bf_15000_30000_3.xml", 1);
-
-    run_tests_with_xml_file("../benchmark_files/xml/bf_20000_40000_1.xml", 1);
-    run_tests_with_xml_file("../benchmark_files/xml/bf_20000_40000_2.xml", 1);
-    run_tests_with_xml_file("../benchmark_files/xml/bf_20000_40000_3.xml", 1);
-
-    run_tests_with_xml_file("../benchmark_files/xml/bf_25000_50000_1.xml", 1);
-    run_tests_with_xml_file("../benchmark_files/xml/bf_25000_50000_2.xml", 1);
-    run_tests_with_xml_file("../benchmark_files/xml/bf_25000_50000_3.xml", 1);
-
-    run_tests_with_xml_file("../benchmark_files/xml/bf_30000_60000_1.xml", 1);
-    run_tests_with_xml_file("../benchmark_files/xml/bf_30000_60000_2.xml", 1);
-    run_tests_with_xml_file("../benchmark_files/xml/bf_30000_60000_3.xml", 1);*/
-
-    /*run_tests_with_xml_file("../benchmark_files/xml/bf_40000_80000_1.xml", 1);
-    run_tests_with_xml_file("../benchmark_files/xml/bf_40000_80000_2.xml", 1);
-    run_tests_with_xml_file("../benchmark_files/xml/bf_40000_80000_3.xml", 1);
-
-    run_tests_with_xml_file("../benchmark_files/xml/bf_80000_160000_2.xml", 1);*/
-
-    run_tests_with_xml_file("../benchmark_files/xml2/10_20.xml", 1, out);
-    run_tests_with_xml_file("../benchmark_files/xml2/100_200.xml", 1, out);
-    run_tests_with_xml_file("../benchmark_files/xml2/1000_2000.xml", 1, out);
-    run_tests_with_xml_file("../benchmark_files/xml2/10000_20000.xml", 1, out);
-    run_tests_with_xml_file("../benchmark_files/xml2/100000_200000.xml", 1, out);
-    run_tests_with_xml_file("../benchmark_files/xml2/200000_400000.xml", 1, out);
-    //run_tests_with_xml_file("../benchmark_files/xml2/300000_600000.xml", 1, out);
-    run_tests_with_xml_file("../benchmark_files/xml2/400000_800000.xml", 1, out);
-    //run_tests_with_xml_file("../benchmark_files/xml2/500000_1000000.xml", 1, out);
-    run_tests_with_xml_file("../benchmark_files/xml2/600000_1200000.xml", 1, out);
-    //run_tests_with_xml_file("../benchmark_files/xml2/700000_1400000.xml", 1, out);
-    run_tests_with_xml_file("../benchmark_files/xml2/800000_1600000.xml", 1, out);
-    //run_tests_with_xml_file("../benchmark_files/xml2/900000_1800000.xml", 1, out);
-    run_tests_with_xml_file("../benchmark_files/xml2/1000000_2000000.xml", 1, out);
-    //run_tests_with_xml_file("../benchmark_files/xml2/10000000_20000000.xml", 1, out);
-
-    fclose(out);
-
-    return 0;
 }
 
 
@@ -1079,7 +707,7 @@ int main(void)
  * Check the return value of the CUDA runtime API call and exit
  * the application if the call has failed.
  */
-static void CheckCudaErrorAux (const char *file, unsigned int line, const char *statement, cudaError_t err)
+void CheckCudaErrorAux (const char *file, unsigned int line, const char *statement, cudaError_t err)
 {
     if (err == cudaSuccess)
         return;
