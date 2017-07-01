@@ -14,7 +14,7 @@ alert () { echo -e "${RED}$1${NC}"; }
 # Building project
 mkdir -p build
 cd build
-cmake -DCMAKE_BUILD_TYPE=Debug .
+cmake -DCMAKE_BUILD_TYPE=Debug ..
 make -j8
 # Checks if last comand didn't output 0
 # $? checks what last command outputed
