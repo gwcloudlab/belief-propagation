@@ -4,8 +4,11 @@
 #include <stdio.h>
 
 #include "expression.h"
-#include "../graph/graph.h"
 
+/**
+ * Allocates space for an expression on the heap
+ * @return A new expression initialized to 0/NULL for the fields
+ */
 static struct expression * allocate_expression()
 {
 	struct expression * expr = (struct expression *)malloc(sizeof(struct expression));
@@ -20,6 +23,13 @@ static struct expression * allocate_expression()
 	return expr;
 }
 
+/**
+ * Allocates and sets the expression fields
+ * @param type The type of the expression
+ * @param left A pointer (or NULL) to the left child in the AST
+ * @param right A pointer (or NULL) to the right child in the AST
+ * @return The new expression
+ */
 struct expression * create_expression(eType type, struct expression * left, struct expression * right)
 {
 	struct expression * expr = allocate_expression();
@@ -31,6 +41,10 @@ struct expression * create_expression(eType type, struct expression * left, stru
 	return expr;
 }
 
+/**
+ * Deletes the lists of floating point expressions in the AST
+ * @param expr The head of the list of floating point expression list
+ */
 static void delete_floating_point_list(struct expression * expr){
 	struct expression * curr;
 	struct expression * next;
@@ -39,6 +53,7 @@ static void delete_floating_point_list(struct expression * expr){
 		return;
 	}
 
+	// continue going through the list and delete the data
 	curr = expr;
 	while(curr != NULL){
 		next = curr->left;
@@ -47,6 +62,11 @@ static void delete_floating_point_list(struct expression * expr){
 	}
 }
 
+/**
+ * @brief Deletes the given expression
+ * @details Calls specical functions if the expression is of a special type (e.g. floating point list)
+ * @param expr The expression to delete
+ */
 void delete_expression(struct expression * expr){
 	if(expr == NULL){
 		return;
@@ -66,6 +86,10 @@ void delete_expression(struct expression * expr){
 	}
 }
 
+/**
+ * Prints the expression information to stdout
+ * @param expr The expression to print
+ */
 void print_expression(struct expression * expr){
 	printf("Expression: {\n");
 	printf("Type: ");
@@ -122,6 +146,11 @@ void print_expression(struct expression * expr){
 	printf("}\n");
 }
 
+/**
+ * Reverses the char buffer
+ * @param buffer The char buffer holding all of the node names
+ * @param num_nodes The number of nodes to reverse
+ */
 static void reverse_buffer(char *buffer, int num_nodes){
 	int i;
 	char temp[CHAR_BUFFER_SIZE];
@@ -133,6 +162,11 @@ static void reverse_buffer(char *buffer, int num_nodes){
 	}
 }
 
+/**
+ * Reverses the probability table
+ * @param probability_table The array of probabilities
+ * @param num_probabilities The size of the array
+ */
 static void reverse_probability_table(float * probability_table, int num_probabilities){
 	int i;
 	float temp;
@@ -144,6 +178,11 @@ static void reverse_probability_table(float * probability_table, int num_probabi
 	}
 }
 
+/**
+ * Counts the number of graph nodes in the AST
+ * @param expr The root of the AST
+ * @return The count of the nodes
+ */
 static int count_nodes(struct expression * expr){
 	struct expression * next;
 	int count;
@@ -153,13 +192,17 @@ static int count_nodes(struct expression * expr){
 	if(expr == NULL){
 		return count;
 	}
+	// nothing more to find
 	if(expr->type == PROBABILITY_DECLARATION){
 		return count;
 	}
 
+	// found a node
 	if(expr->type == VARIABLE_DECLARATION){
 		return 1;
 	}
+
+	// explore the list to find nodes
 	if(expr->type == VARIABLE_OR_PROBABILITY_DECLARATION){
 		next = expr;
 		while(next != NULL && next->type == VARIABLE_OR_PROBABILITY_DECLARATION){
@@ -171,12 +214,18 @@ static int count_nodes(struct expression * expr){
 		}
 	}
 	else {
+		// add the children
 		count += count_nodes(expr->left);
 		count += count_nodes(expr->right);
 	}
 	return count;
 }
 
+/**
+ * Count the number of graph edges in the AST
+ * @param expr The root of the AST
+ * @return The number of edges
+ */
 static int count_edges(struct expression * expr){
 	struct expression * next;
 
@@ -184,9 +233,11 @@ static int count_edges(struct expression * expr){
 
 	count = 0;
 
+	// we walked off the graph
 	if(expr == NULL){
 		return count;
 	}
+	// no edges beyond here
 	if(expr->type == VARIABLE_CONTENT){
 		return count;
 	}
@@ -194,6 +245,7 @@ static int count_edges(struct expression * expr){
 		return count;
 	}
 
+	// explore the list to find the edges
 	if(expr->type == PROBABILITY_VARIABLE_NAMES) {
 		count = 0;
         next = expr;
@@ -207,11 +259,14 @@ static int count_edges(struct expression * expr){
         return count;
 	}
 	else if(expr->type == PROBABILITY_VARIABLES_LIST) {
+		// adjust offset to prevent double counting
 		count = -1;
 	}
 	else {
+		// nothing yet
 		count = 0;
 	}
+	// explore the list to find edges
 	if(expr->type == VARIABLE_OR_PROBABILITY_DECLARATION){
 		next = expr;
 		while(next != NULL && next->type == VARIABLE_OR_PROBABILITY_DECLARATION){
@@ -223,6 +278,7 @@ static int count_edges(struct expression * expr){
 		}
 	}
 	else{
+		// combine the counts of the children
 		count += count_edges(expr->left);
 		count += count_edges(expr->right);
 	}
@@ -230,15 +286,24 @@ static int count_edges(struct expression * expr){
 	return count;
 }
 
+/**
+ * Adds a node to the graph
+ * @param expr The expression holding the node info
+ * @param graph The graph
+ * @param state_index The current node states (also used for indexing)
+ */
 static void add_variable_discrete(struct expression * expr, Graph_t graph, unsigned int * state_index){
 	struct expression * next;
 	char * node_name;
 	int num_vertices, char_index;
 
+	// nothing to add
 	if(expr == NULL){
 		return;
 	}
 	assert(expr->type == VARIABLE_VALUES_LIST);
+
+	// add all nodes in the list
 	next = expr;
 	while(next != NULL) {
 
@@ -260,14 +325,22 @@ static void add_variable_discrete(struct expression * expr, Graph_t graph, unsig
 
 }
 
+/**
+ * Add the nodes within the property/variable discrete expression
+ * @param expr The expression holding the node data
+ * @param graph The graph to add the nodes to
+ * @param state_index The current number of states (also used for indexing)
+ */
 static void add_property_or_variable_discrete(struct expression * expr, Graph_t graph, unsigned int * state_index)
 {
 	struct expression * next;
 	int num_states;
 
+	// nothing to add
 	if(expr == NULL){
 		return;
 	}
+	// add the node data here
 	if(expr->type == VARIABLE_DISCRETE){
 		num_states = expr->int_value;
 		assert(num_states <= MAX_STATES);
@@ -276,6 +349,7 @@ static void add_property_or_variable_discrete(struct expression * expr, Graph_t 
 		return;
 	}
 
+	// add more nodes
 	if(expr->type == VARIABLE_OR_PROBABILITY){
 		next = expr;
 		while(next != NULL && next->type == VARIABLE_OR_PROBABILITY){
@@ -292,15 +366,27 @@ static void add_property_or_variable_discrete(struct expression * expr, Graph_t 
 	}
 }
 
+/**
+ * Adds the node data to the graph held in the variable content expression
+ * @param expr The variable content expression
+ * @param graph The graph to add the node data
+ * @param state_index The current index of the next state for the node (also the state count)
+ */
 static void add_variable_content_to_graph(struct expression * expr, Graph_t graph, unsigned int * state_index){
+	// nothing to add
 	if(expr == NULL){
 		return;
 	}
 
+	// add the left child
 	add_property_or_variable_discrete(expr->left, graph, state_index);
 }
 
-
+/**
+ * Adds the node in the expression
+ * @param expr The expression holding the node data
+ * @param graph The graph to add the nodes to
+ */
 static void add_node_to_graph(struct expression * expr, Graph_t graph){
 	char variable_name[CHAR_BUFFER_SIZE];
 	unsigned int state_index;
@@ -314,8 +400,15 @@ static void add_node_to_graph(struct expression * expr, Graph_t graph){
 	graph_add_node(graph, state_index, variable_name);
 }
 
+/**
+ * Adds the nodes held in the root AST expression
+ * @param expr The root AST expression
+ * @param graph The graph to add
+ */
 static void add_nodes_to_graph(struct expression * expr, Graph_t graph){
 	struct expression * next;
+
+	// nothing to add
 	if(expr == NULL){
 		return;
 	}
@@ -331,10 +424,12 @@ static void add_nodes_to_graph(struct expression * expr, Graph_t graph){
 		add_node_to_graph(expr, graph);
 		return;
 	}
+	// nothing beyond here
 	if(expr->type == PROBABILITY_DECLARATION){
 		return;
 	}
 
+	// explore the list
 	if(expr->type == VARIABLE_OR_PROBABILITY_DECLARATION){
 		next = expr;
 		while(next != NULL && next->type == VARIABLE_OR_PROBABILITY_DECLARATION){
@@ -345,22 +440,30 @@ static void add_nodes_to_graph(struct expression * expr, Graph_t graph){
 			add_nodes_to_graph(next, graph);
 		}
 	}
-
 	else {
+		// add the children
 		add_nodes_to_graph(expr->left, graph);
 		add_nodes_to_graph(expr->right, graph);
 	}
 }
 
+/**
+ * Count the number of node names
+ * @param expr The expression in the AST to look at
+ * @param count The current count
+ */
 static void count_number_of_node_names(struct expression *expr, unsigned int * count){
 	struct expression * next;
 
+	// nothing more to add
 	if(expr == NULL){
 		return;
 	}
+	// nothing beyond this point
 	if(expr->type == FLOATING_POINT_LIST){
 		return;
 	}
+	// explore the list
 	if(expr->type == PROBABILITY_VARIABLE_NAMES){
 		next = expr;
 		while(next != NULL){
@@ -369,26 +472,37 @@ static void count_number_of_node_names(struct expression *expr, unsigned int * c
 		}
 	}
 	else {
+		// add the children
 		count_number_of_node_names(expr->left, count);
 		count_number_of_node_names(expr->right, count);
 	}
 }
 
+/**
+ * Fill in the node names in the buffer
+ * @param expr The AST expression to look at
+ * @param buffer The char buffer holding all of the node names
+ * @param curr_index The current index in the buffer
+ */
 static void fill_in_node_names(struct expression *expr, char *buffer, unsigned int *curr_index){
 	struct expression * next;
 
+	// no more data
 	if(expr == NULL){
 		return;
 	}
+	// nothing beyond here
 	if(expr->type == PROBABILITY_CONTENT){
 		return;
 	}
 
+	// add the names
 	if(expr->type == PROBABILITY_VARIABLE_NAMES){
 		strncpy(&buffer[*curr_index * CHAR_BUFFER_SIZE], expr->value, CHAR_BUFFER_SIZE);
 		*curr_index += 1;
 	}
 
+	// explore the list
 	if(expr->type == VARIABLE_OR_PROBABILITY_DECLARATION){
 		next = expr;
 		while(next != NULL && next->type == VARIABLE_OR_PROBABILITY_DECLARATION){
@@ -400,19 +514,30 @@ static void fill_in_node_names(struct expression *expr, char *buffer, unsigned i
 		}
 	}
 	else {
+		// add the chidren
 		fill_in_node_names(expr->left, buffer, curr_index);
 		fill_in_node_names(expr->right, buffer, curr_index);
 	}
 }
 
+/**
+ * Fill in the probability table for the BNF values formatted probabilities
+ * @param expr The expression to look at
+ * @param probability_buffer The buffer of probabilities to fill in
+ * @param num_probabilities The size of the buffer
+ * @param current_index The current index in the buffer
+ */
 static void fill_in_probability_table_value(struct expression *expr, float *probability_buffer,
 											int num_probabilities, int *current_index){
+	// no more data
 	if(expr == NULL){
 		return;
 	}
 
+	// ensure we don't overrun the buffer
 	assert(*current_index < num_probabilities);
 
+	// add the floats in the list to the buffer
 	if(expr->type == FLOATING_POINT_LIST){
         if(probability_buffer[*current_index] < 0) {
             probability_buffer[*current_index] = expr->float_value;
@@ -420,15 +545,27 @@ static void fill_in_probability_table_value(struct expression *expr, float *prob
 		*current_index += 1;
 	}
 
+	// explore the children
 	fill_in_probability_table_value(expr->left, probability_buffer, num_probabilities, current_index);
 	fill_in_probability_table_value(expr->right, probability_buffer, num_probabilities, current_index);
 }
 
+/**
+ * Fill in the probability buffer for the BNF table formatted values
+ * @param expr The current expression in the AST
+ * @param probability_buffer The buffer to fill in
+ * @param num_elements The size of the buffer
+ * @param curr_index The current index of the buffer
+ */
 static void fill_in_probability_table_table(struct expression * expr, float * probability_buffer, int num_elements, int * curr_index){
+	// no more data
 	if(expr == NULL){
 		return;
 	}
+	// ensure we don't overrun the buffer
 	assert(*curr_index < num_elements);
+
+	// explore the list and add the floats to the buffer
 	if(expr->type == FLOATING_POINT_LIST){
         while(expr != NULL && expr->type == FLOATING_POINT_LIST) {
             probability_buffer[*curr_index] = expr->float_value;
@@ -438,19 +575,35 @@ static void fill_in_probability_table_table(struct expression * expr, float * pr
 		return;
 	}
 
+	// expand the AST
 	fill_in_probability_table_table(expr->left, probability_buffer, num_elements, curr_index);
 	fill_in_probability_table_table(expr->right, probability_buffer, num_elements, curr_index);
 }
 
+/**
+ * @brief Appends the probability data in BNF entry format
+ * @details This is a really wonky
+ * @param expr The BNF expression to use
+ * @param probability_buffer The buffer holding all of the probabilities
+ * @param num_probabilities The size of the buffer
+ * @param pos The position index
+ * @param jump The jump offset
+ * @param num_states The number of states for the current node
+ * @param current_index The current index in the buffer
+ */
 static void fill_in_probability_table_entry(struct expression * expr, float * probability_buffer, unsigned int num_probabilities,
 											unsigned int pos, unsigned int jump, unsigned int num_states, unsigned int * current_index){
     unsigned int index;
+
+	// nothing more to read
 	if(expr == NULL){
         return;
     }
 
+	// ensure we don't overrun the buffer
     assert(*current_index < num_states);
 
+	// explore the list
     if(expr->type == FLOATING_POINT_LIST){
 		index = (num_states - *current_index - 1) * jump + pos;
 		index = index % num_probabilities;
@@ -458,12 +611,20 @@ static void fill_in_probability_table_entry(struct expression * expr, float * pr
         *current_index += 1;
     }
 
+	// add the children
     fill_in_probability_table_entry(expr->left, probability_buffer, num_probabilities, pos, jump, num_states, current_index);
     fill_in_probability_table_entry(expr->right, probability_buffer, num_probabilities, pos, jump, num_states, current_index);
 }
 
+/**
+ * Adds the probabilities stored in BNF default format
+ * @param expr The current AST expression to look at
+ * @param probability_buffer The buffer holding all of the probabilities
+ * @param num_probabilities The size of the buffer
+ */
 static void fill_in_probability_buffer_default(struct expression * expr, float * probability_buffer, int num_probabilities){
 	int current_index;
+	// nothing more to add
 	if(expr == NULL){
 		return;
 	}
@@ -471,6 +632,7 @@ static void fill_in_probability_buffer_default(struct expression * expr, float *
         return;
     }
 
+	// explore the list
 	if(expr->type == PROBABILITY_DEFAULT_ENTRY){
         current_index = 0;
         while(current_index < num_probabilities) {
@@ -478,12 +640,21 @@ static void fill_in_probability_buffer_default(struct expression * expr, float *
         }
 	}
 
+	// add the children
 	fill_in_probability_buffer_default(expr->left, probability_buffer, num_probabilities);
 	fill_in_probability_buffer_default(expr->right, probability_buffer, num_probabilities);
 }
 
+/**
+ * Add the probabilities in BNF table format
+ * @param expr The AST expression to look at
+ * @param probability_buffer The buffer holding the probabilities
+ * @param num_entries The size of the buffer
+ */
 static void fill_in_probability_buffer_table(struct expression * expr, float * probability_buffer, int num_entries){
 	int current_index;
+
+	// nothing more to add
 	if(expr == NULL){
 		return;
 	}
@@ -493,55 +664,87 @@ static void fill_in_probability_buffer_table(struct expression * expr, float * p
 
 	current_index = 0;
 
+	// fill in the table data
 	if(expr->type == PROBABILITY_TABLE){
 		fill_in_probability_table_table(expr, probability_buffer, num_entries, &current_index);
 	}
 
+	// explore the children
 	fill_in_probability_buffer_table(expr->left, probability_buffer, num_entries);
 	fill_in_probability_buffer_table(expr->right, probability_buffer, num_entries);
 }
 
+/**
+ * Count the number of states in the current subtree
+ * @param expr The current expression in the AST
+ * @param count The state count
+ */
 static void count_num_state_names(struct expression * expr, unsigned int * count){
+	// nothing more to add
 	if(expr == NULL){
 		return;
 	}
 
+	// explore the list
 	if(expr->type == PROBABILITY_VALUES_LIST){
 		count_num_state_names(expr->left, count);
 		return;
 	}
 
+	// found a state
 	if(expr->type == PROBABILITY_VALUES) {
 		*count += 1;
 	}
+
+	// explore the children
 	count_num_state_names(expr->left, count);
 	count_num_state_names(expr->right, count);
 }
 
+/**
+ * Fills in the state names into the buffer
+ * @param expr The current expression in the AST
+ * @param count The size of the buffer
+ * @param current_index The current available index in the buffer
+ * @param buffer The buffer for the names
+ */
 static void fill_in_state_names(struct expression * expr, unsigned int count, unsigned int * current_index, char * buffer){
+	// nothing more to add
 	if(expr == NULL){
 		return;
 	}
 
+	// explore the subtree
 	if(expr->type == PROBABILITY_VALUES_LIST){
 		fill_in_state_names(expr->left, count, current_index, buffer);
 		fill_in_state_names(expr->right, count, current_index, buffer);
 		return;
 	}
 
+	// add the names
 	if(expr->type == PROBABILITY_VALUES){
 		assert(*current_index < count);
 		strncpy(&(buffer[*current_index * CHAR_BUFFER_SIZE]), expr->value, CHAR_BUFFER_SIZE);
 		*current_index += 1;
 	}
 
+	// explore the children
 	fill_in_state_names(expr->left, count, current_index, buffer);
 	fill_in_state_names(expr->right, count, current_index, buffer);
 }
 
+/**
+ * Gets the index offset for the state
+ * @param state_names The char array holding the state names
+ * @param num_states The size of the state name array
+ * @param variable_names The char array holding the node names
+ * @param num_variables The number of nodes
+ * @param graph The graph object
+ * @return The index offset for the state
+ */
 static unsigned int calculate_entry_offset(char * state_names, unsigned int num_states, char * variable_names, int num_variables,
 								  Graph_t graph){
-    unsigned int i, j, k, pos, step, index, var_name_index, node_index;
+    unsigned int i, j, k, pos, step, var_name_index, node_index;
     char * state;
     char * node_state_name;
 
@@ -580,6 +783,16 @@ static unsigned int calculate_entry_offset(char * state_names, unsigned int num_
     return pos;
 }
 
+/**
+ * Adds the BNF entry formatted data to the buffer
+ * @param expr The current expression
+ * @param probability_buffer The probability buffer
+ * @param num_probabilities The size of the buffer
+ * @param variables The names of the nodes
+ * @param num_variables The size of the variable array
+ * @param first_num_states The number of states for the node
+ * @param graph The graph being built
+ */
 static void fill_in_probability_buffer_entry(struct expression * expr, float * probability_buffer,
 											 unsigned int num_probabilities,
 											 char * variables, unsigned int num_variables,
@@ -588,6 +801,7 @@ static void fill_in_probability_buffer_entry(struct expression * expr, float * p
 	unsigned int count, index, pos, jump;
 	char * state_names;
 
+	// nothing more to add
 	if(expr == NULL){
 		return;
 	}
@@ -595,6 +809,7 @@ static void fill_in_probability_buffer_entry(struct expression * expr, float * p
         return;
     }
 
+	// add the belief state
 	if(expr->type == PROBABILITY_ENTRY){
 		jump = num_probabilities / first_num_states;
 
@@ -616,10 +831,18 @@ static void fill_in_probability_buffer_entry(struct expression * expr, float * p
 		free(state_names);
 	}
 
+	// explore the children
 	fill_in_probability_buffer_entry(expr->left, probability_buffer, num_probabilities, variables, num_variables, first_num_states, graph);
 	fill_in_probability_buffer_entry(expr->right, probability_buffer, num_probabilities, variables, num_variables, first_num_states, graph);
 }
 
+/**
+ * Calculate the number of probabilities for allocating the buffer
+ * @param node_name_buffer The buffer holding the node names
+ * @param num_nodes The size of the buffer
+ * @param graph The graph being built
+ * @return The space needed for the buffer
+ */
 static unsigned int calculate_num_probabilities(char *node_name_buffer, unsigned int num_nodes, Graph_t graph){
 	unsigned int i, node_index, num_probabilities;
 	char * curr_name;
@@ -643,6 +866,11 @@ static unsigned int calculate_num_probabilities(char *node_name_buffer, unsigned
 	return num_probabilities;
 }
 
+/**
+ * Updates the node data using the AST expression
+ * @param expr The expression in the AST to look at
+ * @param graph The graph being built
+ */
 static void update_node_in_graph(struct expression * expr, Graph_t graph){
 	char * buffer;
 	float * probability_buffer;
@@ -650,10 +878,12 @@ static void update_node_in_graph(struct expression * expr, Graph_t graph){
     int node_index;
 	struct belief node_belief;
 
+	// nothing more to add
 	if(expr == NULL){
 		return;
 	}
 
+	// set up the node name array
 	num_node_names = 0;
 	count_number_of_node_names(expr, &num_node_names);
 	if(num_node_names != 1){
@@ -666,6 +896,7 @@ static void update_node_in_graph(struct expression * expr, Graph_t graph){
 
 	fill_in_node_names(expr, buffer, &index);
 
+	// set up the probability array
 	num_probabilities = calculate_num_probabilities(buffer, num_node_names, graph);
 
 	probability_buffer = (float *)malloc(sizeof(float) * num_probabilities);
@@ -690,6 +921,7 @@ static void update_node_in_graph(struct expression * expr, Graph_t graph){
     assert(node_index >= 0);
 	assert(node_index < graph->current_num_vertices);
 
+	// fill in the node states
 	node_belief.size = num_probabilities;
 	for(index = 0; index < num_probabilities; ++index){
 		node_belief.data[index] = probability_buffer[index];
@@ -701,6 +933,14 @@ static void update_node_in_graph(struct expression * expr, Graph_t graph){
 	free(probability_buffer);
 }
 
+/**
+ * Adds the edge joint probabilities to the graph
+ * @param variable_buffer The node names array
+ * @param num_node_names The size of the node names array
+ * @param probability_buffer The array of probabilities
+ * @param num_probabilities The size of the array of probabilities
+ * @param graph The graph being built
+ */
 static void insert_edges_into_graph(char * variable_buffer, unsigned int num_node_names, float * probability_buffer, unsigned int num_probabilities, Graph_t graph){
 	unsigned int i, j, k, offset, slice, index, delta, next, diff, dest_index, src_index;
 	struct joint_probability sub_graph, transpose;
@@ -772,15 +1012,22 @@ static void insert_edges_into_graph(char * variable_buffer, unsigned int num_nod
 	}
 }
 
+/**
+ * Adds the given edge to the graph
+ * @param expr The AST expression holding the expression
+ * @param graph The graph being built
+ */
 static void add_edge_to_graph(struct expression * expr, Graph_t graph){
     char * buffer;
     float * probability_buffer;
     unsigned int index, num_node_names, num_probabilities, first_num_states;
 
+	// nothing more to add
     if(expr == NULL){
         return;
     }
 
+	// calculate the size of the node name buffer and allocate it
     num_node_names = 0;
 	count_number_of_node_names(expr, &num_node_names);
     if(num_node_names <= 1){
@@ -794,6 +1041,7 @@ static void add_edge_to_graph(struct expression * expr, Graph_t graph){
     fill_in_node_names(expr, buffer, &index);
 	reverse_buffer(buffer, num_node_names);
 
+	// built up the joint probability data
     num_probabilities = calculate_num_probabilities(buffer, num_node_names, graph);
     first_num_states = calculate_num_probabilities(buffer, 1, graph);
 
@@ -816,20 +1064,26 @@ static void add_edge_to_graph(struct expression * expr, Graph_t graph){
         }
     }
 
-
-
+	// add the edge to the graph
 	insert_edges_into_graph(buffer, num_node_names, probability_buffer, num_probabilities, graph);
 
     free(buffer);
     free(probability_buffer);
 }
 
+/**
+ * Update the belief probabilities in the graph
+ * @param expr The current expression in the AST
+ * @param graph The graph being built
+ */
 static void update_nodes_in_graph(struct expression * expr, Graph_t graph){
 	struct expression * next;
+	// nothing more to add
 	if(expr == NULL){
 		return;
 	}
 
+	// nothing beyond here
 	if(expr->type == NETWORK_DECLARATION){
 		return;
 	}
@@ -841,11 +1095,13 @@ static void update_nodes_in_graph(struct expression * expr, Graph_t graph){
 		return;
 	}
 
+	// add the state info here
 	if(expr->type == PROBABILITY_DECLARATION){
 		update_node_in_graph(expr, graph);
 		return;
 	}
 
+	// explore the list
 	if(expr->type == VARIABLE_OR_PROBABILITY_DECLARATION){
 		next = expr;
 		while(next != NULL && next->type == VARIABLE_OR_PROBABILITY_DECLARATION){
@@ -857,17 +1113,26 @@ static void update_nodes_in_graph(struct expression * expr, Graph_t graph){
 		}
 	}
 	else {
+		// explore the children
 		update_nodes_in_graph(expr->left, graph);
 		update_nodes_in_graph(expr->right, graph);
 	}
 }
 
+/**
+ * Adds the edges held in the AST expression to the graph
+ * @param expr The current expression in the AST
+ * @param graph The graph being built
+ */
 static void add_edges_to_graph(struct expression * expr, Graph_t graph){
 	struct expression * next;
+
+	// nothing to add
 	if(expr == NULL){
 		return;
 	}
 
+	// nothing beyond this point
 	if(expr->type == FLOATING_POINT_LIST){
 		return;
 	}
@@ -887,11 +1152,13 @@ static void add_edges_to_graph(struct expression * expr, Graph_t graph){
         return;
     }
 
+	// add the edge data
     if(expr->type == PROBABILITY_DECLARATION){
         add_edge_to_graph(expr, graph);
 		return;
     }
 
+	// explore the list
 	if(expr->type == VARIABLE_OR_PROBABILITY_DECLARATION){
 		next = expr;
 		while(next != NULL && next->type == VARIABLE_OR_PROBABILITY_DECLARATION){
@@ -903,11 +1170,16 @@ static void add_edges_to_graph(struct expression * expr, Graph_t graph){
 		}
 	}
 	else {
+		// explore the children
 		add_edges_to_graph(expr->left, graph);
 		add_edges_to_graph(expr->right, graph);
 	}
 }
 
+/**
+ * Reverse the node names in the graph's node name list
+ * @param graph The graph to update
+ */
 static void reverse_node_names(Graph_t graph){
 	unsigned int i, j, index_1, index_2;
 	char temp[CHAR_BUFFER_SIZE];
@@ -925,6 +1197,11 @@ static void reverse_node_names(Graph_t graph){
 	}
 }
 
+/**
+ * Builds the graph using the root node
+ * @param root The root node in the AST
+ * @return A filled in graph
+ */
 Graph_t build_graph(struct expression * root){
 	Graph_t graph;
 

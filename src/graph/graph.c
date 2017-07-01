@@ -8,7 +8,12 @@
 
 static char src_key[CHARS_IN_KEY], dest_key[CHARS_IN_KEY];
 
-
+/**
+ * Allocate and init the graph
+ * @param num_vertices The number of vertices to allocate
+ * @param num_edges The number of edges to allocate
+ * @return An initialized graph
+ */
 Graph_t
 create_graph(unsigned int num_vertices, unsigned int num_edges)
 {

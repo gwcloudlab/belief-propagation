@@ -1,5 +1,12 @@
 #include "belief-propagation-kernels.hpp"
 
+/**
+ * Sets up the current buffer
+ * @param message_buffer The message buffer to init
+ * @param node_states The states to write
+ * @param node_num_vars The number of variables within each belief
+ * @param num_nodes The number of nodes in the graph
+ */
 __global__
 void init_message_buffer_kernel(struct belief *message_buffer,
                                 struct belief *node_states,
@@ -16,14 +23,25 @@ void init_message_buffer_kernel(struct belief *message_buffer,
     }
 }
 
+/**
+ * Combines the incoming messages with the given belief
+ * @param dest The belief to update
+ * @param edge_messages The buffered messages on the edge
+ * @param num_vertices The number of nodes in the graph
+ * @param node_index The index of the destination node
+ * @param edge_offset The index offset for the edge
+ * @param num_edges The number of edges in the graph
+ * @param n_is_pow_2 Flag for adjusting shared memory
+ * @param warp_size The warp size of the GPU
+ */
 __device__
-void combine_message_cuda(struct belief *dest, struct belief *edge_messages, unsigned int length, unsigned int node_index,
+void combine_message_cuda(struct belief *dest, struct belief *edge_messages, unsigned int num_vertices, unsigned int node_index,
                           unsigned int edge_offset, unsigned int num_edges, char n_is_pow_2, unsigned int warp_size){
     __shared__ float shared_dest[BLOCK_SIZE_3_D_Z];
     __shared__ float shared_src[BLOCK_SIZE_3_D_Z];
     unsigned int index = threadIdx.z;
 
-    if(index < length && edge_offset < num_edges){
+    if(index < num_vertices && edge_offset < num_edges){
         shared_dest[index] = dest[node_index].data[index];
         shared_src[index] = edge_messages[edge_offset].data[index];
         __syncthreads();
@@ -31,6 +49,19 @@ void combine_message_cuda(struct belief *dest, struct belief *edge_messages, uns
         dest[node_index].data[index] = shared_dest[index] * shared_src[index];
     }
 }
+
+/**
+ * Reads the incoming messages and buffers them on the edge
+ * @param message_buffer The message buffer of the edge
+ * @param previous_messages The previous messages sent
+ * @param dest_node_to_edges_nodes Parallel array; maps the nodes to the edges in which they are destination nodes; first half which maps nodes to their indices in dest_node_to_edges_edges
+ * @param dest_node_to_edges_edges Parallel array; maps the nodes to the edges in which they are destination nodes; second half which maps the indices to edges
+ * @param current_num_edges The number of edges in the graph
+ * @param node_num_vars The number of variables for all beliefs in the graph
+ * @param num_vertices The number of vertices in the graph
+ * @param n_is_pow_2 Flag for determining how to adjust shared memory
+ * @param warp_size The warp size of the GPU
+ */
 __global__
 void read_incoming_messages_kernel(struct belief *message_buffer, struct belief *previous_messages,
                                    unsigned int * dest_node_to_edges_nodes,
@@ -61,6 +92,14 @@ void read_incoming_messages_kernel(struct belief *message_buffer, struct belief 
     }
 }
 
+/**
+ * Combines the belief with the joint probability table and writes the result to the buffer
+ * @param message_buffer The array of incoming beliefs
+ * @param edge_index The index of the edge in which the belief is sent
+ * @param node_index The incoming belief
+ * @param joint_probabilities The joint probabilities of the edges
+ * @param edge_messages The outbound buffer
+ */
 __device__
 void send_message_for_edge_cuda(struct belief * message_buffer, unsigned int edge_index, unsigned int node_index,
                                 struct joint_probability * joint_probabilities,
@@ -91,6 +130,16 @@ void send_message_for_edge_cuda(struct belief * message_buffer, unsigned int edg
     }
 }
 
+/**
+ * Sends the messages for all nodes in the graph
+ * @param message_buffer The incoming beliefs
+ * @param current_num_edges The number of edges in the graph
+ * @param joint_probabilities The joint probability table of the graph
+ * @param current_edge_messages The destination noe
+ * @param src_node_to_edges_nodes Parallel array; maps nodes to the edges in which they are source nodes; first half; maps nodes to their index in src_node_to_edges_edges
+ * @param src_node_to_edges_edges Parallel array; maps nodes to the edges in which they are source nodes; second half; maps the indices to the edges
+ * @param num_vertices The number of vertices (nodes) in the graph
+ */
 __global__
 void send_message_for_node_kernel(struct belief *message_buffer, unsigned int current_num_edges,
                                   struct joint_probability *joint_probabilities, struct belief *current_edge_messages,
@@ -117,6 +166,19 @@ void send_message_for_node_kernel(struct belief *message_buffer, unsigned int cu
     }
 }
 
+/**
+ * Marginalizes and normalizes the beliefs in the graph
+ * @param node_num_vars The number of variables for each node in the graph
+ * @param message_buffer The source beliefs
+ * @param node_states The current states of the nodes
+ * @param current_edges_messages The current buffered messages on the graph
+ * @param dest_node_to_edges_nodes Parallel array; maps nodes to the edges in which they are the destination nodes; first half; maps nodes to their indices in dest_node_to_edges_edges
+ * @param dest_node_to_edges_edges Parallel array; maps nodes to the edges in which they are the destination nodes; second half; maps the indices to the edges
+ * @param num_vertices The number of vertices (nodes) in the graph
+ * @param num_edges The number of edges in the graph
+ * @param n_is_pow_2 Flag for determining if padding needed for shared memory
+ * @param warp_size The size of the warp of the GPU
+ */
 __global__
 void marginalize_node_combine_kernel(unsigned int * node_num_vars, struct belief *message_buffer, struct belief *node_states,
                              struct belief *current_edges_messages,
@@ -151,6 +213,19 @@ void marginalize_node_combine_kernel(unsigned int * node_num_vars, struct belief
     }
 }
 
+/**
+ * Marginalizes and normalizes nodes in the graph
+ * @param node_num_vars The number of variables in each node
+ * @param message_buffer The incoming beliefs
+ * @param node_states The destination belief to update
+ * @param current_edges_messages The buffered beliefs on the edges
+ * @param dest_node_to_edges_nodes Parallel array; maps nodes to the edges in which they are the destination node; first half; maps nodes to their indices in dest_node_to_edges_edges
+ * @param dest_node_to_edges_edges Parallel array; maps nodes to the edges in which they are the destination node; second half; maps the indices to the edges
+ * @param num_vertices The number of vertices (nodes) in the graph
+ * @param num_edges The number of edges in the graph
+ * @param n_is_pow_2 Flag for determining if padding is needed for shared memory
+ * @param warp_size The size of the warp of the GPU
+ */
 __global__
 void marginalize_sum_node_kernel(unsigned int * node_num_vars, struct belief * message_buffer, struct belief * node_states,
                              struct belief * current_edges_messages,
@@ -185,6 +260,14 @@ void marginalize_sum_node_kernel(unsigned int * node_num_vars, struct belief * m
 
 }
 
+/**
+ * Calculates the delta for a given message
+ * @param i The message's index
+ * @param previous_messages The previous messages
+ * @param current_messages The current messages
+ * @param edges_x_dim The size of each message
+ * @return The delta between the messages
+ */
 __device__
 float calculate_local_delta(unsigned int i, struct belief * previous_messages, struct belief * current_messages, unsigned int * edges_x_dim){
     float delta, diff;
@@ -203,6 +286,15 @@ float calculate_local_delta(unsigned int i, struct belief * previous_messages, s
     return delta;
 }
 
+/**
+ * Calculates the delta used for testing for convergence via reduction
+ * @param previous_messages The previous beliefs of the graph
+ * @param current_messages The current beliefs of the graph
+ * @param delta The delta to write back
+ * @param delta_array Temp array used to store partial deltas for reduction
+ * @param edges_x_dim The size of each belief
+ * @param num_edges The number of edges in the graph
+ */
 __global__
 void calculate_delta(struct belief * previous_messages, struct belief * current_messages, float * delta, float * delta_array, unsigned int * edges_x_dim, unsigned int num_edges){
     extern __shared__ float shared_delta[];
@@ -275,6 +367,16 @@ void calculate_delta(struct belief * previous_messages, struct belief * current_
     }
 }
 
+/**
+ * Calculates the delta used for testing for convergence via reduction
+ * @details Copied from the sample in the NVIDIA CUDA SDK
+ * @param previous_messages The previous beliefs of the graph
+ * @param current_messages The current beliefs of the graph
+ * @param delta The delta to write back
+ * @param delta_array Temp array used to store partial deltas for reduction
+ * @param edges_x_dim The size of each belief
+ * @param num_edges The number of edges in the graph
+ */
 __global__
 void calculate_delta_6(struct belief *previous_messages, struct belief *current_messages, float * delta, float * delta_array,
                        unsigned int * edges_x_dim,
@@ -374,6 +476,16 @@ void calculate_delta_6(struct belief *previous_messages, struct belief *current_
     }
 }
 
+/**
+ * Calculates the delta used for testing for convergence via reduction
+ * @details Simple kernel used for testing
+ * @param previous_messages The previous beliefs of the graph
+ * @param current_messages The current beliefs of the graph
+ * @param delta The delta to write back
+ * @param delta_array Temp array used to store partial deltas for reduction
+ * @param edges_x_dim The size of each belief
+ * @param num_edges The number of edges in the graph
+ */
 __global__
 void calculate_delta_simple(struct belief * previous_messages, struct belief * current_messages,
                             float * delta, float * delta_array, unsigned int * edges_x_dim,
@@ -410,13 +522,9 @@ void calculate_delta_simple(struct belief * previous_messages, struct belief * c
     }
 }
 
-static void prepare_unsigned_int_text(texture<unsigned int, cudaTextureType1D, cudaReadModeElementType> * tex){
-    tex->addressMode[0] = cudaAddressModeWrap;
-    tex->addressMode[1] = cudaAddressModeWrap;
-    tex->filterMode = cudaFilterModePoint;
-    tex->normalized = 1;
-}
-
+/**
+ * Helper function to test for errors for kernel calls
+ */
 void check_cuda_kernel_return_code(){
     cudaError_t err;
 
@@ -427,6 +535,13 @@ void check_cuda_kernel_return_code(){
     }
 }
 
+/**
+ * Runs loopy BP on the graph
+ * @param graph The graph to use
+ * @param convergence The convergence threshold; if the delta falls below it, execution will stop
+ * @param max_iterations The maximum number of iterations to run for
+ * @return The actual number of iterations executed
+ */
 unsigned int loopy_propagate_until_cuda_kernels(Graph_t graph, float convergence, unsigned int max_iterations){
     unsigned int i, j, num_iter, num_vertices, num_edges;
     float * delta;
@@ -597,6 +712,10 @@ unsigned int loopy_propagate_until_cuda_kernels(Graph_t graph, float convergence
     return num_iter;
 }
 
+/**
+ * Runs loopy BP on the file
+ * @param file_name The path of the file to read
+ */
 void test_loopy_belief_propagation_kernels(char * file_name){
     struct expression * expression;
     yyscan_t scanner;
@@ -643,6 +762,12 @@ void test_loopy_belief_propagation_kernels(char * file_name){
     graph_destroy(graph);
 }
 
+/**
+ * Runs loopy BP on the AST root node
+ * @param expression The BNF AST root node
+ * @param file_name The input file path
+ * @param out The file handle for the output CSV
+ */
 void run_test_loopy_belief_propagation_kernels(struct expression * expression, const char * file_name, FILE * out){
     Graph_t graph;
     clock_t start, end;
@@ -672,7 +797,11 @@ void run_test_loopy_belief_propagation_kernels(struct expression * expression, c
     graph_destroy(graph);
 }
 
-
+/**
+ * Reads the XML file and runs loopy BP on it
+ * @param file_name The input XML file path
+ * @param out The output CSV file handle
+ */
 void run_test_loopy_belief_propagation_xml_file_kernels(const char * file_name, FILE * out){
     Graph_t graph;
     clock_t start, end;
@@ -704,13 +833,17 @@ void run_test_loopy_belief_propagation_xml_file_kernels(const char * file_name, 
 
 
 /**
- * Check the return value of the CUDA runtime API call and exit
- * the application if the call has failed.
+ * Function for printing errors with kernel execution
+ * @param file The source code file
+ * @param line The line within file
+ * @param statement The name of the kernel
+ * @param err The error message
  */
 void CheckCudaErrorAux (const char *file, unsigned int line, const char *statement, cudaError_t err)
 {
-    if (err == cudaSuccess)
+    if (err == cudaSuccess) {
         return;
+    }
     printf("%s returned %s (%d) at %s:%d\n", statement, cudaGetErrorString(err), err, file, line);
     exit (1);
 }

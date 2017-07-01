@@ -19,77 +19,208 @@
 
 #include <search.h>
 
+/**
+ * Struct holding the priori probabilities and the size of the probabilities
+ */
 struct belief {
+	/**
+	 * The priori probabilities
+	 */
     float data[MAX_DEGREE];
+	/**
+	 * The size of the probabilities
+	 */
     unsigned int size;
 };
 
+/**
+ * Struct holding the joint probabilities on the edge
+ */
 struct joint_probability {
+	/**
+	 * The joint probability table
+	 */
     float data[MAX_DEGREE][MAX_DEGREE];
+	/**
+	 * The first dimension of the table
+	 */
     unsigned int dim_x;
+	/**
+	 * The second dimension of the table
+	 */
     unsigned int dim_y;
 };
 
+/**
+ * Struct holding the graph data
+ */
 struct graph {
+	/**
+	 * The number of nodes in the graph allocated
+	 */
 	unsigned int total_num_vertices;
+	/**
+	 * The number of edges in the graph allocated
+	 */
 	unsigned int total_num_edges;
 
+	/**
+	 * The number of nodes currently added to the graph
+	 */
 	unsigned int current_num_vertices;
+	/**
+	 * The number of edges currently added to the graph
+	 */
 	unsigned int current_num_edges;
+	/**
+	 * The maximum degree of any node in the graph
+	 */
 	unsigned int max_degree;
 
+	/**
+	 * Array of edges to the index of their source nodes
+	 */
 	unsigned int * edges_src_index;
+	/**
+	 * Array of edges to the index of the destination nodes
+	 */
 	unsigned int * edges_dest_index;
+	/**
+	 * Array of edges by their first dimension of the joint probability
+	 */
 	unsigned int * edges_x_dim;
+	/**
+	 * Array of edges by their second dimension of the joint probability
+	 */
 	unsigned int * edges_y_dim;
+
+	/**
+	 * Array of joint probabilities indexed by edge
+	 */
 	struct joint_probability * edges_joint_probabilities;
 
+	/**
+	 * The array of current beliefs
+	 */
 	struct belief * edges_messages;
+	/**
+	 * The array of the beliefs from the previous iteration
+	 */
 	struct belief * last_edges_messages;
 
+	/**
+	 * Pointer to the current belief array
+	 */
 	struct belief ** current_edge_messages;
+	/**
+	 * Pointer to the previous belief array
+	 */
     struct belief ** previous_edge_messages;
 
-
+	/**
+	 * Array of belief states indexed by node
+	 */
 	struct belief * node_states;
+	/**
+	 * Array of the number of belief states indexed by node
+	 */
 	unsigned int * node_num_vars;
 
+	/**
+	 * Array of indices in src_nodes_to_edges_edge_list indexed by their source node
+	 */
 	unsigned int * src_nodes_to_edges_node_list;
+	/**
+	 * Array of edges indexed by their source node
+	 */
 	unsigned int * src_nodes_to_edges_edge_list;
 
+	/**
+	 * Array of indices in dest_nodes_to_edges_edge_list indexed by their destination node
+	 */
 	unsigned int * dest_nodes_to_edges_node_list;
+	/**
+	 * Array of edges index by their destination node
+	 */
 	unsigned int * dest_nodes_to_edges_edge_list;
 
+	/**
+	 * Levels in the tree to the nodes there
+	 */
 	unsigned int * levels_to_nodes;
+	/**
+	 * The size of the level array
+	 */
 	unsigned int num_levels;
 
+	/**
+	 * The diameter of the graph
+	 */
     int diameter;
 
+	/**
+	 * Bit vector if a node has been visited
+	 */
 	char * visited;
+
+	/**
+	 * The array of node names
+	 */
 	char * node_names;
 
+	/**
+	 * The array of belief names within the nodes
+	 */
 	char * variable_names;
 
+	/**
+	 * Bit vector of nodes if they are observed nodes
+	 */
     char * observed_nodes;
 
+	/**
+	 * The name of the network
+	 */
 	char graph_name[CHAR_BUFFER_SIZE];
 
+	/**
+	 * Flag if the node name to node index hash has been created
+	 */
     char node_hash_table_created;
+	/**
+	 * Hash table of node name to node index
+	 */
 	struct hsearch_data *node_hash_table;
 
+	/**
+	 * Hash table of src node index to edge
+	 */
     struct hsearch_data *src_node_to_edge_table;
-
+	/**
+	 * Hash table of dest node index to edge
+	 */
     struct hsearch_data *dest_node_to_edge_table;
+	/**
+	 * Flag if hash tables have been created
+	 */
     char edge_tables_created;
 };
 typedef struct graph* Graph_t;
 
+/**
+ * Entry within the hash table to store the indices and count
+ */
 struct htable_entry {
+	/**
+	 * The array of indices
+	 */
     unsigned int indices[MAX_DEGREE];
+	/**
+	 * The acutal size of the array
+	 */
     unsigned int count;
 };
 
-/** create a new graph with n vertices labeled 0 to n-1 and no edges */
 Graph_t create_graph(unsigned int, unsigned int);
 
 void graph_add_node(Graph_t, unsigned int, const char *);
@@ -111,13 +242,10 @@ void send_message(struct belief *, unsigned int, struct joint_probability *, str
 
 void fill_in_node_hash_table(Graph_t);
 unsigned int find_node_by_name(char *, Graph_t);
-/**
- * Get the counts
- */
+
 int graph_vertex_count(Graph_t);
 int graph_edge_count(Graph_t);
 
-/** free space **/
 void graph_destroy(Graph_t);
 
 void propagate_using_levels_start(Graph_t);
