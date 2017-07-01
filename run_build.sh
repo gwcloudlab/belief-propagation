@@ -15,8 +15,8 @@ alert () { echo -e "${RED}$1${NC}"; }
 mkdir -p build
 cd build
 cmake -DCMAKE_BUILD_TYPE=Debug ..
-make -j8
-# Checks if last comand didn't output 0
+make
+# Checks if last command didn't output 0
 # $? checks what last command outputed
 # If output is 0 then command is succesfuly executed
 # If command fails it outputs number between 0 to 255
@@ -27,7 +27,7 @@ if [ $? -ne 0 ]; then
 fi
 
 showinfo "Running tests ..."
-make -j8 test
+make test
 ctest
 if [ $? -ne 0 ]; then
     error "Error: there are failed tests!"
