@@ -254,7 +254,7 @@ void run_test_loopy_belief_propagation_xml_file_acc(const char * file_name, FILE
     start = clock();
     init_previous_edge(graph);
 
-    num_iterations = loopy_progagate_until_acc(graph, PRECISION, NUM_ITERATIONS);
+    num_iterations = loopy_propagate_until_acc(graph, PRECISION, NUM_ITERATIONS);
     end = clock();
 
     // output
@@ -293,7 +293,7 @@ void run_test_loopy_belief_propagation_edge_xml_file_acc(const char * file_name,
     start = clock();
     init_previous_edge(graph);
 
-    num_iterations = loopy_progagate_until_edge_acc(graph, PRECISION, NUM_ITERATIONS);
+    num_iterations = loopy_propagate_until_edge_acc(graph, PRECISION, NUM_ITERATIONS);
     end = clock();
 
     // output

@@ -1491,7 +1491,7 @@ static unsigned int loopy_propagate_iterations_acc(unsigned int num_vertices, un
 	return num_iter;
 }
 
-unsigned int loopy_progagate_until_acc(Graph_t graph, float convergence, unsigned int max_iterations){
+unsigned int loopy_propagate_until_acc(Graph_t graph, float convergence, unsigned int max_iterations){
 	unsigned int iter;
 
 	/*printf("===BEFORE====\n");
@@ -1605,7 +1605,7 @@ static unsigned int loopy_propagate_iterations_edges_acc(unsigned int num_vertic
 	return num_iter;
 }
 
-unsigned int loopy_progagate_until_edge_acc(Graph_t graph, float convergence, unsigned int max_iterations){
+unsigned int loopy_propagate_until_edge_acc(Graph_t graph, float convergence, unsigned int max_iterations){
     unsigned int iter;
 
     /*printf("===BEFORE====\n");
