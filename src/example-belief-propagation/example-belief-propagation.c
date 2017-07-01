@@ -4,6 +4,7 @@
 #include "../graph/graph.h"
 
 // from http://6.869.csail.mit.edu/fa13/lectures/slideNotesCh7rev.pdf
+// Suite of tests using the graph in the PDF
 
 static const int NUM_NODES = 4;
 static const int NUM_EDGES = 5;

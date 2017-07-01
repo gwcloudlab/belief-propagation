@@ -1,22 +1,12 @@
-#include <stdio.h>
-#include <assert.h>
-#include <time.h>
-#include <math.h>
-#include <cuda_runtime.h>
-#include <device_launch_parameters.h>
+#include "belief-propagation.hpp"
 
-extern "C" {
-#include "../bnf-parser/expression.h"
-#include "../bnf-parser/Parser.h"
-#include "../bnf-parser/Lexer.h"
-#include "../bnf-xml-parser/xml-expression.h"
-}
-
-int yyparse(struct expression ** expr, yyscan_t scanner);
-
-static void CheckCudaErrorAux (const char *, unsigned, const char *, cudaError_t);
-#define CUDA_CHECK_RETURN(value) CheckCudaErrorAux(__FILE__,__LINE__, #value, value)
-
+/**
+ * Initialize the message buffer to what is stored in node_states
+ * @param buffer The message buffer
+ * @param node_states The states to init to
+ * @param num_variables The size of the arrays
+ * @param node_index The index of the current belief
+  */
 __device__
 void init_message_buffer_cuda(struct belief *buffer, struct belief *node_states, unsigned int num_variables, unsigned int node_index){
     unsigned int j;
@@ -28,6 +18,13 @@ void init_message_buffer_cuda(struct belief *buffer, struct belief *node_states,
 
 }
 
+/**
+ * Combine the dest node with the incoming belief
+ * @param dest The belief to update
+ * @param edge_messages The incoming belief
+ * @param length The number of probabilities to combine
+ * @param offset The offset in the incoming messages
+ */
 __device__
 void combine_message_cuda(struct belief * dest, struct belief * edge_messages, unsigned int length, unsigned int offset){
     unsigned int i;
@@ -44,6 +41,17 @@ void combine_message_cuda(struct belief * dest, struct belief * edge_messages, u
     }
 }
 
+/**
+ * Combines the incoming messages for the given node
+ * @param message_buffer The current belief
+ * @param previous_messages The incoming belief
+ * @param dest_nodes_to_edges_nodes The indices in dest_nodes_to_edges_edges by node index
+ * @param dest_nodes_to_edges_edges The indices of the edges indexed by their dest node
+ * @param current_num_edges The number of edges in the graph
+ * @param num_vertices The number of vertices in the graph
+ * @param num_variables The number of beliefs in the graph
+ * @param idx The index of the current node
+ */
 __device__
 void read_incoming_messages_cuda(struct belief * message_buffer,
                                  struct belief * previous_messages,
@@ -67,6 +75,15 @@ void read_incoming_messages_cuda(struct belief * message_buffer,
     }
 }
 
+/**
+ * Send the current beliefs along the edge to the current node
+ * @param buffer The current node
+ * @param edge_index The index of the edge
+ * @param joint_probabilities The joint probability table on the edge
+ * @param edge_messages The current beliefs
+ * @param x_dim The first dimension of the joint probability matrix
+ * @param y_dim The second dimension of the joint probability matrix
+ */
 __device__
 void send_message_for_edge_cuda(struct belief * buffer, unsigned int edge_index,
                                 struct joint_probability * joint_probabilities,
@@ -97,6 +114,19 @@ void send_message_for_edge_cuda(struct belief * buffer, unsigned int edge_index,
     }
 }
 
+/**
+ * Propagate the current beliefs to current node
+ * @param message_buffer The current node
+ * @param current_num_edges The number of edges in the graph
+ * @param joint_probabilities The list of joint probabilities
+ * @param current_edge_messages The incoming messages
+ * @param src_nodes_to_edges_nodes The indices in src_nodes_to_edges_edges indexed by src node index
+ * @param src_nodes_to_edges_edges The edges indexed by their source node
+ * @param edges_x_dim The first dimension of the joint probabilities
+ * @param edges_y_dim The second dimension of the joint probabilities
+ * @param num_vertices The number of the vertices in the graph
+ * @param idx The current node index
+ */
 __device__
 void send_message_for_node_cuda(struct belief *message_buffer, unsigned int current_num_edges,
                                 struct joint_probability *joint_probabilities,
@@ -120,6 +150,17 @@ void send_message_for_node_cuda(struct belief *message_buffer, unsigned int curr
     }
 }
 
+/**
+ * Marginalizes and normalizes the belief probabilities for a given node
+ * @param node_num_vars The number of variables for a given node
+ * @param node_states The states of the given node
+ * @param idx The node's index
+ * @param current_edges_messages The array holding the current beliefs on the ege
+ * @param dest_nodes_to_edges_nodes The parallel array holding the mapping of nodes to their edges in dest_nodes_to_edges_edges
+ * @param dest_nodes_to_edges_edges Array holding the mapping of nodes to their edges in which they are the destination
+ * @param num_vertices The number of vertices (nodes) in the graph
+ * @param num_edges The number of edges in the graph
+ */
 __device__
 void marginalize_node(unsigned int * node_num_vars,
                       struct belief *node_states, unsigned int idx,
@@ -168,6 +209,16 @@ void marginalize_node(unsigned int * node_num_vars,
     }
 }
 
+/**
+ * Marginalizes and normalizes all nodes in the graph
+ * @param node_num_vars The number of variables for each node in the graph
+ * @param node_states The current states of all nodes in the graph
+ * @param current_edges_messages The current messages held in transit along the edge
+ * @param dest_nodes_to_edges_nodes The mapping of nodes to their edges; parallel array which maps nodes to their edge indices in dest_nodes_to_edges_edges
+ * @param dest_nodes_to_edges_edges The mapping nodes of nodes to the edges; consists of edge indices for which the node is the destination node
+ * @param num_vertices The number of vertices in the graph
+ * @param num_edges The number of edges in the graph
+ */
 __global__
 void marginalize_nodes(unsigned int * node_num_vars, struct belief *node_states,
                        struct belief *current_edges_messages,
@@ -179,6 +230,22 @@ void marginalize_nodes(unsigned int * node_num_vars, struct belief *node_states,
     }
 }
 
+/**
+ * Runs loopy BP on the GPU
+ * @param num_vertices The number of vertices (nodes) in the graph
+ * @param num_edges The number of edges in the graph
+ * @param node_num_vars The number of variables (beliefs) held by each node in the graph
+ * @param node_messages The current beliefs of each node
+ * @param joint_probabilities The joint probability table for each edge
+ * @param previous_edge_messages The previous messages sent on the edges
+ * @param current_edge_messages The current messages sent on the edges
+ * @param src_nodes_to_edges_nodes The mapping of source nodes to their edges; parallel array; mapping of nodes to their edges in src_nodes_to_edges_edges
+ * @param src_nodes_to_edges_edges The mapping of source nodes to their edges; consists of edges indexed by their source nodes
+ * @param dest_nodes_to_edges_nodes The mapping of dest nodes to their edges; parallel array; mapping of nodes to their edges in dest_nodes_to_edges_edges
+ * @param dest_nodes_to_edges_edges THe mapping of dest nodes to their edges; consists of edges indexed by their dest nodes
+ * @param edges_x_dim The first dimensions of the joint probability matrices
+ * @param edges_y_dim The second dimensions of the joint probability matrices
+ */
 __global__
 void loopy_propagate_main_loop(unsigned int num_vertices, unsigned int num_edges,
                                 unsigned int * node_num_vars, struct belief *node_messages,
@@ -208,6 +275,16 @@ void loopy_propagate_main_loop(unsigned int num_vertices, unsigned int num_edges
     __syncthreads();
 }
 
+/**
+ * Updates the current belief using the joint probability and the incoming messages
+ * @param belief The belief being updated
+ * @param src_index The index of the incoming belief message
+ * @param edge_index The index of the edge carrying the belief
+ * @param joint_probabilities The joint probability matrix
+ * @param edge_messages The current message on the edge
+ * @param dim_src The first dimension of the joint probability matrix
+ * @param dim_dest The second dimension of the joint probability matrix
+ */
 __device__
 static void send_message_for_edge_iteration_cuda(struct belief *belief, unsigned int src_index, unsigned int edge_index,
                                                  struct joint_probability *joint_probabilities, struct belief *edge_messages,
@@ -235,22 +312,40 @@ static void send_message_for_edge_iteration_cuda(struct belief *belief, unsigned
     }
 }
 
+/**
+ * Sends a message along the edge
+ * @param num_edges The number of edges in the graph
+ * @param edges_src_index The index of the source node for the edge
+ * @param node_states The beliefs of all nodes in the graph
+ * @param joint_probabilities The joint probabilities of all edges in the graph
+ * @param current_edge_messages The current belief held on the edge
+ * @param num_src The first dimensions of the joint probability table
+ * @param num_dest The second dimensions of the joint probability table
+ */
 __global__
 void send_message_for_edge_iteration_cuda_kernel(unsigned int num_edges, unsigned int * edges_src_index,
                                                  struct belief *node_states,
                                                  struct joint_probability *joint_probabilities,
-                                                 struct belief *current_edge_messags,
+                                                 struct belief *current_edge_messages,
                                           unsigned int * num_src, unsigned int * num_dest){
     unsigned int idx, src_node_index;
 
     for(idx = blockIdx.x * blockDim.x + threadIdx.x; idx < num_edges; idx += blockDim.x * gridDim.x){
         src_node_index = edges_src_index[idx];
 
-        send_message_for_edge_iteration_cuda(node_states, src_node_index, idx, joint_probabilities, current_edge_messags,
+        send_message_for_edge_iteration_cuda(node_states, src_node_index, idx, joint_probabilities, current_edge_messages,
                                              num_src, num_dest);
     }
 }
 
+/**
+ * Combines messages on the edge
+ * @param edge_index The current edge's index
+ * @param current_messages The current message to combine
+ * @param dest_node_index The destination node's index in the graph
+ * @param belief The current belief being buffered
+ * @param num_variables The number of states within the belief
+ */
 __device__
 void combine_loopy_edge_cuda(unsigned int edge_index, struct belief *current_messages, unsigned int dest_node_index,
                              struct belief *belief,
@@ -277,6 +372,14 @@ void combine_loopy_edge_cuda(unsigned int edge_index, struct belief *current_mes
     }
 }
 
+/**
+ * Combines incoming messages on the edge
+ * @param num_edges The number of the edges in thr graph
+ * @param edges_dest_index The index of the destination nodes in the graph
+ * @param current_edge_messages The current edge message used for buffering
+ * @param node_states The current beliefs of all nodes in the graph
+ * @param num_dest The number of variables for the destination node
+ */
 __global__
 void combine_loopy_edge_cuda_kernel(unsigned int num_edges, unsigned int * edges_dest_index,
                                     struct belief *current_edge_messages, struct belief *node_states, unsigned int * num_dest){
@@ -289,6 +392,12 @@ void combine_loopy_edge_cuda_kernel(unsigned int num_edges, unsigned int * edges
     }
 }
 
+/**
+ * Marginalizes and normalizes a belief in the graph
+ * @param belief The current belief
+ * @param num_vars The number of variables within the current belief
+ * @param num_vertices The number of nodes in the graph
+ */
 __global__
 void marginalize_loop_node_edge_kernel(struct belief *belief, unsigned int * num_vars, unsigned int num_vertices){
     unsigned int i, idx, num_variables;
@@ -308,6 +417,14 @@ void marginalize_loop_node_edge_kernel(struct belief *belief, unsigned int * num
     }
 }
 
+/**
+ * Calculates the delta between the current beliefs and the previous ones
+ * @param i The current index of the edge
+ * @param previous_messages The previous messages
+ * @param current_messages The current messages
+ * @param x_dim The number of variables of each message
+ * @return The summed delta
+ */
 __device__
 float calculate_local_delta(unsigned int i, struct belief * previous_messages, struct belief * current_messages, unsigned int * x_dim){
     float delta, diff;
@@ -327,6 +444,15 @@ float calculate_local_delta(unsigned int i, struct belief * previous_messages, s
     return delta;
 }
 
+/**
+ * Calculates the delta across all messages to test for convergence via parallel reduction
+ * @param previous_messages The previous states
+ * @param current_messages The current states
+ * @param delta The delta to write
+ * @param delta_array Temp array to hold the partial deltas so that they can be reduced
+ * @param x_dim The number of variables for each message
+ * @param num_edges The number of edges in the graph
+ */
 __global__
 void calculate_delta(struct belief *previous_messages, struct belief *current_messages,
                      float * delta, float * delta_array,
@@ -336,10 +462,9 @@ void calculate_delta(struct belief *previous_messages, struct belief *current_me
     unsigned int tid, idx, i, s;
 
     tid = threadIdx.x;
-    idx = blockIdx.x*blockDim.x + threadIdx.x;
     i = blockIdx.x * (blockDim.x * 2) + threadIdx.x;
 
-    if(idx < num_edges){
+    for(idx = blockIdx.x * blockDim.x + threadIdx.x; idx < num_edges; idx += blockDim.x * gridDim.x){
         delta_array[idx] = calculate_local_delta(idx, previous_messages, current_messages, x_dim);
     }
     __syncthreads();
@@ -403,6 +528,18 @@ void calculate_delta(struct belief *previous_messages, struct belief *current_me
     }
 }
 
+/**
+ * @brief Calculates the delta across all messages to test for convergence via parallel reduction
+ * @details Optimized parallel reduction code borrowed from the CUDA toolkit samples
+ * @param previous_messages The previous states
+ * @param current_messages The current states
+ * @param delta The delta to write
+ * @param delta_array Temp array to hold partial deltas for reduction
+ * @param edges_x_dim The number of variables for each belief
+ * @param num_edges The number of edges in the graph
+ * @param n_is_pow_2 Flag to address padding for shared memory
+ * @param warp_size The size of the warp of the GPU
+ */
 __global__
 void calculate_delta_6(struct belief * previous_messages, struct belief * current_messages,
                        float * delta, float * delta_array,
@@ -413,12 +550,12 @@ void calculate_delta_6(struct belief * previous_messages, struct belief * curren
     unsigned int offset;
     // perform first level of reduce
     // reading from global memory, writing to shared memory
-    unsigned int idx =  blockIdx.x*blockDim.x + threadIdx.x;
+    unsigned int idx;
     unsigned int tid = threadIdx.x;
     unsigned int i = blockIdx.x * blockDim.x * 2 + threadIdx.x;
     unsigned int grid_size = blockDim.x * 2 * gridDim.x;
 
-    if(idx < num_edges){
+    for(idx = blockIdx.x * blockDim.x + threadIdx.x; idx < num_edges; idx += blockDim.x * gridDim.x){
         delta_array[idx] = calculate_local_delta(idx, previous_messages, current_messages, edges_x_dim);
     }
     __syncthreads();
@@ -426,7 +563,7 @@ void calculate_delta_6(struct belief * previous_messages, struct belief * curren
     float my_delta = 0.0;
 
     while (i < num_edges) {
-        my_delta = delta_array[i];
+        my_delta += delta_array[i];
 
         // ensure we don't read out of bounds
         if (n_is_pow_2 || i + blockDim.x < num_edges) {
@@ -503,6 +640,16 @@ void calculate_delta_6(struct belief * previous_messages, struct belief * curren
     }
 }
 
+/**
+ * Calculates the delta across all messages to test for convergence via parallel reduction
+ * @details Simple implementation used for comparison against reduction code
+ * @param previous_messages The previous messages
+ * @param current_messages The current messages
+ * @param delta The delta to write
+ * @param delta_array Temp array to hold partial deltas to be used for reduction
+ * @param x_dim The number of beliefs in the graph
+ * @param num_edges The number of the edges in the graph
+ */
 __global__
 void calculate_delta_simple(struct belief * previous_messages, struct belief * current_messages,
                             float * delta, float * delta_array, unsigned int * x_dim,
@@ -513,10 +660,12 @@ void calculate_delta_simple(struct belief * previous_messages, struct belief * c
     tid = threadIdx.x;
     idx = blockIdx.x * blockDim.x + threadIdx.x;
 
-    if (idx < num_edges) {
+    for(idx = blockIdx.x * blockDim.x + threadIdx.x; idx < num_edges; idx += blockDim.x * gridDim.x){
         delta_array[idx] = calculate_local_delta(idx, previous_messages, current_messages, x_dim);
     }
     __syncthreads();
+
+    idx = blockIdx.x * blockDim.x + threadIdx.x;
 
     shared_delta[tid] = (idx < num_edges) ? delta_array[idx] : 0;
 
@@ -538,14 +687,10 @@ void calculate_delta_simple(struct belief * previous_messages, struct belief * c
     }
 }
 
-static void prepare_unsigned_int_text(texture<unsigned int, cudaTextureType1D, cudaReadModeElementType> * tex){
-    tex->addressMode[0] = cudaAddressModeWrap;
-    tex->addressMode[1] = cudaAddressModeWrap;
-    tex->filterMode = cudaFilterModePoint;
-    tex->normalized = 1;
-}
-
-static void test_error(){
+/**
+ * Helper function to test for error with CUDA kernel execution
+ */
+void test_error(){
     cudaError_t err;
 
     err = cudaGetLastError();
@@ -555,6 +700,13 @@ static void test_error(){
     }
 }
 
+/**
+ * Runs loopy BP on the GPU
+ * @param graph The graph to run
+ * @param convergence The convergence threshold; when the delta falls below this threshold, execution will halt
+ * @param max_iterations The number of executions to stop at
+ * @return The actual number of iterations ran
+ */
 unsigned int loopy_propagate_until_cuda(Graph_t graph, float convergence, unsigned int max_iterations){
     unsigned int i, j, num_iter, num_vertices, num_edges;
     float * delta;
@@ -651,7 +803,7 @@ unsigned int loopy_propagate_until_cuda(Graph_t graph, float convergence, unsign
         //calculate_delta_simple<<<dimReduceGrid, dimReduceBlock, reduceSmemSize>>>(previous_messages, current_messages, delta, delta_array, edges_x_dim, num_edges);
         test_error();
         CUDA_CHECK_RETURN(cudaMemcpy(&host_delta, delta, sizeof(float), cudaMemcpyDeviceToHost));
-     //   printf("Current delta: %f\n", host_delta);
+        //printf("Current delta: %f\n", host_delta);
 
         if(host_delta < convergence || fabs(host_delta - previous_delta) < convergence){
             break;
@@ -689,7 +841,13 @@ unsigned int loopy_propagate_until_cuda(Graph_t graph, float convergence, unsign
     return num_iter;
 }
 
-
+/**
+ * Runs the edge-optimized loopy BP code
+ * @param graph The graph to use
+ * @param convergence The convergence threshold; when the delta falls below this threshold, execution will stop
+ * @param max_iterations The maximum number of iterations to run for
+ * @return The actual number of iterations ran
+ */
 unsigned int loopy_propagate_until_cuda_edge(Graph_t graph, float convergence, unsigned int max_iterations){
     unsigned int i, j, num_iter, num_vertices, num_edges;
     float * delta;
@@ -824,257 +982,13 @@ unsigned int loopy_propagate_until_cuda_edge(Graph_t graph, float convergence, u
     return num_iter;
 }
 
-
-
-void test_ast(const char * expr)
-{
-    struct expression * expression;
-    yyscan_t scanner;
-    YY_BUFFER_STATE state;
-
-    assert(yylex_init(&scanner) == 0);
-
-    assert(scanner != NULL);
-    assert(strlen(expr) > 0);
-
-    state = yy_scan_string(expr, scanner);
-
-    assert(yyparse(&expression, scanner) == 0);
-    yy_delete_buffer(state, scanner);
-    yylex_destroy(scanner);
-
-    assert(expression != NULL);
-
-    delete_expression(expression);
-}
-
-void test_file(const char * file_path)
-{
-    struct expression * expression;
-    yyscan_t scanner;
-    YY_BUFFER_STATE state;
-    FILE * in;
-
-    assert(yylex_init(&scanner) == 0);
-
-    in = fopen(file_path, "r");
-
-    yyset_in(in, scanner);
-
-    assert(yyparse(&expression, scanner) == 0);
-    //yy_delete_buffer(state, scanner);
-    yylex_destroy(scanner);
-
-    fclose(in);
-
-    assert(expression != NULL);
-
-    delete_expression(expression);
-}
-
-void test_parse_file(char * file_name){
-    unsigned int i;
-    struct expression * expression;
-    yyscan_t scanner;
-    YY_BUFFER_STATE state;
-    FILE * in;
-    Graph_t graph;
-    clock_t start, end;
-    double time_elapsed;
-
-    assert(yylex_init(&scanner) == 0);
-
-    in = fopen(file_name, "r");
-
-    yyset_in(in, scanner);
-
-    assert(yyparse(&expression, scanner) == 0);
-    //yy_delete_buffer(state, scanner);
-    yylex_destroy(scanner);
-
-    fclose(in);
-
-    assert(expression != NULL);
-
-    graph = build_graph(expression);
-    //print_nodes(graph);
-    //print_edges(graph);
-
-    set_up_src_nodes_to_edges(graph);
-    set_up_dest_nodes_to_edges(graph);
-
-    start = clock();
-    init_levels_to_nodes(graph);
-    //print_levels_to_nodes(graph);
-
-    propagate_using_levels_start(graph);
-    for(i = 1; i < graph->num_levels - 1; ++i){
-        propagate_using_levels(graph, i);
-    }
-    reset_visited(graph);
-    for(i = graph->num_levels - 1; i > 0; --i){
-        propagate_using_levels(graph, i);
-    }
-
-    marginalize(graph);
-    end = clock();
-
-    time_elapsed = (double)(end - start) / CLOCKS_PER_SEC;
-    printf("%s,regular,%d,%d,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, time_elapsed);
-
-    //print_nodes(graph);
-
-    assert(graph != NULL);
-
-    delete_expression(expression);
-
-    graph_destroy(graph);
-}
-
-void test_loopy_belief_propagation(char * file_name){
-    struct expression * expression;
-    yyscan_t scanner;
-    YY_BUFFER_STATE state;
-    FILE * in;
-    Graph_t graph;
-    clock_t start, end;
-    double time_elapsed;
-
-    assert(yylex_init(&scanner) == 0);
-
-    in = fopen(file_name, "r");
-
-    yyset_in(in, scanner);
-
-    assert(yyparse(&expression, scanner) == 0);
-    //yy_delete_buffer(state, scanner);
-    yylex_destroy(scanner);
-
-    fclose(in);
-
-    assert(expression != NULL);
-
-    graph = build_graph(expression);
-    assert(graph != NULL);
-    //print_nodes(graph);
-    //print_edges(graph);
-
-    set_up_src_nodes_to_edges(graph);
-    set_up_dest_nodes_to_edges(graph);
-
-    start = clock();
-    init_previous_edge(graph);
-
-    loopy_propagate_until_cuda(graph, PRECISION, NUM_ITERATIONS);
-    end = clock();
-
-    time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
-    //print_nodes(graph);
-    printf("%s,loopy,%d,%d,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, time_elapsed);
-
-    delete_expression(expression);
-
-    graph_destroy(graph);
-}
-
-struct expression * parse_file(const char * file_name){
-    struct expression * expression;
-    yyscan_t scanner;
-    YY_BUFFER_STATE state;
-    FILE * in;
-
-    assert(yylex_init(&scanner) == 0);
-
-    in = fopen(file_name, "r");
-
-    yyset_in(in, scanner);
-
-    assert(yyparse(&expression, scanner) == 0);
-    //yy_delete_buffer(state, scanner);
-    yylex_destroy(scanner);
-
-    fclose(in);
-
-    assert(expression != NULL);
-
-    return expression;
-}
-
-void run_test_belief_propagation(struct expression * expression, const char * file_name){
-    Graph_t graph;
-    clock_t start, end;
-    double time_elapsed;
-    unsigned int i;
-
-    graph = build_graph(expression);
-    assert(graph != NULL);
-    //print_nodes(graph);
-    //print_edges(graph);
-
-    set_up_src_nodes_to_edges(graph);
-    set_up_dest_nodes_to_edges(graph);
-    calculate_diameter(graph);
-
-    start = clock();
-    init_levels_to_nodes(graph);
-    //print_levels_to_nodes(graph);
-
-    propagate_using_levels_start(graph);
-    for(i = 1; i < graph->num_levels - 1; ++i){
-        propagate_using_levels(graph, i);
-    }
-    reset_visited(graph);
-    for(i = graph->num_levels - 1; i > 0; --i){
-        propagate_using_levels(graph, i);
-    }
-
-    marginalize(graph);
-    end = clock();
-
-    time_elapsed = (double)(end - start) / CLOCKS_PER_SEC;
-    printf("%s,regular,%d,%d,%d,2,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, time_elapsed);
-
-    graph_destroy(graph);
-}
-
-void run_test_belief_propagation_xml_file(const char * file_name){
-    Graph_t graph;
-    clock_t start, end;
-    double time_elapsed;
-    unsigned int i;
-
-    graph = parse_xml_file(file_name);
-    assert(graph != NULL);
-    //print_nodes(graph);
-    //print_edges(graph);
-
-    set_up_src_nodes_to_edges(graph);
-    set_up_dest_nodes_to_edges(graph);
-    calculate_diameter(graph);
-
-    start = clock();
-    init_levels_to_nodes(graph);
-    //print_levels_to_nodes(graph);
-
-    propagate_using_levels_start(graph);
-    for(i = 1; i < graph->num_levels - 1; ++i){
-        propagate_using_levels(graph, i);
-    }
-    reset_visited(graph);
-    for(i = graph->num_levels - 1; i > 0; --i){
-        propagate_using_levels(graph, i);
-    }
-
-    marginalize(graph);
-    end = clock();
-
-    time_elapsed = (double)(end - start) / CLOCKS_PER_SEC;
-    printf("%s,regular,%d,%d,%d,2,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, time_elapsed);
-
-    graph_destroy(graph);
-}
-
-void run_test_loopy_belief_propagation(struct expression * expression, const char * file_name, FILE * out){
+/**
+ * Runs loopy BP and outputs the result
+ * @param expression The BNF expression holding the graph
+ * @param file_name The file name of the graph data
+ * @param out The file handle for the CSV file
+ */
+void run_test_loopy_belief_propagation_cuda(struct expression * expression, const char * file_name, FILE * out){
     Graph_t graph;
     clock_t start, end;
     double time_elapsed;
@@ -1103,8 +1017,12 @@ void run_test_loopy_belief_propagation(struct expression * expression, const cha
     graph_destroy(graph);
 }
 
-
-void run_test_loopy_belief_propagation_xml_file(const char * file_name, FILE * out){
+/**
+ * Runs loopy BP on the XML file
+ * @param file_name The name of the XML file
+ * @param out The file handle for the CSV file to output to
+ */
+void run_test_loopy_belief_propagation_xml_file_cuda(const char * file_name, FILE * out){
     Graph_t graph;
     clock_t start, end;
     double time_elapsed;
@@ -1133,7 +1051,12 @@ void run_test_loopy_belief_propagation_xml_file(const char * file_name, FILE * o
     graph_destroy(graph);
 }
 
-void run_test_loopy_belief_propagation_xml_file_edge(const char * file_name, FILE * out){
+/**
+ * Runs the edge-optimized version of loopy BP
+ * @param file_name The path of the file to read
+ * @param out The file handle for the CSV output
+ */
+void run_test_loopy_belief_propagation_xml_file_edge_cuda(const char * file_name, FILE * out){
     Graph_t graph;
     clock_t start, end;
     double time_elapsed;
@@ -1162,168 +1085,19 @@ void run_test_loopy_belief_propagation_xml_file_edge(const char * file_name, FIL
     graph_destroy(graph);
 }
 
-void run_tests_with_file(const char * file_name, unsigned int num_iterations, FILE * out){
-    unsigned int i;
-    struct expression * expr;
-
-    expr = parse_file(file_name);
-    for(i = 0; i < num_iterations; ++i){
-        run_test_belief_propagation(expr, file_name);
-    }
-
-    for(i = 0; i < num_iterations; ++i){
-        run_test_loopy_belief_propagation(expr, file_name, out);
-    }
-
-    delete_expression(expr);
-}
-
-void run_tests_with_xml_file(const char * file_name, unsigned int num_iterations, FILE * out){
-    unsigned int i;
-
-    /*for(i = 0; i < num_iterations; ++i){
-        run_test_belief_propagation(expr, file_name);
-    }*/
-
-    for(i = 0; i < num_iterations; ++i){
-        run_test_loopy_belief_propagation_xml_file(file_name, out);
-    }
-    for(i = 0; i < num_iterations; ++i){
-        run_test_loopy_belief_propagation_xml_file_edge(file_name, out);
-    }
-}
-
-int main(void)
-{
-/*
-	extern int yydebug;
-	yydebug = 1;
-/*
-	struct expression * expression = NULL;
-	const char test[] = "// Bayesian Network in the Interchange Format\n// Produced by BayesianNetworks package in JavaBayes\n// Output created Sun Nov 02 17:49:49 GMT+00:00 1997\n// Bayesian network \nnetwork \"Dog-Problem\" { //5 variables and 5 probability distributions\nproperty \"credal-set constant-density-bounded 1.1\" ;\n}variable  \"light-on\" { //2 values\ntype discrete[2] {  \"true\"  \"false\" };\nproperty \"position = (218, 195)\" ;\n}\nvariable  \"bowel-problem\" { //2 values\ntype discrete[2] {  \"true\"  \"false\" };\nproperty \"position = (335, 99)\" ;\n}";
-	test_ast(test);
-
-  	test_parse_file("dog.bif");
-	test_parse_file("alarm.bif");
-
-	test_parse_file("very_large/andes.bif");
-	test_loopy_belief_propagation("very_large/andes.bif");
-
-	test_parse_file("Diabetes.bif");
-	test_loopy_belief_propagation("Diabetes.bif");
-*/
-	//test_loopy_belief_propagation("../benchmark_files/dog.bif");
-	//test_loopy_belief_propagation("../benchmark_files/alarm.bif");
-
-    //test_file("dog.bif");
-    //test_file("alarm.bif");
-
-    /*expression = read_file("alarm.bif");
-
-    assert(expression != NULL);
-
-    delete_expression(expression);*/
-
-    FILE * out = fopen("cuda_benchmark.csv", "w");
-    fprintf(out, "File Name,Propagation Type,Number of Nodes,Number of Edges,Diameter,Number of Iterations,BP Run Time(s)\n");
-    fflush(out);
-
-	/*run_tests_with_file("../benchmark_files/small/asia.bif", 1);
-	run_tests_with_file("../benchmark_files/small/cancer.bif", 1);
-	run_tests_with_file("../benchmark_files/small/earthquake.bif", 1);
-	run_tests_with_file("../benchmark_files/small/sachs.bif", 1);
-	run_tests_with_file("../benchmark_files/small/survey.bif", 1);
-/*
-	run_tests_with_file("../benchmark_files/medium/alarm.bif", 1);
-	run_tests_with_file("../benchmark_files/medium/barley.bif", 1);
-	//run_tests_with_file("../benchmark_files/medium/child.bif", 1);
-	run_tests_with_file("../benchmark_files/medium/hailfinder.bif", 1);
-	run_tests_with_file("../benchmark_files/medium/insurance.bif", 1);
-	run_tests_with_file("../benchmark_files/medium/mildew.bif", 1);
-	run_tests_with_file("../benchmark_files/medium/water.bif", 1);
-
-	run_tests_with_file("../benchmark_files/large/hepar2.bif", 1);
-	run_tests_with_file("../benchmark_files/large/win95pts.bif", 1);
-
-    run_tests_with_file("../benchmark_files/very_large/andes.bif", 1);
-    run_tests_with_file("../benchmark_files/very_large/diabetes.bif", 1);
-    run_tests_with_file("../benchmark_files/very_large/link.bif", 1);
-    run_tests_with_file("../benchmark_files/very_large/munin1.bif", 1);
-    run_tests_with_file("../benchmark_files/very_large/munin2.bif", 1);
-    run_tests_with_file("../benchmark_files/very_large/munin3.bif", 1);
-    run_tests_with_file("../benchmark_files/very_large/munin4.bif", 1);
-	//run_tests_with_file("../benchmark_files/very_large/munin.bif", 1);
-	run_tests_with_file("../benchmark_files/very_large/pathfinder.bif", 1);
-    run_tests_with_file("../benchmark_files/very_large/pigs.bif", 1);
-
-    run_tests_with_xml_file("../benchmark_files/xml/bf_1000_2000_1.xml", 1);
-    run_tests_with_xml_file("../benchmark_files/xml/bf_1000_2000_2.xml", 1);
-    run_tests_with_xml_file("../benchmark_files/xml/bf_1000_2000_3.xml", 1);
-    run_tests_with_xml_file("../benchmark_files/xml/bf_2000_4000_1.xml", 1);
-    run_tests_with_xml_file("../benchmark_files/xml/bf_2000_4000_2.xml", 1);
-    run_tests_with_xml_file("../benchmark_files/xml/bf_2000_4000_3.xml", 1);
-    run_tests_with_xml_file("../benchmark_files/xml/bf_5000_10000_1.xml", 1);
-    run_tests_with_xml_file("../benchmark_files/xml/bf_5000_10000_2.xml", 1);
-    run_tests_with_xml_file("../benchmark_files/xml/bf_5000_10000_3.xml", 1);
-    run_tests_with_xml_file("../benchmark_files/xml/bf_10000_20000_1.xml", 1);
-    run_tests_with_xml_file("../benchmark_files/xml/bf_10000_20000_2.xml", 1);
-    run_tests_with_xml_file("../benchmark_files/xml/bf_10000_20000_3.xml", 1);
-    run_tests_with_xml_file("../benchmark_files/xml/bf_12000_24000_1.xml", 1);
-    run_tests_with_xml_file("../benchmark_files/xml/bf_12000_24000_2.xml", 1);
-    run_tests_with_xml_file("../benchmark_files/xml/bf_12000_24000_3.xml", 1);*/
-
-    /*run_tests_with_xml_file("../benchmark_files/xml/bf_15000_30000_1.xml", 1);
-    run_tests_with_xml_file("../benchmark_files/xml/bf_15000_30000_2.xml", 1);
-    run_tests_with_xml_file("../benchmark_files/xml/bf_15000_30000_3.xml", 1);
-
-    run_tests_with_xml_file("../benchmark_files/xml/bf_20000_40000_1.xml", 1);
-    run_tests_with_xml_file("../benchmark_files/xml/bf_20000_40000_2.xml", 1);
-    run_tests_with_xml_file("../benchmark_files/xml/bf_20000_40000_3.xml", 1);
-
-    run_tests_with_xml_file("../benchmark_files/xml/bf_25000_50000_1.xml", 1);
-    run_tests_with_xml_file("../benchmark_files/xml/bf_25000_50000_2.xml", 1);
-    run_tests_with_xml_file("../benchmark_files/xml/bf_25000_50000_3.xml", 1);
-
-    run_tests_with_xml_file("../benchmark_files/xml/bf_30000_60000_1.xml", 1);
-    run_tests_with_xml_file("../benchmark_files/xml/bf_30000_60000_2.xml", 1);
-    run_tests_with_xml_file("../benchmark_files/xml/bf_30000_60000_3.xml", 1);*/
-
-    /*run_tests_with_xml_file("../benchmark_files/xml/bf_40000_80000_1.xml", 1);
-    run_tests_with_xml_file("../benchmark_files/xml/bf_40000_80000_2.xml", 1);
-    run_tests_with_xml_file("../benchmark_files/xml/bf_40000_80000_3.xml", 1);
-
-    run_tests_with_xml_file("../benchmark_files/xml/bf_80000_160000_2.xml", 1);*/
-
-    run_tests_with_xml_file("../benchmark_files/xml2/10_20.xml", 1, out);
-    run_tests_with_xml_file("../benchmark_files/xml2/100_200.xml", 1, out);
-    run_tests_with_xml_file("../benchmark_files/xml2/1000_2000.xml", 1, out);
-    run_tests_with_xml_file("../benchmark_files/xml2/10000_20000.xml", 1, out);
-    run_tests_with_xml_file("../benchmark_files/xml2/100000_200000.xml", 1, out);
-    run_tests_with_xml_file("../benchmark_files/xml2/200000_400000.xml", 1, out);
-    //run_tests_with_xml_file("../benchmark_files/xml2/300000_600000.xml", 1, out);
-    run_tests_with_xml_file("../benchmark_files/xml2/400000_800000.xml", 1, out);
-    //run_tests_with_xml_file("../benchmark_files/xml2/500000_1000000.xml", 1, out);
-    run_tests_with_xml_file("../benchmark_files/xml2/600000_1200000.xml", 1, out);
-    //run_tests_with_xml_file("../benchmark_files/xml2/700000_1400000.xml", 1, out);
-    run_tests_with_xml_file("../benchmark_files/xml2/800000_1600000.xml", 1, out);
-    //run_tests_with_xml_file("../benchmark_files/xml2/900000_1800000.xml", 1, out);
-    run_tests_with_xml_file("../benchmark_files/xml2/1000000_2000000.xml", 1, out);
-    //run_tests_with_xml_file("../benchmark_files/xml2/10000000_20000000.xml", 1, out);
-
-    fclose(out);
-
-    return 0;
-}
-
 
 /**
- * Check the return value of the CUDA runtime API call and exit
- * the application if the call has failed.
+ * Checks that the CUDA kernel completed
+ * @param file The source code file
+ * @param line The line within the source code file that executes the kernel
+ * @param statement The name of the kernel
+ * @param err The error message
  */
-static void CheckCudaErrorAux (const char *file, unsigned int line, const char *statement, cudaError_t err)
+void CheckCudaErrorAux (const char *file, unsigned int line, const char *statement, cudaError_t err)
 {
-    if (err == cudaSuccess)
+    if (err == cudaSuccess) {
         return;
+    }
     printf("%s returned %s (%d) at %s:%d\n", statement, cudaGetErrorString(err), err, file, line);
     exit (1);
 }
