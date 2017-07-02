@@ -31,6 +31,14 @@ struct belief {
 	 * The size of the probabilities
 	 */
     unsigned int size;
+	/**
+	 * The previous sum
+	 */
+	float previous_sum;
+	/**
+	 * The current sum
+	 */
+	float current_sum;
 };
 
 /**
@@ -98,19 +106,6 @@ struct graph {
 	 * The array of current beliefs
 	 */
 	struct belief * edges_messages;
-	/**
-	 * The array of the beliefs from the previous iteration
-	 */
-	struct belief * last_edges_messages;
-
-	/**
-	 * Pointer to the current belief array
-	 */
-	struct belief ** current_edge_messages;
-	/**
-	 * Pointer to the previous belief array
-	 */
-    struct belief ** previous_edge_messages;
 
 	/**
 	 * Array of belief states indexed by node

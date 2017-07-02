@@ -53,14 +53,14 @@ void marginalize_sum_node_kernel(struct belief *, struct belief *,
                                  unsigned int, char, unsigned int);
 
 __device__
-float calculate_local_delta(unsigned int, struct belief *, struct belief *);
+float calculate_local_delta(unsigned int, struct belief *);
 
 __global__
-void calculate_delta_6(struct belief *, struct belief *, float *, float *,
+void calculate_delta_6(struct belief *, float *, float *,
                        unsigned int, char, unsigned int);
 
 __global__
-void calculate_delta_simple(struct belief *, struct belief *, float *, float *,
+void calculate_delta_simple(struct belief *, float *, float *,
                             unsigned int);
 
 void check_cuda_kernel_return_code();

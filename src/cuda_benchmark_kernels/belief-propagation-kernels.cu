@@ -122,6 +122,8 @@ void send_message_for_edge_cuda(struct belief * message_buffer, unsigned int edg
     if(sum <= 0.0){
         sum = 1.0;
     }
+    edge_messages[edge_index].previous_sum = edge_messages[edge_index].current_sum;
+    edge_messages[edge_index].current_sum = sum;
     for(i = 0; i < num_src; ++i){
         edge_messages[edge_index].data[i] = partial_sums[threadIdx.x * MAX_STATES + i] / sum;
     }
@@ -258,39 +260,31 @@ void marginalize_sum_node_kernel(struct belief * message_buffer, struct belief *
 /**
  * Calculates the delta for a given message
  * @param i The message's index
- * @param previous_messages The previous messages
  * @param current_messages The current messages
  * @return The delta between the messages
  */
 __device__
-float calculate_local_delta(unsigned int i, struct belief * previous_messages, struct belief * current_messages){
+float calculate_local_delta(unsigned int i, struct belief * current_messages){
     float delta, diff;
-    unsigned int k, num_variables;
 
-    delta = 0.0;
-    num_variables = current_messages[i].size;
-
-    for(k = 0; k < num_variables; ++k){
-        diff = previous_messages[i].data[k] - current_messages[i].data[k];
-        if(diff != diff){
-            diff = 0.0;
-        }
-        delta += fabs(diff);
+    diff = current_messages[i].previous_sum - current_messages[i].current_sum;
+    if(diff != diff){
+        diff = 0.0;
     }
+    delta = (float)fabs(diff);
 
     return delta;
 }
 
 /**
  * Calculates the delta used for testing for convergence via reduction
- * @param previous_messages The previous beliefs of the graph
  * @param current_messages The current beliefs of the graph
  * @param delta The delta to write back
  * @param delta_array Temp array used to store partial deltas for reduction
  * @param num_edges The number of edges in the graph
  */
 __global__
-void calculate_delta(struct belief * previous_messages, struct belief * current_messages, float * delta, float * delta_array, unsigned int num_edges){
+void calculate_delta(struct belief * current_messages, float * delta, float * delta_array, unsigned int num_edges){
     extern __shared__ float shared_delta[];
     unsigned int tid, idx, i, s;
 
@@ -298,7 +292,7 @@ void calculate_delta(struct belief * previous_messages, struct belief * current_
     i = blockIdx.x * (blockDim.x * 2) + threadIdx.x;
 
     for(idx = blockIdx.x*blockDim.x + threadIdx.x; idx < num_edges; idx += blockDim.x * gridDim.x){
-        delta_array[idx] = calculate_local_delta(idx, previous_messages, current_messages);
+        delta_array[idx] = calculate_local_delta(idx, current_messages);
     }
     __syncthreads();
 
@@ -364,14 +358,13 @@ void calculate_delta(struct belief * previous_messages, struct belief * current_
 /**
  * Calculates the delta used for testing for convergence via reduction
  * @details Copied from the sample in the NVIDIA CUDA SDK
- * @param previous_messages The previous beliefs of the graph
  * @param current_messages The current beliefs of the graph
  * @param delta The delta to write back
  * @param delta_array Temp array used to store partial deltas for reduction
  * @param num_edges The number of edges in the graph
  */
 __global__
-void calculate_delta_6(struct belief *previous_messages, struct belief *current_messages, float * delta, float * delta_array,
+void calculate_delta_6(struct belief *current_messages, float * delta, float * delta_array,
                        unsigned int num_edges, char n_is_pow_2, unsigned int warp_size) {
     extern __shared__ float shared_delta[];
 
@@ -384,7 +377,7 @@ void calculate_delta_6(struct belief *previous_messages, struct belief *current_
     unsigned int grid_size = blockDim.x * 2 * gridDim.x;
 
     for(idx = blockIdx.x*blockDim.x + threadIdx.x; idx < num_edges; idx += blockDim.x * gridDim.x){
-        delta_array[idx] = calculate_local_delta(idx, previous_messages, current_messages);
+        delta_array[idx] = calculate_local_delta(idx, current_messages);
     }
     __syncthreads();
 
@@ -478,7 +471,7 @@ void calculate_delta_6(struct belief *previous_messages, struct belief *current_
  * @param num_edges The number of edges in the graph
  */
 __global__
-void calculate_delta_simple(struct belief * previous_messages, struct belief * current_messages,
+void calculate_delta_simple(struct belief * current_messages,
                             float * delta, float * delta_array,
                             unsigned int num_edges) {
     extern __shared__ float shared_delta[];
@@ -487,7 +480,7 @@ void calculate_delta_simple(struct belief * previous_messages, struct belief * c
     tid = threadIdx.x;
 
     for(idx = blockIdx.x*blockDim.x + threadIdx.x; idx < num_edges; idx += blockDim.x * gridDim.x){
-        delta_array[idx] = calculate_local_delta(idx, previous_messages, current_messages);
+        delta_array[idx] = calculate_local_delta(idx, current_messages);
     }
     __syncthreads();
 
@@ -545,8 +538,6 @@ unsigned int loopy_propagate_until_cuda_kernels(Graph_t graph, float convergence
     struct belief * message_buffer;
 
     struct belief * current_messages;
-    struct belief * previous_messages;
-    struct belief * temp;
 
     unsigned int * src_nodes_to_edges_nodes;
     unsigned int * src_nodes_to_edges_edges;
@@ -576,7 +567,6 @@ unsigned int loopy_propagate_until_cuda_kernels(Graph_t graph, float convergence
     CUDA_CHECK_RETURN(cudaMalloc((void **)&src_nodes_to_edges_edges, sizeof(unsigned int) * graph->current_num_edges));
 
     CUDA_CHECK_RETURN(cudaMalloc((void **)&current_messages, sizeof(struct belief) * graph->current_num_edges));
-    CUDA_CHECK_RETURN(cudaMalloc((void **)&previous_messages, sizeof(struct belief) * graph->current_num_edges));
 
     CUDA_CHECK_RETURN(cudaMalloc((void **)&node_states, sizeof(struct belief) * graph->current_num_vertices));
 
@@ -589,7 +579,6 @@ unsigned int loopy_propagate_until_cuda_kernels(Graph_t graph, float convergence
     CUDA_CHECK_RETURN(cudaMemcpy(edges_joint_probabilities, graph->edges_joint_probabilities, sizeof(struct joint_probability) * graph->current_num_edges, cudaMemcpyHostToDevice ));
 
     CUDA_CHECK_RETURN(cudaMemcpy(current_messages, graph->edges_messages, sizeof(struct belief) * graph->current_num_edges, cudaMemcpyHostToDevice));
-    CUDA_CHECK_RETURN(cudaMemcpy(current_messages, graph->last_edges_messages, sizeof(struct belief) * graph->current_num_edges, cudaMemcpyHostToDevice));
 
     CUDA_CHECK_RETURN(cudaMemcpy(node_states, graph->node_states, sizeof(struct belief) * graph->current_num_vertices, cudaMemcpyHostToDevice));
 
@@ -627,7 +616,7 @@ unsigned int loopy_propagate_until_cuda_kernels(Graph_t graph, float convergence
             init_message_buffer_kernel<<<dimInitGrid, dimInitMessageBuffer>>>(message_buffer, node_states, num_vertices);
             check_cuda_kernel_return_code();
             //CUDA_CHECK_RETURN(cudaMemcpy(&host_delta, delta, sizeof(float), cudaMemcpyDeviceToHost));
-            read_incoming_messages_kernel <<<dimMessagesGrid, dimMessagesBuffer>>>(message_buffer, previous_messages, dest_nodes_to_edges_nodes, dest_nodes_to_edges_edges, num_edges, num_vertices, is_pow_2, WARP_SIZE);
+            read_incoming_messages_kernel <<<dimMessagesGrid, dimMessagesBuffer>>>(message_buffer, current_messages, dest_nodes_to_edges_nodes, dest_nodes_to_edges_edges, num_edges, num_vertices, is_pow_2, WARP_SIZE);
             check_cuda_kernel_return_code();
             //CUDA_CHECK_RETURN(cudaMemcpy(&host_delta, delta, sizeof(float), cudaMemcpyDeviceToHost));
             send_message_for_node_kernel<<<dimInitGrid, dimInitMessageBuffer>>>(message_buffer, num_edges, edges_joint_probabilities, current_messages, src_nodes_to_edges_nodes, src_nodes_to_edges_edges, num_vertices);
@@ -638,16 +627,11 @@ unsigned int loopy_propagate_until_cuda_kernels(Graph_t graph, float convergence
             marginalize_sum_node_kernel<<<dimInitGrid, dimInitMessageBuffer>>>(message_buffer, node_states, current_messages, dest_nodes_to_edges_nodes, dest_nodes_to_edges_edges, num_vertices, num_edges, is_pow_2, WARP_SIZE);
             check_cuda_kernel_return_code();
             //CUDA_CHECK_RETURN(cudaMemcpy(&host_delta, delta, sizeof(float), cudaMemcpyDeviceToHost));
-
-            //swap pointers
-            temp = current_messages;
-            current_messages = previous_messages;
-            previous_messages = temp;
             num_iter++;
         }
-        calculate_delta_6<<<dimReduceGrid, dimReduceBlock, reduceSmemSize>>>(previous_messages, current_messages, delta, delta_array, num_edges, is_pow_2, WARP_SIZE);
-        //calculate_delta<<<dimReduceGrid, dimReduceBlock, reduceSmemSize>>>(previous_messages, current_messages, delta, delta_array, num_edges);
-        //calculate_delta_simple<<<dimReduceGrid, dimReduceBlock, reduceSmemSize>>>(previous_messages, current_messages, delta, delta_array, num_edges);
+        calculate_delta_6<<<dimReduceGrid, dimReduceBlock, reduceSmemSize>>>(current_messages, delta, delta_array, num_edges, is_pow_2, WARP_SIZE);
+        //calculate_delta<<<dimReduceGrid, dimReduceBlock, reduceSmemSize>>>(current_messages, delta, delta_array, num_edges);
+        //calculate_delta_simple<<<dimReduceGrid, dimReduceBlock, reduceSmemSize>>>(current_messages, delta, delta_array, num_edges);
         check_cuda_kernel_return_code();
         CUDA_CHECK_RETURN(cudaMemcpy(&host_delta, delta, sizeof(float), cudaMemcpyDeviceToHost));
      //   printf("Current delta: %f\n", host_delta);
@@ -661,7 +645,6 @@ unsigned int loopy_propagate_until_cuda_kernels(Graph_t graph, float convergence
     // copy data back
     CUDA_CHECK_RETURN(cudaMemcpy(graph->node_states, node_states, sizeof(struct belief) * num_vertices, cudaMemcpyDeviceToHost));
     CUDA_CHECK_RETURN(cudaMemcpy(graph->edges_messages, current_messages, sizeof(struct belief) * num_edges, cudaMemcpyDeviceToHost));
-    CUDA_CHECK_RETURN(cudaMemcpy(graph->last_edges_messages, previous_messages, sizeof(struct belief) * num_edges, cudaMemcpyDeviceToHost));
 
     CUDA_CHECK_RETURN(cudaFree(dest_nodes_to_edges_nodes));
     CUDA_CHECK_RETURN(cudaFree(dest_nodes_to_edges_edges));
@@ -671,7 +654,6 @@ unsigned int loopy_propagate_until_cuda_kernels(Graph_t graph, float convergence
     CUDA_CHECK_RETURN(cudaFree(edges_joint_probabilities));
 
     CUDA_CHECK_RETURN(cudaFree(current_messages));
-    CUDA_CHECK_RETURN(cudaFree(previous_messages));
     CUDA_CHECK_RETURN(cudaFree(message_buffer));
 
     CUDA_CHECK_RETURN(cudaFree(node_states));

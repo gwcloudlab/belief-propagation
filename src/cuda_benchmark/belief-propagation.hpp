@@ -53,7 +53,7 @@ __global__
 void loopy_propagate_main_loop(unsigned int, unsigned int,
                                struct belief *,
                                struct joint_probability *,
-                               struct belief *, struct belief *,
+                               struct belief *,
                                unsigned int *, unsigned int *,
                                unsigned int *, unsigned int *);
 
@@ -76,17 +76,17 @@ __global__
 void marginalize_loop_node_edge_kernel(struct belief *, unsigned int);
 
 __device__
-float calculate_local_delta(unsigned int, struct belief *, struct belief *);
+float calculate_local_delta(unsigned int, struct belief *);
 
 __global__
-void calculate_delta(struct belief *, struct belief *, float *, float *, unsigned int);
+void calculate_delta(struct belief *, float *, float *, unsigned int);
 
 __global__
-void calculate_delta_6(struct belief *, struct belief *, float *, float *,
+void calculate_delta_6(struct belief *, float *, float *,
                        unsigned int, char, unsigned int);
 
 __global__
-void calculate_delta_simple(struct belief *, struct belief *, float *, float *,
+void calculate_delta_simple(struct belief *, float *, float *,
                             unsigned int);
 
 void test_error();
