@@ -19,7 +19,7 @@ void CheckCudaErrorAux (const char *, unsigned, const char *, cudaError_t);
 #define CUDA_CHECK_RETURN(value) CheckCudaErrorAux(__FILE__,__LINE__, #value, value)
 
 __global__
-void init_message_buffer_kernel(struct belief *, struct belief *, unsigned int *, unsigned int);
+void init_message_buffer_kernel(struct belief *, struct belief *, unsigned int);
 
 __device__
 void combine_message_cuda(struct belief *, struct belief *, unsigned int, unsigned int,
@@ -28,7 +28,7 @@ void combine_message_cuda(struct belief *, struct belief *, unsigned int, unsign
 __global__
 void read_incoming_messages_kernel(struct belief *, struct belief *, unsigned int *,
                                    unsigned int *, unsigned int,
-                                   unsigned int *, unsigned int,
+                                   unsigned int,
                                    char, unsigned int);
 
 __device__
@@ -42,26 +42,26 @@ void send_message_for_node_kernel(struct belief *, unsigned int,
                                   unsigned int *, unsigned int *, unsigned int);
 
 __global__
-void marginalize_node_combine_kernel(unsigned int *, struct belief *, struct belief *,
+void marginalize_node_combine_kernel(struct belief *, struct belief *,
                                      struct belief *, unsigned int *, unsigned int *, unsigned int,
                                      unsigned int, char, unsigned int);
 
 __global__
-void marginalize_sum_node_kernel(unsigned int *, struct belief *, struct belief *,
+void marginalize_sum_node_kernel(struct belief *, struct belief *,
                                  struct belief *, unsigned int *,
                                  unsigned int *, unsigned int,
                                  unsigned int, char, unsigned int);
 
 __device__
-float calculate_local_delta(unsigned int, struct belief *, struct belief *, unsigned int *);
+float calculate_local_delta(unsigned int, struct belief *);
 
 __global__
-void calculate_delta_6(struct belief *, struct belief *, float *, float *, unsigned int *,
+void calculate_delta_6(struct belief *, float *, float *,
                        unsigned int, char, unsigned int);
 
 __global__
-void calculate_delta_simple(struct belief *, struct belief *, float *, float *,
-                            unsigned int *, unsigned int);
+void calculate_delta_simple(struct belief *, float *, float *,
+                            unsigned int);
 
 void check_cuda_kernel_return_code();
 

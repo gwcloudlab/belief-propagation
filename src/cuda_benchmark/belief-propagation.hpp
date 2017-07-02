@@ -32,67 +32,61 @@ void read_incoming_messages_cuda(struct belief *, struct belief *, unsigned int 
 
 __device__
 void send_message_for_edge_cuda(struct belief *, unsigned int, struct joint_probability *,
-                                struct belief *, unsigned int *, unsigned int *);
+                                struct belief *);
 __device__
 void send_message_for_node_cuda(struct belief *, unsigned int, struct joint_probability *,
                                 struct belief *, unsigned int *, unsigned int *,
-                                unsigned int *, unsigned int *,
                                 unsigned int, unsigned int);
 
 __device__
-void marginalize_node(unsigned int *, struct belief *, unsigned int,
+void marginalize_node(struct belief *, unsigned int,
                       struct belief *,
                       unsigned int *, unsigned int *,
                       unsigned int, unsigned int);
 
 __global__
-void marginalize_nodes(unsigned int *, struct belief *, struct belief *,
+void marginalize_nodes(struct belief *, struct belief *,
                        unsigned int *, unsigned int *,
                        unsigned int, unsigned int);
 
 __global__
 void loopy_propagate_main_loop(unsigned int, unsigned int,
-                               unsigned int *, struct belief *,
+                               struct belief *,
                                struct joint_probability *,
-                               struct belief *, struct belief *,
-                               unsigned int *, unsigned int *,
+                               struct belief *,
                                unsigned int *, unsigned int *,
                                unsigned int *, unsigned int *);
 
 __device__
 static void send_message_for_edge_iteration_cuda(struct belief *, unsigned int, unsigned int,
-                                                 struct joint_probability *, struct belief *,
-                                                 unsigned int *, unsigned int *);
+                                                 struct joint_probability *, struct belief *);
 
 __global__
 void send_message_for_edge_iteration_cuda_kernel(unsigned int, unsigned int *,
                                                  struct belief *, struct joint_probability *,
-                                                 struct belief *, unsigned int *, unsigned int *);
+                                                 struct belief *);
 
 __device__
-void combine_loopy_edge_cuda(unsigned int, struct belief *, unsigned int, struct belief *,
-                             unsigned int);
+void combine_loopy_edge_cuda(unsigned int, struct belief *, unsigned int, struct belief *);
 
 __global__
-void combine_loopy_edge_cuda_kernel(unsigned int, unsigned int *, struct belief *, struct belief *,
-                                    unsigned int *);
+void combine_loopy_edge_cuda_kernel(unsigned int, unsigned int *, struct belief *, struct belief *);
 
 __global__
-void marginalize_loop_node_edge_kernel(struct belief *, unsigned int *, unsigned int);
+void marginalize_loop_node_edge_kernel(struct belief *, unsigned int);
 
 __device__
-float calculate_local_delta(unsigned int, struct belief *, struct belief *, unsigned int *);
+float calculate_local_delta(unsigned int, struct belief *);
 
 __global__
-void calculate_delta(struct belief *, struct belief *, float *, float *, unsigned int *,
-                     unsigned int);
+void calculate_delta(struct belief *, float *, float *, unsigned int);
 
 __global__
-void calculate_delta_6(struct belief *, struct belief *, float *, float *, unsigned int *,
+void calculate_delta_6(struct belief *, float *, float *,
                        unsigned int, char, unsigned int);
 
 __global__
-void calculate_delta_simple(struct belief *, struct belief *, float *, float *, unsigned int *,
+void calculate_delta_simple(struct belief *, float *, float *,
                             unsigned int);
 
 void test_error();
