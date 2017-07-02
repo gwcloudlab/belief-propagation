@@ -88,11 +88,6 @@ struct graph {
 	/**
 	 * Array of edges by their first dimension of the joint probability
 	 */
-	unsigned int * edges_x_dim;
-	/**
-	 * Array of edges by their second dimension of the joint probability
-	 */
-	unsigned int * edges_y_dim;
 
 	/**
 	 * Array of joint probabilities indexed by edge
@@ -121,10 +116,6 @@ struct graph {
 	 * Array of belief states indexed by node
 	 */
 	struct belief * node_states;
-	/**
-	 * Array of the number of belief states indexed by node
-	 */
-	unsigned int * node_num_vars;
 
 	/**
 	 * Array of indices in src_nodes_to_edges_edge_list indexed by their source node
@@ -238,13 +229,10 @@ void initialize_node(Graph_t, unsigned int, unsigned int);
 void node_set_state(Graph_t, unsigned int, unsigned int, struct belief *);
 
 void init_edge(Graph_t, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, struct joint_probability *);
-void send_message(struct belief *, unsigned int, struct joint_probability *, struct belief *, unsigned int *, unsigned int *);
+void send_message(struct belief *, unsigned int, struct joint_probability *, struct belief *);
 
 void fill_in_node_hash_table(Graph_t);
 unsigned int find_node_by_name(char *, Graph_t);
-
-int graph_vertex_count(Graph_t);
-int graph_edge_count(Graph_t);
 
 void graph_destroy(Graph_t);
 

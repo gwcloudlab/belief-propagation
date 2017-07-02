@@ -32,12 +32,12 @@ void add_nodes(Graph_t graph){
     assert(graph->current_num_vertices == 4);
 
     for(node_index = 0; node_index < 3; ++node_index) {
-        assert(graph->node_num_vars[node_index] == 2);
+        assert(graph->node_states[node_index].size == 2);
         assert_value(graph->node_states[node_index].data[0] - 1.0f);
         assert_value(graph->node_states[node_index].data[1] - 1.0f);
     }
     node_index = 3;
-    assert(graph->node_num_vars[node_index] == 2);
+    assert(graph->node_states[node_index].size == 2);
     assert_value(graph->node_states[node_index].data[0] - 1.0f);
     assert_value(graph->node_states[node_index].data[1] - 0.0f);
 }
@@ -129,8 +129,8 @@ void forward_backward_belief_propagation() {
 
 	print_nodes(graph);
 	print_edges(graph);
-	//print_src_nodes_to_edges(graph);
-	//print_dest_nodes_to_edges(graph);
+	print_src_nodes_to_edges(graph);
+	print_dest_nodes_to_edges(graph);
 
 	propagate_using_levels_start(graph);
 	for(i = 1; i < graph->num_levels - 1; ++i){

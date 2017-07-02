@@ -447,7 +447,7 @@ static void add_edges_to_graph(xmlDocPtr doc, xmlNodePtr definition, Graph_t gra
     dest_index = find_node_by_name(dest_node_name, graph);
     //assert(dest_index >= 0);
     //assert(dest_index < graph->current_num_vertices);
-    slice = num_probabilities / graph->node_num_vars[dest_index];
+    slice = num_probabilities / graph->node_states[dest_index].size;
 
     // fill in joint probability
     offset = 1;
@@ -462,17 +462,17 @@ static void add_edges_to_graph(xmlDocPtr doc, xmlNodePtr definition, Graph_t gra
         //assert(src_index >= 0);
         //assert(src_index < graph->current_num_vertices);
 
-        delta = graph->node_num_vars[src_index];
+        delta = graph->node_states[src_index].size;
 
-        for(k = 0; k < graph->node_num_vars[dest_index]; ++k){
-            for(j = 0; j < graph->node_num_vars[src_index]; ++j){
+        for(k = 0; k < graph->node_states[dest_index].size; ++k){
+            for(j = 0; j < graph->node_states[src_index].size; ++j){
                 sub_graph.data[j][k] = 0.0;
                 transpose.data[k][j] = 0.0;
             }
         }
 
-        for(k = 0; k < graph->node_num_vars[dest_index]; ++k){
-            for(j = 0; j < graph->node_num_vars[src_index]; ++j){
+        for(k = 0; k < graph->node_states[dest_index].size; ++k){
+            for(j = 0; j < graph->node_states[src_index].size; ++j){
                 diff = 0;
                 index = j * offset + diff;
                 while(index <= slice) {
@@ -489,19 +489,19 @@ static void add_edges_to_graph(xmlDocPtr doc, xmlNodePtr definition, Graph_t gra
             }
         }
 
-        for(j = 0; j < graph->node_num_vars[src_index]; ++j){
-            for(k = 0; k < graph->node_num_vars[dest_index]; ++k){
+        for(j = 0; j < graph->node_states[src_index].size; ++j){
+            for(k = 0; k < graph->node_states[dest_index].size; ++k){
                 transpose.data[k][j] = sub_graph.data[j][k];
             }
         }
 
-        graph_add_edge(graph, src_index, dest_index, graph->node_num_vars[src_index], graph->node_num_vars[dest_index], &sub_graph);
+        graph_add_edge(graph, src_index, dest_index, graph->node_states[src_index].size, graph->node_states[dest_index].size, &sub_graph);
         if(graph->observed_nodes[src_index] != 1 ){
-            graph_add_edge(graph, dest_index, src_index, graph->node_num_vars[dest_index], graph->node_num_vars[src_index], &transpose);
+            graph_add_edge(graph, dest_index, src_index, graph->node_states[dest_index].size, graph->node_states[src_index].size, &transpose);
         }
 
 
-        offset *= graph->node_num_vars[src_index];
+        offset *= graph->node_states[src_index].size;
     }
 
     free(new_belief);
