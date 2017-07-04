@@ -12,14 +12,23 @@ addons:
             - ubuntu-toolchain-r-test
         packages:
             - lcov
+    coverity_scan:
+        project:
+          name: "mjost5v/belief-propagation"
+          description: "Belief propagation in C, OpenMP, OpenACC and CUDA"
+        notification_email: "mjost5v@users.noreply.github.com"
+        build_command:   "./run_build.sh"
+        branch_pattern: coverity_scan
 
 branches:
   only:
   - master
+  - coverity_scan
 
 before_install:
   - echo "Installing CUDA library"
   - source .travis/install_cuda.sh
+  - echo -n | openssl s_client -connect scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-
 
 script: ./run_build.sh
 
@@ -34,3 +43,6 @@ env:
   global:
     - LANG="en_US.UTF-8"
     - CUDA="8.0.61-1"
+    # The next declaration is the encrypted COVERITY_SCAN_TOKEN, created
+    #   via the "travis encrypt" command using the project repo's public key
+    - secure: "SoTizGonbeS8dPyqyaDoflTZ2kXggYoS5MNL23RrhUQFYbh4uR02gRL9jJ/DFWovD3S6QQVwr+cHCTEtLuJa1bcmces4kJZWrVjbpz4i1gj1VYYEWneihc3v0aIiPzHYPGznrkm2XnGjw6cjGCZXvGRMxvSbjKMpg/EMKgYJFg4iEA6AKFS2qFSqOkA3hU4tgjajgDfg8+bqMPjUYXsNu/aylZ1T+5xfsSoXBaNnmWLZyesCjKYeeuyP4Luhq8AXKOl5QomjlcL2CQAkO1WEPRrFDsMP1LdYMdnr9S/DJ+79MeqFgLolF7y/40X2ChaWvoyit2S/lcMbuDUSe2umU00DXb+RJmU7/YxzqMvyJ6gVmkDLp0UkxXlVvIt6Wre9u8tVsPMHYe9rkqaomIAI+WWsZ/4tjzFr2fqKGHGcyGIPsmRzzdlAmAieCI7VEgf/CpY6CxrfadanY/abCM56sBAsFbwyMixM8uT4o11IJSqYXi8GMqgSObVBosqibrJjJ+E80m1JW7ndM3Nh22f85B/1bvGltoJhOgCWTRPso8gFejr9Q9em2Utlt7Xz4pmjuDS2KoAdqBYYmTnnV8Y2ZCNdorcbydw/HMEhIJmRx+Oop+9ZZ0G0xGDLql7nl8XGy6/dSUTP0h4/wvxZsbOrVDjYCw9VGB0bz4xUy6etEdQ="
