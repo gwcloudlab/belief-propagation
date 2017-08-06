@@ -1086,6 +1086,78 @@ void run_test_loopy_belief_propagation_xml_file_edge_cuda(const char * file_name
 }
 
 
+
+/**
+ * Runs loopy BP on the XML file
+ * @param edge_file_name The file to read for the SNAP edges
+ * @param node_file_name The file to read for the SNAP observed nodes
+ * @param out The CSV file to output to
+ */
+void run_test_loopy_belief_propagation_snap_file_cuda(const char * edge_file_name, const char * node_file_name, FILE * out){
+    Graph_t graph;
+    clock_t start, end;
+    double time_elapsed;
+    unsigned int num_iterations;
+
+    graph = parse_graph_from_snap_files(edge_file_name, node_file_name);
+    assert(graph != NULL);
+    //print_nodes(graph);
+    //print_edges(graph);
+
+    set_up_src_nodes_to_edges(graph);
+    set_up_dest_nodes_to_edges(graph);
+    //calculate_diameter(graph);
+
+    start = clock();
+    init_previous_edge(graph);
+
+    num_iterations = loopy_propagate_until_cuda(graph, PRECISION, NUM_ITERATIONS);
+    end = clock();
+
+    time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
+    //print_nodes(graph);
+    fprintf(out, "%s-%s,loopy,%d,%d,%d,%d,%lf\n", edge_file_name, node_file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
+    fflush(out);
+
+    graph_destroy(graph);
+}
+
+/**
+ * Runs the edge-optimized version of loopy BP
+ * @param edge_file_name The file to read for the SNAP edges
+ * @param node_file_name The file to read for the SNAP observed nodes
+ * @param out The CSV file to output to
+ */
+void run_test_loopy_belief_propagation_snap_file_edge_cuda(const char * edge_file_name, const char * node_file_name, FILE * out){
+    Graph_t graph;
+    clock_t start, end;
+    double time_elapsed;
+    unsigned int num_iterations;
+
+    graph = parse_graph_from_snap_files(edge_file_name, node_file_name);
+    assert(graph != NULL);
+    //print_nodes(graph);
+    //print_edges(graph);
+
+    set_up_src_nodes_to_edges(graph);
+    set_up_dest_nodes_to_edges(graph);
+    //calculate_diameter(graph);
+
+    start = clock();
+    init_previous_edge(graph);
+
+    num_iterations = loopy_propagate_until_cuda_edge(graph, PRECISION, NUM_ITERATIONS);
+    end = clock();
+
+    time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
+    //print_nodes(graph);
+    fprintf(out, "%s-%s,loopy-edge,%d,%d,%d,%d,%lf\n", edge_file_name, node_file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
+    fflush(out);
+
+    graph_destroy(graph);
+}
+
+
 /**
  * Checks that the CUDA kernel completed
  * @param file The source code file

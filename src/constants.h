@@ -42,4 +42,11 @@
 
 #define CHARS_IN_KEY 20
 
+#define READ_SNAP_BUFFER_SIZE 256
+
+#define REGEX_GRAPH_INFO "^# Nodes:[\r\n\t\f\v ]*([0-9]+)[\r\n\t\f\v ]*Edges:[\r\n\t\f\v ]*([0-9]+)[\r\n\t\f\v ]*Beliefs:[\r\n\t\f\v ]*([0-9]+)[\r\n\t\f\v ]*Belief States:[\r\n\t\f\v ]*([0-9]+).*$"
+#define REGEX_EDGE_LINE "^([0-9]+)[\r\n\t\f\v ]+([0-9]+)[\r\n\t\f\v ]+(.*)$"
+#define REGEX_NODE_LINE "^([0-9]+)[\r\n\t\f\v ]+(.*)$"
+#define REGEX_WHITESPACE "\r\n\t\f\v "
+
 #endif /* CONSTANTS_H_ */
