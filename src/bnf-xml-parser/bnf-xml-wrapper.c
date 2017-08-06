@@ -39,8 +39,11 @@ struct expression * test_parse_xml_file(char * file_name) {
  * @return The buffer
  */
 static char * build_full_file_path(const char *prefix, const char *file, char *buffer, size_t length){
+    size_t prefix_length;
+    prefix_length = strlen(prefix);
+    assert(prefix_length < length);
     strncpy(buffer, prefix, length);
-    strncat(buffer, file, length);
+    strncat(buffer, file, length - prefix_length);
     return buffer;
 }
 
@@ -72,12 +75,8 @@ void test_dog_files(const char * root_dir){
     if(bif_expr != NULL){
         delete_expression(bif_expr);
     }
-    if(graph_xml != NULL){
-        graph_destroy(graph_xml);
-    }
-    if(graph_bif != NULL){
-        graph_destroy(graph_bif);
-    }
+    graph_destroy(graph_xml);
+    graph_destroy(graph_bif);
 }
 
 /**

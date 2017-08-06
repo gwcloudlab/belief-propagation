@@ -226,6 +226,9 @@ static void add_node_to_graph(xmlDocPtr doc, xmlNodePtr node, Graph_t graph){
 
     value = xmlNodeListGetString(doc, node_set->nodeTab[0], 0);
     strncpy(buffer, (char *)value, CHAR_BUFFER_SIZE);
+    if(xmlStrlen(value) > CHAR_BUFFER_SIZE){
+        buffer[CHAR_BUFFER_SIZE - 1] = '\0';
+    }
 
     xmlFree(value);
     xmlXPathFreeObject(result);
@@ -454,6 +457,9 @@ static void add_edges_to_graph(xmlDocPtr doc, xmlNodePtr definition, Graph_t gra
     for(i = node_set->nodeNr - 1; i >= 0; --i){
         value = xmlNodeListGetString(doc, node_set->nodeTab[i], 0);
         strncpy(src_node_name, (char *)value, CHAR_BUFFER_SIZE);
+        if(xmlUTF8Strlen(value) > CHAR_BUFFER_SIZE){
+            src_node_name[CHAR_BUFFER_SIZE - 1] = '\0';
+        }
         xmlFree(value);
 
         src_index = find_node_by_name(src_node_name, graph);
