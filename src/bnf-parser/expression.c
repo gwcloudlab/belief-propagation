@@ -1205,7 +1205,7 @@ static void reverse_node_names(Graph_t graph){
 					ptr[CHAR_BUFFER_SIZE - 1] = '\0';
 				}
 				strncpy(&(graph->variable_names[index_2]), temp, CHAR_BUFFER_SIZE);
-				if(strlen(&(graph->variable_names[index_2])) > CHAR_BUFFER_SIZE){
+				if(strlen(temp) > CHAR_BUFFER_SIZE){
 					ptr = &(graph->variable_names[index_2]);
 					ptr[CHAR_BUFFER_SIZE - 1] = '\0';
 				}
