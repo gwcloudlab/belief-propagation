@@ -105,6 +105,7 @@ static void create_nodes(Graph_t graph, struct graph_info * info, const char * e
                 memset(match_buffer, 0, READ_SNAP_BUFFER_SIZE);
                 strncpy(match_buffer, buffer + groups[i].rm_so, (size_t)(groups[i].rm_eo - groups[i].rm_so));
                 item.key = match_buffer;
+                item.data = NULL;
                 hsearch_r(item, FIND, &result, node_hash);
                 if(result == NULL){
                     item.data = (void *)node_index;
@@ -185,6 +186,7 @@ static void add_observed_nodes(Graph_t graph, struct graph_info *info, const cha
                 //node name
                 if(i == 1){
                     data.key = match_buffer;
+                    data.data = NULL;
                     assert(hsearch_r(data, FIND, &result, node_hash) != 0);
                     node_index = (unsigned int)result->data;
                     // insert into observed node hash
