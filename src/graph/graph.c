@@ -284,7 +284,7 @@ void fill_in_node_hash_table(Graph_t graph){
 	if(graph->node_hash_table_created == 0){
 		// insert node names into hash
 		graph->node_hash_table = (struct hsearch_data *)calloc(sizeof(struct hsearch_data), 1);
-		hcreate_r(graph->current_num_vertices, graph->node_hash_table);
+		assert( hcreate_r(graph->current_num_vertices, graph->node_hash_table) != 0 );
 		for(i = 0; i < graph->current_num_vertices; ++i){
 			e.key = &(graph->node_names[i * CHAR_BUFFER_SIZE]);
 			e.data = (void *)i;

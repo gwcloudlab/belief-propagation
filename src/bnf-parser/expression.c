@@ -154,11 +154,23 @@ void print_expression(struct expression * expr){
 static void reverse_buffer(char *buffer, int num_nodes){
 	int i;
 	char temp[CHAR_BUFFER_SIZE];
+	char *ptr;
 
 	for(i = 0; i < num_nodes/2; ++i){
 		strncpy(temp, &buffer[i * CHAR_BUFFER_SIZE], CHAR_BUFFER_SIZE);
+		if(strlen(&buffer[i * CHAR_BUFFER_SIZE]) > CHAR_BUFFER_SIZE){
+			temp[CHAR_BUFFER_SIZE - 1] = '\0';
+		}
 		strncpy(&buffer[i * CHAR_BUFFER_SIZE], &buffer[(num_nodes - i - 1) * CHAR_BUFFER_SIZE], CHAR_BUFFER_SIZE);
+		if(strlen(&buffer[(num_nodes - i - 1) * CHAR_BUFFER_SIZE]) > CHAR_BUFFER_SIZE){
+			ptr = &buffer[i * CHAR_BUFFER_SIZE];
+			ptr[CHAR_BUFFER_SIZE - 1] = '\0';
+		}
 		strncpy(&buffer[(num_nodes - i - 1) * CHAR_BUFFER_SIZE], temp, CHAR_BUFFER_SIZE);
+		if(strlen(temp) > CHAR_BUFFER_SIZE){
+			ptr = &buffer[(num_nodes - i - 1) * CHAR_BUFFER_SIZE];
+			ptr[CHAR_BUFFER_SIZE - 1] = '\0';
+		}
 	}
 }
 
@@ -407,6 +419,7 @@ static void add_node_to_graph(struct expression * expr, Graph_t graph){
  */
 static void add_nodes_to_graph(struct expression * expr, Graph_t graph){
 	struct expression * next;
+	char *ptr;
 
 	// nothing to add
 	if(expr == NULL){
@@ -417,7 +430,8 @@ static void add_nodes_to_graph(struct expression * expr, Graph_t graph){
 	if(expr->type == NETWORK_DECLARATION){
 		strncpy(graph->graph_name, expr->value, CHAR_BUFFER_SIZE);
 		if(strlen(expr->value) > CHAR_BUFFER_SIZE){
-			graph->graph_name[CHAR_BUFFER_SIZE - 1] = '\0';
+			ptr = graph->graph_name;
+			ptr[CHAR_BUFFER_SIZE - 1] = '\0';
 		}
 		return;
 	}
@@ -1197,7 +1211,8 @@ static void reverse_node_names(Graph_t graph){
 			if(index_1 != index_2) {
 				strncpy(temp, &(graph->variable_names[index_1]), CHAR_BUFFER_SIZE);
 				if(strlen(&(graph->variable_names[index_1])) > CHAR_BUFFER_SIZE){
-					temp[CHAR_BUFFER_SIZE - 1] = '\0';
+					ptr = temp;
+					ptr[CHAR_BUFFER_SIZE - 1] = '\0';
 				}
 				strncpy(&(graph->variable_names[index_1]), &(graph->variable_names[index_2]), CHAR_BUFFER_SIZE);
 				if(strlen(&(graph->variable_names[index_2])) > CHAR_BUFFER_SIZE){

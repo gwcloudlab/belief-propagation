@@ -266,6 +266,7 @@ static void add_edge(Graph_t graph, struct graph_info *info, const char * edge_f
                 strncpy(match_buffer, buffer + groups[i].rm_so, (size_t)(groups[i].rm_eo - groups[i].rm_so));
                 if (i < 3) {
                     item.key = match_buffer;
+                    item.data = NULL;
                     assert(hsearch_r(item, FIND, &result, node_hash) != 0);
                     hsearch_r(item, FIND, &observed_result, observed_node_hash);
                     if (i == 1) {
