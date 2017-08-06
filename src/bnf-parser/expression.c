@@ -416,6 +416,9 @@ static void add_nodes_to_graph(struct expression * expr, Graph_t graph){
 	// add name if possible
 	if(expr->type == NETWORK_DECLARATION){
 		strncpy(graph->graph_name, expr->value, CHAR_BUFFER_SIZE);
+		if(strlen(expr->value) > CHAR_BUFFER_SIZE){
+			graph->graph_name[CHAR_BUFFER_SIZE - 1] = '\0';
+		}
 		return;
 	}
 
@@ -748,7 +751,7 @@ static unsigned int calculate_entry_offset(char * state_names, unsigned int num_
     char * state;
     char * node_state_name;
 
-	int * indices = (int *)malloc(sizeof(int) * num_states);
+	int * indices = (int *)calloc(num_states, sizeof(int));
 
 	for(i = 0; i < num_states; ++i){
 		state = &(state_names[i * CHAR_BUFFER_SIZE]);
@@ -857,6 +860,7 @@ static unsigned int calculate_num_probabilities(char *node_name_buffer, unsigned
 		curr_name = &(node_name_buffer[i * CHAR_BUFFER_SIZE]);
 
         e.key = curr_name;
+		e.data = NULL;
         assert(hsearch_r(e, FIND, &ep, graph->node_hash_table));
         assert(ep != NULL);
 		node_index = (unsigned int)ep->data;
@@ -1184,6 +1188,7 @@ static void add_edges_to_graph(struct expression * expr, Graph_t graph){
 static void reverse_node_names(Graph_t graph){
 	unsigned int i, j, index_1, index_2;
 	char temp[CHAR_BUFFER_SIZE];
+	char *ptr;
 
 	for(i = 0; i < graph->current_num_vertices; ++i){
 		for(j = 0; j < graph->node_states[i].size/2; ++j){
@@ -1191,8 +1196,19 @@ static void reverse_node_names(Graph_t graph){
 			index_2 = i * MAX_STATES * CHAR_BUFFER_SIZE + (graph->node_states[i].size / 2 - j) * CHAR_BUFFER_SIZE;
 			if(index_1 != index_2) {
 				strncpy(temp, &(graph->variable_names[index_1]), CHAR_BUFFER_SIZE);
+				if(strlen(&(graph->variable_names[index_1])) > CHAR_BUFFER_SIZE){
+					temp[CHAR_BUFFER_SIZE - 1] = '\0';
+				}
 				strncpy(&(graph->variable_names[index_1]), &(graph->variable_names[index_2]), CHAR_BUFFER_SIZE);
+				if(strlen(&(graph->variable_names[index_2])) > CHAR_BUFFER_SIZE){
+					ptr = &(graph->variable_names[index_1]);
+					ptr[CHAR_BUFFER_SIZE - 1] = '\0';
+				}
 				strncpy(&(graph->variable_names[index_2]), temp, CHAR_BUFFER_SIZE);
+				if(strlen(&(graph->variable_names[index_2])) > CHAR_BUFFER_SIZE){
+					ptr = &(graph->variable_names[index_2]);
+					ptr[CHAR_BUFFER_SIZE - 1] = '\0';
+				}
 			}
 		}
 	}

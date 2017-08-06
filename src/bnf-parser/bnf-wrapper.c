@@ -346,8 +346,11 @@ void run_tests_with_file(const char * file_name, unsigned int num_iterations){
  * @return The buffer
  */
 static char * build_full_file_path(const char *prefix, const char *file, char *buffer, size_t length){
+    size_t prefix_length;
+    prefix_length = strlen(prefix);
+    assert(prefix_length < length);
     strncpy(buffer, prefix, length);
-    strncat(buffer, file, length);
+    strncat(buffer, file, length - prefix_length);
     return buffer;
 }
 

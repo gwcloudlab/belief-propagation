@@ -99,12 +99,10 @@ void init_edge(Graph_t graph, unsigned int edge_index, unsigned int src_index, u
 	struct joint_probability *joint_probability;
     struct belief *edges_messages;
 
-	assert(src_index >= 0);
-	assert(dest_index >= 0);
-	assert(edge_index >= 0);
+	assert(src_index < graph->total_num_vertices);
+	assert(dest_index < graph->total_num_vertices);
+	assert(edge_index < graph->total_num_edges);
 
-	assert(dim_x >= 0);
-	assert(dim_y >= 0);
 	assert(dim_x <= MAX_STATES);
 	assert(dim_y <= MAX_STATES);
 
@@ -223,8 +221,10 @@ void graph_add_edge(Graph_t graph, unsigned int src_index, unsigned int dest_ind
 
     init_edge(graph, edge_index, src_index, dest_index, dim_x, dim_y, joint_probabilities);
     if(graph->edge_tables_created == 0){
-		assert(graph->src_node_to_edge_table = (struct hsearch_data *)calloc(sizeof(struct hsearch_data), 1));
-		assert(graph->dest_node_to_edge_table = (struct hsearch_data *)calloc(sizeof(struct hsearch_data), 1));
+        graph->src_node_to_edge_table = (struct hsearch_data *)calloc(sizeof(struct hsearch_data), 1);
+		assert(graph->src_node_to_edge_table);
+        graph->dest_node_to_edge_table = (struct hsearch_data *)calloc(sizeof(struct hsearch_data), 1);
+		assert(graph->dest_node_to_edge_table);
         assert(hcreate_r(graph->current_num_vertices, graph->src_node_to_edge_table) != 0);
         assert(hcreate_r(graph->current_num_vertices, graph->dest_node_to_edge_table) != 0);
 
@@ -308,6 +308,7 @@ unsigned int find_node_by_name(char * name, Graph_t graph){
 	fill_in_node_hash_table(graph);
 
 	e.key = name;
+    e.data = NULL;
 	assert( hsearch_r(e, FIND, &ep, graph->node_hash_table) != 0);
 	assert(ep != NULL);
 
@@ -408,6 +409,7 @@ void graph_destroy(Graph_t g) {
 		for(i = 0; i < g->current_num_vertices; ++i){
 			sprintf(src_key, "%d", i);
 			src_e.key = src_key;
+            src_e.data = NULL;
 			hsearch_r(src_e, FIND, &src_ep, g->src_node_to_edge_table);
 			if(src_ep != NULL){
 				free(src_ep->data);
@@ -415,6 +417,7 @@ void graph_destroy(Graph_t g) {
 
 			sprintf(dest_key, "%d", i);
 			dest_e.key = dest_key;
+            dest_e.data = NULL;
 			hsearch_r(dest_e, FIND, &dest_ep, g->dest_node_to_edge_table);
 			if(dest_ep != NULL){
 				free(dest_ep->data);
