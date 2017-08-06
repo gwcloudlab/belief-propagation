@@ -14,6 +14,7 @@ extern "C" {
     #include "../bnf-parser/Parser.h"
     #include "../bnf-parser/Lexer.h"
     #include "../bnf-xml-parser/xml-expression.h"
+    #include "../snap-parser/snap-parser.h"
 }
 
 void CheckCudaErrorAux (const char *, unsigned, const char *, cudaError_t);
@@ -97,5 +98,8 @@ unsigned int loopy_propagate_until_cuda_edge(Graph_t, float, unsigned int);
 void run_test_loopy_belief_propagation_cuda(struct expression *, const char *, FILE *);
 void run_test_loopy_belief_propagation_xml_file_cuda(const char *, FILE *);
 void run_test_loopy_belief_propagation_xml_file_edge_cuda(const char *, FILE *);
+
+void run_test_loopy_belief_propagation_snap_file_cuda(const char *, const char *, FILE *);
+void run_test_loopy_belief_propagation_snap_file_edge_cuda(const char *, const char *, FILE *);
 
 #endif //BELIEF_PROPAGATION_HPP

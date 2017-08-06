@@ -74,6 +74,8 @@ configure_file(xml/bf_40000_80000_3.xml xml/bf_40000_80000_3.xml COPYONLY)
 configure_file(xml/bf_80000_160000_2.xml xml/bf_80000_160000_2.xml COPYONLY)
 
 configure_file(dog.xml dog.xml COPYONLY)
+configure_file(dog-edges.txt dog-edges.txt COPYONLY)
+configure_file(dog-nodes.txt dog-nodes.txt COPYONLY)
 
 #configure_file(xml2/10_20.xml xml2/10_20.xml COPYONLY)
 #configure_file(xml2/100_200.xml xml2/100_200.xml COPYONLY)

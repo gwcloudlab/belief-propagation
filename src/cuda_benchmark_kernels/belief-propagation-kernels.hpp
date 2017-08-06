@@ -13,6 +13,7 @@ extern "C" {
 #include "../bnf-parser/Parser.h"
 #include "../bnf-parser/Lexer.h"
 #include "../bnf-xml-parser/xml-expression.h"
+#include "../snap-parser/snap-parser.h"
 }
 
 void CheckCudaErrorAux (const char *, unsigned, const char *, cudaError_t);
@@ -70,6 +71,7 @@ void test_loopy_belief_propagation_kernels(char *);
 
 void run_test_loopy_belief_propagation_kernels(struct expression *, const char *, FILE *);
 void run_test_loopy_belief_propagation_xml_file_kernels(const char *, FILE *);
+void run_test_loopy_belief_propagation_snap_file_kernels(const char *, const char *, FILE *);
 
 
 __global__
