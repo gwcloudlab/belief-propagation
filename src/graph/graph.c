@@ -188,8 +188,10 @@ void graph_add_edge(Graph_t graph, unsigned int src_index, unsigned int dest_ind
 
     init_edge(graph, edge_index, src_index, dest_index, dim_x, dim_y, joint_probabilities);
     if(graph->edge_tables_created == 0){
-		assert(graph->src_node_to_edge_table = (struct hsearch_data *)calloc(sizeof(struct hsearch_data), 1));
-		assert(graph->dest_node_to_edge_table = (struct hsearch_data *)calloc(sizeof(struct hsearch_data), 1));
+		graph->src_node_to_edge_table = (struct hsearch_data *)calloc(sizeof(struct hsearch_data), 1);
+		assert(graph->src_node_to_edge_table);
+		graph->dest_node_to_edge_table = (struct hsearch_data *)calloc(sizeof(struct hsearch_data), 1);
+		assert(graph->dest_node_to_edge_table);
         assert(hcreate_r(graph->current_num_vertices, graph->src_node_to_edge_table) != 0);
         assert(hcreate_r(graph->current_num_vertices, graph->dest_node_to_edge_table) != 0);
 
@@ -245,7 +247,7 @@ void fill_in_node_hash_table(Graph_t graph){
 	if(graph->node_hash_table_created == 0){
 		// insert node names into hash
 		graph->node_hash_table = (struct hsearch_data *)calloc(sizeof(struct hsearch_data), 1);
-		hcreate_r(graph->current_num_vertices, graph->node_hash_table);
+		assert( hcreate_r(graph->current_num_vertices, graph->node_hash_table) != 0);
 		for(i = 0; i < graph->current_num_vertices; ++i){
 			e.key = &(graph->node_names[i * CHAR_BUFFER_SIZE]);
 			e.data = (void *)i;
@@ -263,6 +265,7 @@ unsigned int find_node_by_name(char * name, Graph_t graph){
 	fill_in_node_hash_table(graph);
 
 	e.key = name;
+	e.data = NULL;
 	assert( hsearch_r(e, FIND, &ep, graph->node_hash_table) != 0);
 	assert(ep != NULL);
 
