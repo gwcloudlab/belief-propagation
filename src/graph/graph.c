@@ -556,6 +556,17 @@ static inline void combine_message(struct belief *dest, struct belief *src, unsi
 	}
 }
 
+#pragma acc routine
+static inline void combine_page_rank_message(struct belief * dest, struct belief *src, unsigned num_variables, unsigned int offset){
+    int i;
+
+    for(i = 0; i < num_variables; ++i){
+        if(src[offset].data[i] == src[offset].data[i]) { // ensure no nan's
+            dest->data[i] += src[offset].data[i];
+        }
+    }
+}
+
 /**
  * Propagates a node's belief using levels in normal BP
  * @param g The graph
@@ -1278,6 +1289,62 @@ static void marginalize_loopy_nodes(Graph_t graph, struct belief *current_messag
 }
 
 /**
+ * Marginalizes the nodes in loopy BP
+ * @param graph The graph
+ * @param current_messages The current edge-buffered messages
+ * @param num_vertices The number of nodes in the graph
+ */
+static void marginalize_page_rank_nodes(Graph_t graph, struct belief *current_messages, unsigned int num_vertices) {
+    unsigned int j;
+
+    unsigned int i, num_variables, start_index, end_index, edge_index, current_num_vertices, current_num_edges;
+    float factor;
+    struct belief *states;
+    struct belief new_belief;
+
+    unsigned int * dest_nodes_to_edges_nodes;
+    unsigned int * dest_nodes_to_edges_edges;
+
+    dest_nodes_to_edges_nodes = graph->dest_nodes_to_edges_node_list;
+    dest_nodes_to_edges_edges = graph->dest_nodes_to_edges_edge_list;
+    current_num_vertices = graph->current_num_vertices;
+    current_num_edges = graph->current_num_edges;
+    states = graph->node_states;
+
+#pragma omp parallel for default(none) shared(states, num_vertices, current_num_vertices, current_num_edges, dest_nodes_to_edges_nodes, dest_nodes_to_edges_edges, current_messages) private(i, j, num_variables, start_index, end_index, edge_index, sum, new_belief)
+    for(j = 0; j < num_vertices; ++j) {
+
+        num_variables = states[j].size;
+
+        new_belief.size = num_variables;
+        for (i = 0; i < num_variables; ++i) {
+            new_belief.data[i] = 0.0;
+        }
+
+
+        start_index = dest_nodes_to_edges_nodes[j];
+        if (j + 1 == current_num_vertices) {
+            end_index = current_num_edges;
+        } else {
+            end_index = dest_nodes_to_edges_nodes[j + 1];
+        }
+
+        for (i = start_index; i < end_index; ++i) {
+            edge_index = dest_nodes_to_edges_edges[i];
+
+            combine_page_rank_message(&new_belief, current_messages, num_variables, edge_index);
+        }
+        if (start_index < end_index) {
+            factor = (1 - DAMPENING_FACTOR) / (end_index - start_index);
+            for (i = 0; i < num_variables; ++i) {
+                states[j].data[i] = factor + DAMPENING_FACTOR * new_belief.data[i];
+            }
+        }
+    }
+
+}
+
+/**
  * Combines beliefs for edge-based loopy BP
  * @param edge_index The index of the current edge
  * @param current_messages The array of current messages buffered on the edge
@@ -1357,6 +1424,54 @@ static void marginalize_node_acc(struct belief *node_states, int node_index,
 }
 
 /**
+ * Marginalizes the nodes for OpenACC
+ * @param node_states The current nodes and their beliefs in the graph
+ * @param node_index The index of the current node
+ * @param edge_messages The current messages buffered at the edges
+ * @param dest_nodes_to_edges_nodes Parallel array; maps destination nodes to their edges; first half; the nodes to their starting index in dest_nodes_to_edges_edges
+ * @param dest_nodes_to_edges_edges Parallel array; maps destination nodes to their edges; second half; lists edges by node
+ * @param num_vertices The number of vertices (nodes) in the graph
+ * @param num_edges The number of edges in the graph
+ */
+#pragma acc routine
+static void marginalize_page_rank_nodes_acc(struct belief *node_states, int node_index,
+                                            struct belief *edge_messages,
+                                            unsigned int * dest_nodes_to_edges_nodes, unsigned int * dest_nodes_to_edges_edges,
+                                            unsigned int num_vertices, unsigned int num_edges) {
+    int i;
+    unsigned int num_variables, start_index, end_index, edge_index;
+    float factor;
+    struct belief new_belief;
+
+    num_variables = node_states[node_index].size;
+
+    new_belief.size = num_variables;
+    for(i = 0; i < num_variables; ++i){
+        new_belief.data[i] = 0.0;
+    }
+
+    start_index = dest_nodes_to_edges_nodes[node_index];
+    if(node_index + 1 == num_vertices){
+        end_index = num_edges;
+    }
+    else {
+        end_index = dest_nodes_to_edges_nodes[node_index + 1];
+    }
+
+    for(i = start_index; i < end_index; ++i){
+        edge_index = dest_nodes_to_edges_edges[i];
+
+        combine_page_rank_message(&new_belief, edge_messages, num_variables, edge_index);
+    }
+    if (start_index < end_index) {
+        factor = (1 - DAMPENING_FACTOR) / (end_index - start_index);
+        for (i = 0; i < num_variables; ++i) {
+            node_states[node_index].data[i] = factor + DAMPENING_FACTOR * new_belief.data[i];
+        }
+    }
+}
+
+/**
  * Performs one iteration of loopy BP on the graph
  * @param graph The graph
  */
@@ -1411,6 +1526,7 @@ void loopy_propagate_one_iteration(Graph_t graph){
 	marginalize_loopy_nodes(graph, current_edge_messages, num_vertices);
 }
 
+
 /**
  * Performs one iteration of edge-optimized loopy BP
  * @param graph The graph
@@ -1454,6 +1570,103 @@ void loopy_propagate_edge_one_iteration(Graph_t graph){
 }
 
 /**
+ * Performs one iteration of page rank on the graph
+ * @param graph The graph
+ */
+void page_rank_one_iteration(Graph_t graph){
+    int i;
+    unsigned int num_variables, num_vertices, num_edges;
+    unsigned int * dest_node_to_edges_nodes;
+    unsigned int * dest_node_to_edges_edges;
+    unsigned int * src_node_to_edges_nodes;
+    unsigned int * src_node_to_edges_edges;
+    struct belief *node_states;
+    struct joint_probability *joint_probabilities;
+    struct belief *current_edge_messages;
+
+    current_edge_messages = graph->edges_messages;
+    joint_probabilities = graph->edges_joint_probabilities;
+
+    struct belief buffer;
+
+    num_vertices = graph->current_num_vertices;
+    dest_node_to_edges_nodes = graph->dest_nodes_to_edges_node_list;
+    dest_node_to_edges_edges = graph->dest_nodes_to_edges_edge_list;
+    src_node_to_edges_nodes = graph->src_nodes_to_edges_node_list;
+    src_node_to_edges_edges = graph->src_nodes_to_edges_edge_list;
+    num_edges = graph->current_num_edges;
+    node_states = graph->node_states;
+
+#pragma omp parallel for default(none) shared(node_states, num_vertices, dest_node_to_edges_nodes, dest_node_to_edges_edges, src_node_to_edges_nodes, src_node_to_edges_edges, num_edges, current_edge_messages, joint_probabilities) private(buffer, i, num_variables) //schedule(dynamic, 16)
+    for(i = 0; i < num_vertices; ++i){
+        num_variables = node_states[i].size;
+
+        initialize_message_buffer(&buffer, node_states, i, num_variables);
+
+        //read incoming messages
+        read_incoming_messages(&buffer, dest_node_to_edges_nodes, dest_node_to_edges_edges, current_edge_messages, num_edges, num_vertices, num_variables, i);
+
+/*
+		printf("Message at node\n");
+		print_node(graph, i);
+		printf("[\t");
+		for(j = 0; j < num_variables; ++j){
+			printf("%.6lf\t", message_buffer[j]);
+		}
+		printf("\t]\n");*/
+
+
+        //send belief
+        send_message_for_node(src_node_to_edges_nodes, src_node_to_edges_edges, &buffer, num_edges, joint_probabilities, current_edge_messages, num_vertices, i);
+
+    }
+
+    marginalize_page_rank_nodes(graph, current_edge_messages, num_vertices);
+}
+
+
+/**
+ * Performs one iteration of edge-optimized PageRank
+ * @param graph The graph
+ */
+void page_rank_edge_one_iteration(Graph_t graph){
+    int i;
+    unsigned int num_edges, num_nodes, src_node_index, dest_node_index;
+    struct belief *node_states;
+    struct joint_probability *joint_probabilities;
+    struct belief *current_edge_messages;
+
+    unsigned int * edges_src_index;
+    unsigned int * edges_dest_index;
+
+    current_edge_messages = graph->edges_messages;
+    joint_probabilities = graph->edges_joint_probabilities;
+    num_edges = graph->current_num_edges;
+    num_nodes = graph->current_num_vertices;
+    node_states = graph->node_states;
+    edges_src_index = graph->edges_src_index;
+    edges_dest_index = graph->edges_dest_index;
+
+#pragma omp parallel for default(none) shared(node_states, joint_probabilities, current_edge_messages, edges_src_index, num_edges) private(src_node_index, i)
+    for(i = 0; i < num_edges; ++i){
+        src_node_index = edges_src_index[i];
+        send_message_for_edge_iteration(node_states, src_node_index, i, joint_probabilities, current_edge_messages);
+    }
+
+#pragma omp parallel for default(none) shared(current_edge_messages, node_states, edges_dest_index, num_edges) private(dest_node_index, i)
+    for(i = 0; i < num_edges; ++i){
+        dest_node_index = edges_dest_index[i];
+        combine_loopy_edge(i, current_edge_messages, dest_node_index, node_states);
+    }
+    /*
+#pragma omp parallel for default(none) shared(node_states, num_vars, num_nodes) private(i)
+    for(i = 0; i < num_nodes; ++i){
+        marginalize_loopy_node_edge(node_states, num_vars[i]);
+    }*/
+    marginalize_page_rank_nodes(graph, current_edge_messages, num_nodes);
+}
+
+/**
  * Runs edge-optimized loopy BP until convergence or max iterations reached
  * @param graph The graph
  * @param convergence The convergence threshold below which processing will stop
@@ -1471,13 +1684,13 @@ unsigned int loopy_propagate_until_edge(Graph_t graph, float convergence, unsign
     num_edges = graph->current_num_edges;
 
     previous_delta = -1.0f;
-    delta = 0.0;
+    delta = 0.0f;
 
     for(i = 0; i < max_iterations; ++i){
         //printf("Current iteration: %d\n", i+1);
         loopy_propagate_edge_one_iteration(graph);
 
-        delta = 0.0;
+        delta = 0.0f;
 
 #pragma omp parallel for default(none) shared(current_edge_messages, num_edges)  private(j, diff) reduction(+:delta)
         for(j = 0; j < num_edges; ++j){
@@ -1485,7 +1698,7 @@ unsigned int loopy_propagate_until_edge(Graph_t graph, float convergence, unsign
             //printf("Previous: %f\n", previous_edge_messages[j].data[k]);
             //printf("Current : %f\n", current_edge_messages[j].data[k]);
             if(diff != diff){
-                diff = 0.0;
+                diff = 0.0f;
             }
             delta += fabs(diff);
         }
@@ -1498,6 +1711,59 @@ unsigned int loopy_propagate_until_edge(Graph_t graph, float convergence, unsign
 		if(i < max_iterations - 1) {
 			previous_delta = delta;
 		}
+    }
+    if(i == max_iterations){
+        printf("No Convergence: previous: %f vs current: %f\n", previous_delta, delta);
+    }
+    return i;
+}
+
+
+/**
+ * Runs edge-optimized PageRank until convergence or max iterations reached
+ * @param graph The graph
+ * @param convergence The convergence threshold below which processing will stop
+ * @param max_iterations The maximum number of iterations to run for
+ * @return The actual number of iterations executed
+ */
+unsigned int page_rank_until_edge(Graph_t graph, float convergence, unsigned int max_iterations){
+    int j;
+    unsigned int i, num_edges;
+    float delta, diff, previous_delta;
+    struct belief *current_edge_messages;
+
+    current_edge_messages = graph->edges_messages;
+
+    num_edges = graph->current_num_edges;
+
+    previous_delta = -1.0f;
+    delta = 0.0f;
+
+    for(i = 0; i < max_iterations; ++i){
+        //printf("Current iteration: %d\n", i+1);
+        page_rank_edge_one_iteration(graph);
+
+        delta = 0.0f;
+
+#pragma omp parallel for default(none) shared(current_edge_messages, num_edges)  private(j, diff) reduction(+:delta)
+        for(j = 0; j < num_edges; ++j){
+            diff = current_edge_messages[j].previous_sum - current_edge_messages[j].current_sum;
+            //printf("Previous: %f\n", previous_edge_messages[j].data[k]);
+            //printf("Current : %f\n", current_edge_messages[j].data[k]);
+            if(diff != diff){
+                diff = 0.0f;
+            }
+            delta += fabs(diff);
+        }
+
+        //printf("Current delta: %.6lf\n", delta);
+        //printf("Previous delta: %.6lf\n", previous_delta);
+        if(delta < convergence || fabs(delta - previous_delta) < convergence){
+            break;
+        }
+        if(i < max_iterations - 1) {
+            previous_delta = delta;
+        }
     }
     if(i == max_iterations){
         printf("No Convergence: previous: %f vs current: %f\n", previous_delta, delta);
@@ -1554,6 +1820,57 @@ unsigned int loopy_propagate_until(Graph_t graph, float convergence, unsigned in
 	}
 	assert(i > 0);
 	return i;
+}
+
+/**
+ * Runs PageRank until either convergence threshold met or max iterations
+ * @param graph The graph
+ * @param convergence The covergence threshold below which the graph will cease processing
+ * @param max_iterations The maximum number of iterations
+ * @return The actual number of iterations executed
+ */
+unsigned int page_rank_until(Graph_t graph, float convergence, unsigned int max_iterations){
+    int j;
+    unsigned int i, num_edges;
+    float delta, diff, previous_delta;
+    struct belief *current_edge_messages;
+
+    current_edge_messages = graph->edges_messages;
+
+    num_edges = graph->current_num_edges;
+
+    previous_delta = -1.0f;
+    delta = 0.0;
+
+    for(i = 0; i < max_iterations; ++i){
+        //printf("Current iteration: %d\n", i+1);
+        page_rank_one_iteration(graph);
+
+        delta = 0.0;
+
+#pragma omp parallel for default(none) shared(current_edge_messages, num_edges)  private(j, diff) reduction(+:delta)
+        for(j = 0; j < num_edges; ++j){
+            diff = current_edge_messages[j].previous_sum - current_edge_messages[j].current_sum;
+            //printf("Previous Edge[%d][%d]: %f\n", j, k, previous_edge_messages[j].data[k]);
+            //printf("Current Edge[%d][%d]: %f\n", j, k, current_edge_messages[j].data[k]);
+            if(diff != diff){
+                diff = 0.0;
+            }
+            delta += fabs(diff);
+        }
+
+        if(delta < convergence || fabs(delta - previous_delta) < convergence){
+            break;
+        }
+        if(i < max_iterations - 1) {
+            previous_delta = delta;
+        }
+    }
+    if(i == max_iterations){
+        printf("No Convergence: previous: %f vs current: %f\n", previous_delta, delta);
+    }
+    assert(i > 0);
+    return i;
 }
 
 /**
@@ -1657,6 +1974,108 @@ static unsigned int loopy_propagate_iterations_acc(unsigned int num_vertices, un
 	return num_iter;
 }
 
+
+/**
+ * Runs PageRank for OpenACC
+ * @param num_vertices The number of vertices (nodes) in the graph
+ * @param num_edges The number of edges in the graph
+ * @param dest_node_to_edges_nodes Parallel array; maps destination nodes to their edges; first half; maps nodes to their starting indices in dest_node_to_edges_edges
+ * @param dest_node_to_edges_edges Parallel array; maps destination nodes to their edges; second half; lists edges by nodes
+ * @param src_node_to_edges_nodes Parallel array; maps source nodes to their edges; first half; maps nodes to their starting indices in src_node_to_edges_edges
+ * @param src_node_to_edges_edges Parallel array; maps source nodes to their edges; second half; lists edges by nodes
+ * @param node_states The current node states
+ * @param previous_messages The previous messages in the graph
+ * @param current_messages The current messages in the graph
+ * @param joint_probabilities The joint probability tables of the edges
+ * @param max_iterations The maximum number of iterations to run for
+ * @param convergence The convergence threshold
+ * @return The actual number of iterations used
+ */
+static unsigned int page_rank_iterations_acc(unsigned int num_vertices, unsigned int num_edges,
+                                                   unsigned int *dest_node_to_edges_nodes, unsigned int *dest_node_to_edges_edges,
+                                                   unsigned int *src_node_to_edges_nodes, unsigned int *src_node_to_edges_edges,
+                                                   struct belief *node_states, struct belief *current_messages,
+                                                   struct joint_probability *joint_probabilities,
+                                                   unsigned int max_iterations,
+                                                   float convergence){
+    int j, k;
+    unsigned int i, num_variables, num_iter;
+    float delta, previous_delta, diff;
+    struct belief *curr_messages;
+
+    curr_messages = current_messages;
+
+
+    struct belief belief_buffer;
+
+    num_iter = 0;
+
+    previous_delta = -1.0f;
+    delta = 0.0f;
+
+    for(i = 0; i < max_iterations; i+= BATCH_SIZE) {
+#pragma acc data present_or_copy(node_states[0:(num_vertices)], curr_messages[0:(num_edges)]) present_or_copyin(dest_node_to_edges_nodes[0:num_vertices], dest_node_to_edges_edges[0:num_edges], src_node_to_edges_nodes[0:num_vertices], src_node_to_edges_edges[0:num_edges], joint_probabilities[0:(num_edges)])
+        {
+            //printf("Current iteration: %d\n", i+1);
+            for (j = 0; j < BATCH_SIZE; ++j) {
+#pragma acc kernels
+                for (k = 0; k < num_vertices; ++k) {
+                    num_variables = node_states[k].size;
+
+                    initialize_message_buffer(&belief_buffer, node_states, k, num_variables);
+
+                    //read incoming messages
+                    read_incoming_messages(&belief_buffer, dest_node_to_edges_nodes, dest_node_to_edges_edges, curr_messages, num_edges, num_vertices,
+                                           num_variables, k);
+
+/*
+		printf("Message at node\n");
+		print_node(graph, i);
+		printf("[\t");
+		for(j = 0; j < num_variables; ++j){
+			printf("%.6lf\t", message_buffer[j]);
+		}
+		printf("\t]\n");*/
+
+
+                    //send belief
+                    send_message_for_node(src_node_to_edges_nodes, src_node_to_edges_edges, &belief_buffer, num_edges, joint_probabilities,
+                                          curr_messages, num_vertices, k);
+
+                }
+
+#pragma acc kernels
+                for (k = 0; k < num_vertices; ++k) {
+                    marginalize_page_rank_nodes_acc(node_states, k, curr_messages, dest_node_to_edges_nodes, dest_node_to_edges_edges, num_vertices,
+                                         num_edges);
+                }
+            }
+
+
+            delta = 0.0f;
+#pragma acc kernels
+            for (j = 0; j < num_edges; ++j) {
+                diff = curr_messages[j].previous_sum - curr_messages[j].current_sum;
+                if (diff != diff) {
+                    diff = 0.0f;
+                }
+                delta += fabs(diff);
+            }
+        }
+        if(delta < convergence || fabs(delta - previous_delta) < convergence){
+            break;
+        }
+        previous_delta = delta;
+        num_iter += BATCH_SIZE;
+    }
+    if(i == max_iterations) {
+        printf("No Convergence: previous: %f vs current: %f\n", previous_delta, delta);
+    }
+
+
+    return num_iter;
+}
+
 /**
  * Runs loopy BP for OpenACC until convergence or max_iterations met
  * @param graph The graph
@@ -1683,6 +2102,34 @@ unsigned int loopy_propagate_until_acc(Graph_t graph, float convergence, unsigne
 	print_edges(graph);*/
 
 	return iter;
+}
+
+/**
+ * Runs PageRank for OpenACC until convergence or max_iterations met
+ * @param graph The graph
+ * @param convergence The convergence threshold
+ * @param max_iterations The maximum number of iterations to run for
+ * @return The actual number of iterations
+ */
+unsigned int page_rank_until_acc(Graph_t graph, float convergence, unsigned int max_iterations){
+    unsigned int iter;
+
+    /*printf("===BEFORE====\n");
+    print_nodes(graph);
+    print_edges(graph);
+*/
+    iter = page_rank_iterations_acc(graph->current_num_vertices, graph->current_num_edges,
+                                          graph->dest_nodes_to_edges_node_list, graph->dest_nodes_to_edges_edge_list,
+                                          graph->src_nodes_to_edges_node_list, graph->src_nodes_to_edges_edge_list,
+                                          graph->node_states,
+                                          graph->edges_messages, graph->edges_joint_probabilities,
+                                          max_iterations, convergence);
+
+    /*printf("===AFTER====\n");
+    print_nodes(graph);
+    print_edges(graph);*/
+
+    return iter;
 }
 
 /**
@@ -1773,6 +2220,95 @@ static unsigned int loopy_propagate_iterations_edges_acc(unsigned int num_vertic
 	return num_iter;
 }
 
+
+/**
+ * Runs edge-optimized PageRank
+ * @param num_vertices The number of vertices in the graph
+ * @param num_edges The number of edges in the graph
+ * @param node_states The current beliefs (states) of the nodes
+ * @param previous_edge_messages The previous buffered edges in the graph
+ * @param current_edge_messages The current buffered edges in the graph
+ * @param joint_probabilities The edges' joint probability tables
+ * @param edges_src_index The indices of the edges' source nodes
+ * @param edges_dest_index The indices of the edges' destination nodes
+ * @param dest_node_to_edges_node_list Parallel array; maps destination nodes to their edges; first half; maps nodes to their starting index in dest_node_to_edges_edge_list
+ * @param dest_node_to_edges_edge_list Parallel array; maps destination nodes to their edges; second half; lists edges by nodes
+ * @param max_iterations The maximum number of iterations to run for
+ * @param convergence The convergence threshold
+ * @return The actual number of iterations executed
+ */
+static unsigned int page_rank_iterations_edges_acc(unsigned int num_vertices, unsigned int num_edges,
+                                                         struct belief *node_states,
+                                                         struct belief *current_edge_messages,
+                                                         struct joint_probability *joint_probabilities,
+                                                         unsigned int * edges_src_index, unsigned int * edges_dest_index,
+                                                         unsigned int * dest_node_to_edges_node_list, unsigned int * dest_node_to_edges_edge_list,
+                                                         unsigned int max_iterations, float convergence){
+    int j, k;
+    unsigned int i, num_iter, src_node_index, dest_node_index;
+    float delta, previous_delta, diff;
+    struct belief *curr_messages;
+
+    curr_messages = current_edge_messages;
+
+
+    num_iter = 0;
+
+    previous_delta = -1.0f;
+    delta = 0.0f;
+
+    for(i = 0; i < max_iterations; i+= BATCH_SIZE) {
+#pragma acc data present_or_copy(node_states[0:(num_vertices)], curr_messages[0:(num_edges)]) present_or_copyin(dest_node_to_edges_node_list[0:num_vertices], dest_node_to_edges_edge_list[0:num_edges], joint_probabilities[0:(num_edges)], edges_src_index[0:num_edges])
+        {
+            //printf("Current iteration: %d\n", i+1);
+            for (j = 0; j < BATCH_SIZE; ++j) {
+#pragma acc kernels
+                for(k = 0; k < num_edges; ++k){
+                    src_node_index = edges_src_index[k];
+                    send_message_for_edge_iteration(node_states, src_node_index, k, joint_probabilities, curr_messages);
+                }
+
+#pragma acc kernels
+                for(k = 0; k < num_edges; ++k){
+                    dest_node_index = edges_dest_index[k];
+                    combine_loopy_edge(i, curr_messages, dest_node_index, node_states);
+                }
+#pragma acc kernels
+                /*
+				for(k = 0; k < num_vertices; ++k){
+					marginalize_loopy_node_edge(node_states, num_vars[k]);
+				}*/
+                for (k = 0; k < num_vertices; ++k) {
+                    marginalize_page_rank_nodes_acc(node_states, k, curr_messages, dest_node_to_edges_node_list, dest_node_to_edges_edge_list, num_vertices,
+                                         num_edges);
+                }
+            }
+
+
+            delta = 0.0f;
+#pragma acc kernels
+            for (j = 0; j < num_edges; ++j) {
+                diff = curr_messages[j].previous_sum - curr_messages[j].current_sum;
+                if (diff != diff) {
+                    diff = 0.0f;
+                }
+                delta += fabs(diff);
+            }
+        }
+        if(delta < convergence || fabs(delta - previous_delta) < convergence){
+            break;
+        }
+        previous_delta = delta;
+        num_iter += BATCH_SIZE;
+    }
+    if(i == max_iterations) {
+        printf("No Convergence: previous: %f vs current: %f\n", previous_delta, delta);
+    }
+
+
+    return num_iter;
+}
+
 /**
  * Runs edge-optimized loopy BP until convergence or max iterations executed
  * @param graph The graph
@@ -1794,6 +2330,36 @@ unsigned int loopy_propagate_until_edge_acc(Graph_t graph, float convergence, un
     graph->edges_src_index, graph->edges_dest_index,
 	graph->dest_nodes_to_edges_node_list, graph->dest_nodes_to_edges_edge_list,
     max_iterations, convergence);
+
+    /*printf("===AFTER====\n");
+    print_nodes(graph);
+    print_edges(graph);*/
+
+    return iter;
+}
+
+
+/**
+ * Runs edge-optimized loopy BP until convergence or max iterations executed
+ * @param graph The graph
+ * @param convergence The convergence threshold below which execution will halt
+ * @param max_iterations The maximum number of iterations to run for
+ * @return The actual number of iterations executed
+ */
+unsigned int page_rank_until_edge_acc(Graph_t graph, float convergence, unsigned int max_iterations){
+    unsigned int iter;
+
+    /*printf("===BEFORE====\n");
+    print_nodes(graph);
+    print_edges(graph);
+*/
+    iter = page_rank_iterations_edges_acc(graph->current_num_vertices, graph->current_num_edges,
+                                                graph->node_states,
+                                                graph->edges_messages,
+                                                graph->edges_joint_probabilities,
+                                                graph->edges_src_index, graph->edges_dest_index,
+                                                graph->dest_nodes_to_edges_node_list, graph->dest_nodes_to_edges_edge_list,
+                                                max_iterations, convergence);
 
     /*printf("===AFTER====\n");
     print_nodes(graph);
@@ -1875,4 +2441,53 @@ void calculate_diameter(Graph_t graph){
 	}
 	free(g);
 	free(dist);
+}
+
+void prep_as_page_rank(Graph_t g){
+    //joint probability is actually out-degree
+    struct joint_probability * joint_probability;
+    struct belief * node_beliefs;
+    unsigned int *src_nodes_to_edges_nodes, *src_nodes_to_edges_edges;
+    unsigned int num_edges, num_vertices;
+    int i, j;
+
+    unsigned int start_index, end_index, edge_index;
+    float degree;
+
+    joint_probability = g->edges_joint_probabilities;
+    node_beliefs = g->node_states;
+
+    src_nodes_to_edges_nodes = g->src_nodes_to_edges_node_list;
+    src_nodes_to_edges_edges = g->src_nodes_to_edges_edge_list;
+
+    num_edges = g->current_num_edges;
+    num_vertices = g->current_num_vertices;
+
+    for(i = 0; i < num_vertices; ++i) {
+        // fix beliefs
+        node_beliefs[i].data[0] = 1.0f;
+        node_beliefs[i].size = 1;
+
+        // fix joint probabilities
+        start_index = src_nodes_to_edges_nodes[i];
+        if (i + 1 >= num_vertices) {
+            end_index = num_edges;
+        } else {
+            end_index = src_nodes_to_edges_nodes[i + 1];
+        }
+
+        for (j = start_index; j < end_index; ++j) {
+            edge_index = src_nodes_to_edges_edges[j];
+
+            degree = (float) (end_index - start_index);
+
+            if (degree > 0.0f) {
+                joint_probability[edge_index].data[0][0] = 1 / degree;
+            } else {
+                joint_probability[edge_index].data[0][0] = 0.0f;
+            }
+            joint_probability[edge_index].dim_x = 1;
+            joint_probability[edge_index].dim_y = 1;
+        }
+    }
 }

@@ -27,6 +27,9 @@ __device__
 void combine_message_cuda(struct belief *, struct belief *, unsigned int, unsigned int);
 
 __device__
+void combine_page_rank_message_cuda(struct belief *, struct belief *, unsigned int, unsigned int);
+
+__device__
 void read_incoming_messages_cuda(struct belief *, struct belief *, unsigned int *,
                                  unsigned int *, unsigned int, unsigned int,
                                  unsigned int, unsigned int);
@@ -45,6 +48,12 @@ void marginalize_node(struct belief *, unsigned int,
                       unsigned int *, unsigned int *,
                       unsigned int, unsigned int);
 
+__device__
+void marginalize_page_rank_node(struct belief *, unsigned int,
+                      struct belief *,
+                      unsigned int *, unsigned int *,
+                      unsigned int, unsigned int);
+
 __global__
 void marginalize_nodes(struct belief *, struct belief *,
                        unsigned int *, unsigned int *,
@@ -52,6 +61,14 @@ void marginalize_nodes(struct belief *, struct belief *,
 
 __global__
 void loopy_propagate_main_loop(unsigned int, unsigned int,
+                               struct belief *,
+                               struct joint_probability *,
+                               struct belief *,
+                               unsigned int *, unsigned int *,
+                               unsigned int *, unsigned int *);
+
+__global__
+void page_rank_main_loop(unsigned int, unsigned int,
                                struct belief *,
                                struct joint_probability *,
                                struct belief *,
@@ -94,6 +111,9 @@ void test_error();
 
 unsigned int loopy_propagate_until_cuda(Graph_t, float, unsigned int);
 unsigned int loopy_propagate_until_cuda_edge(Graph_t, float, unsigned int);
+
+unsigned int page_rank_until_cuda(Graph_t, float, unsigned int);
+unsigned int page_rank_until_cuda_edge(Graph_t, float, unsigned int);
 
 void run_test_loopy_belief_propagation_cuda(struct expression *, const char *, FILE *);
 void run_test_loopy_belief_propagation_xml_file_cuda(const char *, FILE *);

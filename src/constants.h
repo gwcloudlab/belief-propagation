@@ -49,4 +49,6 @@
 #define REGEX_NODE_LINE "^([0-9]+)[\r\n\t\f\v ]+(.*)$"
 #define REGEX_WHITESPACE "\r\n\t\f\v "
 
+#define DAMPENING_FACTOR 0.85f
+
 #endif /* CONSTANTS_H_ */

@@ -219,6 +219,7 @@ void set_up_src_nodes_to_edges(Graph_t);
 void set_up_dest_nodes_to_edges(Graph_t);
 void init_levels_to_nodes(Graph_t);
 void calculate_diameter(Graph_t);
+void prep_as_page_rank(Graph_t);
 
 void initialize_node(Graph_t, unsigned int, unsigned int);
 void node_set_state(Graph_t, unsigned int, unsigned int, struct belief *);
@@ -238,11 +239,19 @@ void reset_visited(Graph_t);
 
 void init_previous_edge(Graph_t);
 void loopy_propagate_one_iteration(Graph_t);
+void loopy_propagate_edge_one_iteration(Graph_t);
+void page_rank_one_iteration(Graph_t);
+void page_rank_edge_one_iteration(Graph_t);
 
-unsigned int loopy_propagate_until(Graph_t, float convergence, unsigned int max_iterations);
+unsigned int loopy_propagate_until(Graph_t, float, unsigned int);
 unsigned int loopy_propagate_until_edge(Graph_t, float, unsigned int);
-unsigned int loopy_propagate_until_acc(Graph_t, float convergence, unsigned int max_iterations);
+unsigned int loopy_propagate_until_acc(Graph_t, float, unsigned int);
 unsigned int loopy_propagate_until_edge_acc(Graph_t, float, unsigned int);
+
+unsigned int page_rank_until(Graph_t, float, unsigned int);
+unsigned int page_rank_until_edge(Graph_t, float, unsigned int);
+unsigned int page_rank_until_acc(Graph_t, float, unsigned int);
+unsigned int page_rank_until_edge_acc(Graph_t, float, unsigned int);
 
 void marginalize(Graph_t);
 

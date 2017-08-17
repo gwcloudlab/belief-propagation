@@ -26,6 +26,10 @@ __device__
 void combine_message_cuda(struct belief *, struct belief *, unsigned int, unsigned int,
                           unsigned int, unsigned int, char, unsigned int);
 
+__device__
+void combine_page_rank_message_cuda(struct belief *, struct belief *, unsigned int, unsigned int,
+                          unsigned int, unsigned int, char, unsigned int);
+
 __global__
 void read_incoming_messages_kernel(struct belief *, struct belief *, unsigned int *,
                                    unsigned int *, unsigned int,
@@ -48,10 +52,22 @@ void marginalize_node_combine_kernel(struct belief *, struct belief *,
                                      unsigned int, char, unsigned int);
 
 __global__
+void marginalize_page_rank_node_combine_kernel(struct belief *, struct belief *,
+                                     struct belief *, unsigned int *, unsigned int *, unsigned int,
+                                     unsigned int, char, unsigned int);
+
+__global__
 void marginalize_sum_node_kernel(struct belief *, struct belief *,
                                  struct belief *, unsigned int *,
                                  unsigned int *, unsigned int,
                                  unsigned int, char, unsigned int);
+
+__global__
+void marginalize_dampening_factor_kernel(struct belief *, struct belief *,
+                                         struct belief *, unsigned int *,
+                                         unsigned int *, unsigned int,
+                                         unsigned int, char, unsigned int);
+
 
 __device__
 float calculate_local_delta(unsigned int, struct belief *);
