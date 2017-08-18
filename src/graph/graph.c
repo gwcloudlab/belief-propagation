@@ -1869,7 +1869,7 @@ unsigned int page_rank_until(Graph_t graph, float convergence, unsigned int max_
     if(i == max_iterations){
         printf("No Convergence: previous: %f vs current: %f\n", previous_delta, delta);
     }
-    assert(i > 0);
+//    assert(i > 0);
     return i;
 }
 
