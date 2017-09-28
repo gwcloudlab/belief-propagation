@@ -15,4 +15,4 @@ set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} -lineinfo -gencode arch=compute_35,code=s
 
 cuda_add_executable(cuda_kernels_benchmark belief-propagation-kernels-benchmark.cu belief-propagation-kernels.cu ../bnf-xml-parser/bnf-xml-wrapper.c ../bnf-xml-parser/xml-expression.c ../bnf-parser/bnf-wrapper.c ../bnf-parser/expression.c ../bnf-parser/Lexer.c ../bnf-parser/Parser.c ../graph/graph.c ../snap-parser/snap-parser.c)
 include_directories(${LIBXML2_INCLUDE_DIR})
-target_link_libraries(cuda_kernels_benchmark ${LIBXML2_LIBRARIES})
+target_link_libraries(cuda_kernels_benchmark ${LIBXML2_LIBRARIES} m)

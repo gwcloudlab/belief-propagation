@@ -30,6 +30,9 @@ __device__
 void combine_page_rank_message_cuda(struct belief *, struct belief *, unsigned int, unsigned int);
 
 __device__
+void combine_viterbi_message_cuda(struct belief *, struct belief *, unsigned int, unsigned int);
+
+__device__
 void read_incoming_messages_cuda(struct belief *, struct belief *, unsigned int *,
                                  unsigned int *, unsigned int, unsigned int,
                                  unsigned int, unsigned int);
@@ -54,10 +57,25 @@ void marginalize_page_rank_node(struct belief *, unsigned int,
                       unsigned int *, unsigned int *,
                       unsigned int, unsigned int);
 
+void argmax_node(struct belief *, unsigned int,
+                 struct belief *,
+                 unsigned int *, unsigned int *,
+                 unsigned int, unsigned int);
+
 __global__
 void marginalize_nodes(struct belief *, struct belief *,
                        unsigned int *, unsigned int *,
                        unsigned int, unsigned int);
+
+__global__
+void marginalize_page_rank_nodes(struct belief *, struct belief *,
+                       unsigned int *, unsigned int *,
+                       unsigned int, unsigned int);
+
+__global__
+void argmax_nodes(struct belief *, struct belief *,
+                                 unsigned int *, unsigned int *,
+                                 unsigned int, unsigned int);
 
 __global__
 void loopy_propagate_main_loop(unsigned int, unsigned int,
@@ -74,6 +92,14 @@ void page_rank_main_loop(unsigned int, unsigned int,
                                struct belief *,
                                unsigned int *, unsigned int *,
                                unsigned int *, unsigned int *);
+
+__global__
+void viterbi_main_loop(unsigned int, unsigned int,
+                         struct belief *,
+                         struct joint_probability *,
+                         struct belief *,
+                         unsigned int *, unsigned int *,
+                         unsigned int *, unsigned int *);
 
 __device__
 static void send_message_for_edge_iteration_cuda(struct belief *, unsigned int, unsigned int,
@@ -114,6 +140,9 @@ unsigned int loopy_propagate_until_cuda_edge(Graph_t, float, unsigned int);
 
 unsigned int page_rank_until_cuda(Graph_t, float, unsigned int);
 unsigned int page_rank_until_cuda_edge(Graph_t, float, unsigned int);
+
+unsigned int viterbi_until_cuda(Graph_t, float, unsigned int);
+unsigned int viterbi_until_cuda_edge(Graph_t, float, unsigned int);
 
 void run_test_loopy_belief_propagation_cuda(struct expression *, const char *, FILE *);
 void run_test_loopy_belief_propagation_xml_file_cuda(const char *, FILE *);

@@ -34,11 +34,11 @@ struct belief {
 	/**
 	 * The previous sum
 	 */
-	float previous_sum;
+	float previous;
 	/**
 	 * The current sum
 	 */
-	float current_sum;
+	float current;
 };
 
 /**
@@ -242,6 +242,8 @@ void loopy_propagate_one_iteration(Graph_t);
 void loopy_propagate_edge_one_iteration(Graph_t);
 void page_rank_one_iteration(Graph_t);
 void page_rank_edge_one_iteration(Graph_t);
+void viterbi_one_iteration(Graph_t);
+void viterbi_edge_one_iteration(Graph_t);
 
 unsigned int loopy_propagate_until(Graph_t, float, unsigned int);
 unsigned int loopy_propagate_until_edge(Graph_t, float, unsigned int);
@@ -252,6 +254,11 @@ unsigned int page_rank_until(Graph_t, float, unsigned int);
 unsigned int page_rank_until_edge(Graph_t, float, unsigned int);
 unsigned int page_rank_until_acc(Graph_t, float, unsigned int);
 unsigned int page_rank_until_edge_acc(Graph_t, float, unsigned int);
+
+unsigned int viterbi_until(Graph_t, float, unsigned int);
+unsigned int viterbi_until_edge(Graph_t, float, unsigned int);
+unsigned int viterbi_until_acc(Graph_t, float, unsigned int);
+unsigned int viterbi_until_edge_acc(Graph_t, float, unsigned int);
 
 void marginalize(Graph_t);
 

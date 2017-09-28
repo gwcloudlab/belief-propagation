@@ -11,6 +11,6 @@ add_executable(c_loopy_edge_benchmark loopy-edge-belief-propagation.c ../bnf-xml
 
 include_directories(${LIBXML2_INCLUDE_DIR})
 
-target_link_libraries(c_non_loopy_benchmark ${LIBXML2_LIBRARIES})
-target_link_libraries(c_loopy_node_benchmark ${LIBXML2_LIBRARIES})
-target_link_libraries(c_loopy_edge_benchmark ${LIBXML2_LIBRARIES})
+target_link_libraries(c_non_loopy_benchmark ${LIBXML2_LIBRARIES} m)
+target_link_libraries(c_loopy_node_benchmark ${LIBXML2_LIBRARIES} m)
+target_link_libraries(c_loopy_edge_benchmark ${LIBXML2_LIBRARIES} m)
