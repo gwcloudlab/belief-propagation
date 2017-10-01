@@ -18,4 +18,6 @@ void run_test_loopy_belief_propagation_edge_xml_file(const char *, FILE *);
 void run_test_loopy_belief_propagation_xml_file_acc(const char *, FILE *);
 void run_test_loopy_belief_propagation_edge_xml_file_acc(const char *, FILE *);
 
+void run_test_viterbi_xml_file(const char *);
+
 #endif //BNF_XML_WRAPPER_H

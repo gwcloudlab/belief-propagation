@@ -119,6 +119,9 @@ void combine_loopy_edge_cuda_kernel(unsigned int, unsigned int *, struct belief 
 __global__
 void marginalize_loop_node_edge_kernel(struct belief *, unsigned int);
 
+__global__
+void marginalize_viterbi_beliefs(struct belief *, unsigned int);
+
 __device__
 float calculate_local_delta(unsigned int, struct belief *);
 

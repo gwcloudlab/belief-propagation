@@ -1907,14 +1907,15 @@ void viterbi_edge_one_iteration(Graph_t graph){
  * @return The actual number of iterations executed
  */
 unsigned int loopy_propagate_until_edge(Graph_t graph, float convergence, unsigned int max_iterations){
-    int j;
-    unsigned int i, num_edges;
-    float delta, diff, previous_delta;
-    struct belief *current_edge_messages;
+    int j, k;
+    unsigned int i, num_edges, num_nodes, num_variables;
+    float delta, diff, previous_delta, sum;
+    struct belief *current_edge_messages, *states;
 
     current_edge_messages = graph->edges_messages;
 
     num_edges = graph->current_num_edges;
+    num_nodes = graph->current_num_vertices;
 
     previous_delta = -1.0f;
     delta = 0.0f;
@@ -1947,6 +1948,28 @@ unsigned int loopy_propagate_until_edge(Graph_t graph, float convergence, unsign
     }
     if(i == max_iterations){
         printf("No Convergence: previous: %f vs current: %f\n", previous_delta, delta);
+    }
+
+    states = graph->node_states;
+
+#pragma omp parallel for default(none) shared(states, num_nodes) private(sum, num_variables)
+    for(j = 0; j < num_nodes; ++j){
+        sum = 0.0;
+        num_variables = states[j].size;
+#pragma omp simd safelen(AVG_STATES)
+#pragma simd vectorlength(AVG_STATES)
+        for (k = 0; k < num_variables; ++k) {
+            sum += states[j].data[k];
+        }
+        if (sum <= 0.0) {
+            sum = 1.0;
+        }
+
+#pragma omp simd safelen(AVG_STATES)
+#pragma simd vectorlength(AVG_STATES)
+        for (k = 0; k < num_variables; ++k) {
+            states[j].data[k] /= sum;
+        }
     }
     return i;
 }
@@ -2115,14 +2138,16 @@ unsigned int page_rank_until(Graph_t graph, float convergence, unsigned int max_
  * @return The actual number of iterations executed
  */
 unsigned int viterbi_until(Graph_t graph, float convergence, unsigned int max_iterations){
-    int j;
-    unsigned int i, num_edges;
-    float delta, diff, previous_delta;
+    int j, k;
+    unsigned int i, num_edges, num_nodes;
+    float delta, diff, previous_delta, sum, num_variables;
     struct belief *current_edge_messages;
+    struct belief *states;
 
     current_edge_messages = graph->edges_messages;
 
     num_edges = graph->current_num_edges;
+    num_nodes = graph->current_num_vertices;
 
     previous_delta = -1.0f;
     delta = 0.0;
@@ -2153,6 +2178,28 @@ unsigned int viterbi_until(Graph_t graph, float convergence, unsigned int max_it
     }
     if(i == max_iterations){
         printf("No Convergence: previous: %f vs current: %f\n", previous_delta, delta);
+    }
+
+    states = graph->node_states;
+
+    #pragma omp parallel for default(none) shared(states, num_nodes) private(sum, num_variables)
+    for(j = 0; j < num_nodes; ++j){
+        sum = 0.0;
+        num_variables = states[j].size;
+        #pragma omp simd safelen(AVG_STATES)
+        #pragma simd vectorlength(AVG_STATES)
+        for (k = 0; k < num_variables; ++k) {
+            sum += states[j].data[k];
+        }
+        if (sum <= 0.0) {
+            sum = 1.0;
+        }
+
+        #pragma omp simd safelen(AVG_STATES)
+        #pragma simd vectorlength(AVG_STATES)
+        for (k = 0; k < num_variables; ++k) {
+            states[j].data[k] /= sum;
+        }
     }
 //    assert(i > 0);
     return i;
@@ -2387,7 +2434,7 @@ static unsigned int viterbi_iterations_acc(unsigned int num_vertices, unsigned i
                                              float convergence){
     int j, k;
     unsigned int i, num_variables, num_iter;
-    float delta, previous_delta, diff;
+    float delta, previous_delta, diff, sum;
     struct belief *curr_messages;
 
     curr_messages = current_messages;
@@ -2459,6 +2506,24 @@ static unsigned int viterbi_iterations_acc(unsigned int num_vertices, unsigned i
         printf("No Convergence: previous: %f vs current: %f\n", previous_delta, delta);
     }
 
+    #pragma acc data present_or_copy(node_states[0:(num_vertices)])
+    {
+        #pragma acc kernels
+        for(j = 0; j < num_vertices; ++j){
+            sum = 0.0;
+            num_variables = node_states[j].size;
+            for (k = 0; k < num_variables; ++k) {
+                sum += node_states[j].data[k];
+            }
+            if (sum <= 0.0) {
+                sum = 1.0;
+            }
+
+            for (k = 0; k < num_variables; ++k) {
+                node_states[j].data[k] /= sum;
+            }
+        }
+    }
 
     return num_iter;
 }
@@ -2749,8 +2814,8 @@ static unsigned int viterbi_iterations_edges_acc(unsigned int num_vertices, unsi
                                                    unsigned int * dest_node_to_edges_node_list, unsigned int * dest_node_to_edges_edge_list,
                                                    unsigned int max_iterations, float convergence){
     int j, k;
-    unsigned int i, num_iter, src_node_index, dest_node_index;
-    float delta, previous_delta, diff;
+    unsigned int i, num_iter, src_node_index, dest_node_index, num_variables;
+    float delta, previous_delta, diff, sum;
     struct belief *curr_messages;
 
     curr_messages = current_edge_messages;
@@ -2807,6 +2872,25 @@ static unsigned int viterbi_iterations_edges_acc(unsigned int num_vertices, unsi
     }
     if(i == max_iterations) {
         printf("No Convergence: previous: %f vs current: %f\n", previous_delta, delta);
+    }
+
+    #pragma acc data present_or_copy(node_states[0:(num_vertices)])
+    {
+        #pragma acc kernels
+        for(j = 0; j < num_vertices; ++j){
+            sum = 0.0;
+            num_variables = node_states[j].size;
+            for (k = 0; k < num_variables; ++k) {
+                sum += node_states[j].data[k];
+            }
+            if (sum <= 0.0) {
+                sum = 1.0;
+            }
+
+            for (k = 0; k < num_variables; ++k) {
+                node_states[j].data[k] /= sum;
+            }
+        }
     }
 
 

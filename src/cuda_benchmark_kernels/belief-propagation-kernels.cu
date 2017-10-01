@@ -438,6 +438,22 @@ void marginalize_dampening_factor_kernel(struct belief * message_buffer, struct 
 
 }
 
+__global__
+void marginalize_viterbi_beliefs(struct belief * nodes, unsigned int num_nodes){
+    unsigned int idx, i, num_variables;
+    float sum;
+
+    for(idx = blockIdx.x * blockDim.x + threadIdx.x; idx < num_edges; idx += blockDim.x * gridDim.x){
+        sum = 0.0;
+        for(i = 0; i < nodes[idx].size; ++i){
+            sum += nodes[idx].data[i];
+        }
+        for(i = 0; i < nodes[idx].size; ++i){
+            nodes[idx].data[i] = nodes[idx].data[i] / sum;
+        }
+    }
+}
+
 /**
  * Marginalizes and normalizes nodes in the graph
  * @param message_buffer The incoming beliefs
@@ -1157,6 +1173,7 @@ unsigned int viterbi_until_cuda_kernels(Graph_t graph, float convergence, unsign
         //   printf("Current delta: %f\n", host_delta);
 
         if(host_delta < convergence || fabs(host_delta - previous_delta) < convergence){
+            marginalize_viterbi_beliefs<<<num_vertices, BLOCK_SIZE>>>(node_states, num_vertices);
             break;
         }
         previous_delta = host_delta;

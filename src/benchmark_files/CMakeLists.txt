@@ -78,6 +78,7 @@ configure_file(dog-edges.txt dog-edges.txt COPYONLY)
 configure_file(dog-nodes.txt dog-nodes.txt COPYONLY)
 configure_file(small_page_rank.txt small_page_rank.txt COPYONLY)
 configure_file(small_page_rank_node.txt small_page_rank_node.txt COPYONLY)
+configure_file(viterbi.xml viterbi.xml COPYONLY)
 
 #configure_file(xml2/10_20.xml xml2/10_20.xml COPYONLY)
 #configure_file(xml2/100_200.xml xml2/100_200.xml COPYONLY)

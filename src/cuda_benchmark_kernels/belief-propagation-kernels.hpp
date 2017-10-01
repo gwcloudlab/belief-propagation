@@ -78,6 +78,9 @@ void marginalize_dampening_factor_kernel(struct belief *, struct belief *,
                                          unsigned int, char, unsigned int);
 
 __global__
+void marginalize_viterbi_beliefs(struct belief *, unsigned int);
+
+__global__
 void argmax_kernel(struct belief *, struct belief *,
                    struct belief *, unsigned int *,
                    unsigned int *, unsigned int,

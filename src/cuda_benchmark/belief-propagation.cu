@@ -905,6 +905,22 @@ void calculate_delta_simple(struct belief * current_messages,
     }
 }
 
+__global__
+void marginalize_viterbi_beliefs(struct belief * nodes, unsigned int num_nodes){
+    unsigned int idx, i, num_variables;
+    float sum;
+
+    for(idx = blockIdx.x * blockDim.x + threadIdx.x; idx < num_edges; idx += blockDim.x * gridDim.x){
+        sum = 0.0;
+        for(i = 0; i < nodes[idx].size; ++i){
+            sum += nodes[idx].data[i];
+        }
+        for(i = 0; i < nodes[idx].size; ++i){
+            nodes[idx].data[i] = nodes[idx].data[i] / sum;
+        }
+    }
+}
+
 /**
  * Helper function to test for error with CUDA kernel execution
  */
@@ -1244,6 +1260,7 @@ unsigned int viterbi_until_cuda(Graph_t graph, float convergence, unsigned int m
         //printf("Current delta: %f\n", host_delta);
 
         if(host_delta < convergence || fabs(host_delta - previous_delta) < convergence){
+            marginalize_viterbi_beliefs<<<nodeCount, BLOCK_SIZE >>>(node_states, num_vertices);
             break;
         }
         previous_delta = host_delta;
@@ -1610,6 +1627,7 @@ unsigned int viterbi_until_cuda_edge(Graph_t graph, float convergence, unsigned 
         //   printf("Current delta: %f\n", host_delta);
 
         if(host_delta < convergence || fabs(host_delta - previous_delta) < convergence){
+            marginalize_viterbi_beliefs<<<nodeCount, BLOCK_SIZE >>>(node_states, num_vertices);
             break;
         }
         previous_delta = host_delta;

@@ -22,3 +22,6 @@ add_test(test_page_rank test_page_rank)
 include_directories(${LIBXML2_INCLUDE_DIR})
 add_executable(test_xml_expressions test_xml_expressions.c ${CMAKE_SOURCE_DIR}/src/bnf-xml-parser/xml-expression.c ${CMAKE_SOURCE_DIR}/src/bnf-xml-parser/bnf-xml-wrapper.c ${CMAKE_SOURCE_DIR}/src/bnf-parser/bnf-wrapper.c ${CMAKE_SOURCE_DIR}/src/bnf-parser/Parser.c ${CMAKE_SOURCE_DIR}/src/bnf-parser/Lexer.c ${CMAKE_SOURCE_DIR}/src/bnf-parser/expression.c ${CMAKE_SOURCE_DIR}/src/graph/graph.c)
 target_link_libraries(test_xml_expressions ${LIBXML2_LIBRARIES})
+
+add_executable(test_viterbi test_viterbi.c ${CMAKE_SOURCE_DIR}/src/bnf-xml-parser/xml-expression.c ${CMAKE_SOURCE_DIR}/src/bnf-xml-parser/bnf-xml-wrapper.c ${CMAKE_SOURCE_DIR}/src/bnf-parser/bnf-wrapper.c ${CMAKE_SOURCE_DIR}/src/bnf-parser/Parser.c ${CMAKE_SOURCE_DIR}/src/bnf-parser/Lexer.c ${CMAKE_SOURCE_DIR}/src/bnf-parser/expression.c ${CMAKE_SOURCE_DIR}/src/graph/graph.c)
+target_link_libraries(test_viterbi ${LIBXML2_LIBRARIES} -lm)
