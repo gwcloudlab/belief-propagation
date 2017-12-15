@@ -6,6 +6,7 @@
 
 #include "graph.h"
 
+static char search_key[CHAR_BUFFER_SIZE];
 Graph_t
 create_graph(unsigned int num_vertices, unsigned int num_edges)
 {
@@ -156,6 +157,8 @@ void graph_add_edge(Graph_t graph, unsigned int src_index, unsigned int dest_ind
 
 void set_up_src_nodes_to_edges(Graph_t graph){
 	unsigned int i, j, edge_index, num_vertices, num_edges, current_degree;
+    ENTRY entry, *ep;
+    struct edge_search_metadata *metadata;
 
 	assert(graph->current_num_vertices == graph->total_num_vertices);
 	assert(graph->current_num_edges <= graph->total_num_edges);
@@ -165,25 +168,82 @@ void set_up_src_nodes_to_edges(Graph_t graph){
 	num_vertices = graph->total_num_vertices;
 	num_edges = graph->current_num_edges;
 
-    current_degree = 0;
 
-	for(i = 0; i < num_vertices; ++i){
+
+    if(graph->hash_table_created != 0){
+        hdestroy();
+        graph->hash_table_created = 0;
+    }
+
+    hcreate(num_vertices);
+    // fill hash table
+    for(j = 0; j < num_edges; ++j){
+        // search by node name
+        i = graph->edges_src_index[j];
+		snprintf(search_key, CHAR_BUFFER_SIZE, "%d", i);
+        entry.key = search_key;
+        entry.data = NULL;
+        ep = hsearch(entry, FIND);
+
+        // grab metadata if it exists or create it
+        if(ep == NULL) {
+            metadata = (struct edge_search_metadata *)malloc(sizeof(struct edge_search_metadata));
+            assert(metadata > 0);
+            metadata->edge_indices = (unsigned int *)malloc(sizeof(unsigned int) * num_edges);
+            assert(metadata->edge_indices > 0);
+            metadata->next_index = 0;
+        }
+        else {
+            metadata = ep->data;
+        }
+        // add current edge to list
+        metadata->edge_indices[metadata->next_index] = j;
+        metadata->next_index += 1;
+        // ensure we're not going over
+        assert(metadata->next_index < num_edges + 1);
+        // insert
+        entry.data = metadata;
+        ep = hsearch(entry, ENTER);
+        assert(ep > 0);
+    }
+    // fill in array
+    for(i = 0; i < num_vertices; ++i){
 		graph->src_nodes_to_edges_node_list[i] = edge_index;
-		for(j = 0; j < num_edges; ++j){
-			if(graph->edges_src_index[j] == i){
-				graph->src_nodes_to_edges_edge_list[edge_index] = j;
+
+        current_degree = 0;
+
+		snprintf(search_key, CHAR_BUFFER_SIZE, "%d", i);
+        entry.key = search_key;
+        entry.data = NULL;
+        ep = hsearch(entry, FIND);
+        if(ep > 0) {
+			metadata = ep->data;
+			assert(metadata);
+			assert(metadata->edge_indices);
+			assert(metadata->next_index >= 0);
+
+			for (j = 0; j < metadata->next_index; ++j) {
+				graph->src_nodes_to_edges_edge_list[edge_index] = metadata->edge_indices[j];
 				edge_index += 1;
-                current_degree++;
+				current_degree += 1;
+			}
+
+			//cleanup
+			free(metadata->edge_indices);
+			free(metadata);
+
+			if (current_degree > graph->max_degree) {
+				graph->max_degree = current_degree;
 			}
 		}
-	}
-    if(current_degree > graph->max_degree){
-        graph->max_degree = current_degree;
     }
+    hdestroy();
 }
 
 void set_up_dest_nodes_to_edges(Graph_t graph){
 	unsigned int i, j, edge_index, num_vertices, num_edges;
+    ENTRY entry, *ep;
+    struct edge_search_metadata *metadata;
 
 	assert(graph->current_num_vertices == graph->total_num_vertices);
 	assert(graph->current_num_edges <= graph->total_num_edges);
@@ -193,16 +253,66 @@ void set_up_dest_nodes_to_edges(Graph_t graph){
 	num_vertices = graph->total_num_vertices;
 	num_edges = graph->current_num_edges;
 
-	for(i = 0; i < num_vertices; ++i){
+    if(graph->hash_table_created != 0){
+        hdestroy();
+        graph->hash_table_created = 0;
+    }
+
+    hcreate(num_vertices);
+    // fill hash table
+    for(j = 0; j < num_edges; ++j){
+        // search by node name
+        i = graph->edges_dest_index[j];
+        snprintf(search_key, CHAR_BUFFER_SIZE, "%d", i);
+        entry.key = search_key;
+        entry.data = NULL;
+        ep = hsearch(entry, FIND);
+
+        // grab metadata if it exists or create it
+        if(ep == NULL) {
+            metadata = (struct edge_search_metadata *)malloc(sizeof(struct edge_search_metadata));
+            assert(metadata > 0);
+            metadata->edge_indices = (unsigned int *)malloc(sizeof(unsigned int) * num_edges);
+            assert(metadata->edge_indices > 0);
+            metadata->next_index = 0;
+        }
+        else {
+            metadata = ep->data;
+        }
+        // add current edge to list
+        metadata->edge_indices[metadata->next_index] = j;
+        metadata->next_index += 1;
+        // ensure we're not going over
+        assert(metadata->next_index < num_edges + 1);
+        // insert
+        entry.data = metadata;
+        ep = hsearch(entry, ENTER);
+        assert(ep > 0);
+    }
+    // fill in array
+    for(i = 0; i < num_vertices; ++i){
 		graph->dest_nodes_to_edges_node_list[i] = edge_index;
-		for(j = 0; j < num_edges; ++j){
-			if(graph->edges_dest_index[j] == i){
-				graph->dest_nodes_to_edges_edge_list[edge_index] = j;
+
+		snprintf(search_key, CHAR_BUFFER_SIZE, "%d", i);
+        entry.key = search_key;
+        entry.data = NULL;
+        ep = hsearch(entry, FIND);
+        if(ep > 0) {
+			metadata = ep->data;
+			assert(metadata);
+			assert(metadata->edge_indices);
+			assert(metadata->next_index >= 0);
+			for (j = 0; j < metadata->next_index; ++j) {
+				graph->dest_nodes_to_edges_edge_list[edge_index] = metadata->edge_indices[j];
 				edge_index += 1;
 			}
-		}
 
-	}
+			//cleanup
+			free(metadata->edge_indices);
+			free(metadata);
+		}
+    }
+    hdestroy();
 }
 
 int graph_vertex_count(Graph_t g) {

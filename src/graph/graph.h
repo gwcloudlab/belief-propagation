@@ -63,6 +63,11 @@ struct graph {
 };
 typedef struct graph* Graph_t;
 
+struct edge_search_metadata {
+    unsigned int *edge_indices;
+    unsigned int next_index;
+};
+
 /** create a new graph with n vertices labeled 0 to n-1 and no edges */
 Graph_t create_graph(unsigned int, unsigned int);
 
