@@ -12,4 +12,4 @@ ADD_FLEX_BISON_DEPENDENCY(Lexer Parser)
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
-add_executable(test_expression main.c ${CMAKE_CURRENT_SOURCE_DIR}/Parser.c ${CMAKE_CURRENT_SOURCE_DIR}/Lexer.c expression.c ../graph/graph.c)
+add_executable(test_expression main.c ${CMAKE_CURRENT_SOURCE_DIR}/Parser.c ${CMAKE_CURRENT_SOURCE_DIR}/Lexer.c expression.c bnf-wrapper.c ../graph/graph.c)

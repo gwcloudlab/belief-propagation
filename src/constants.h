@@ -8,6 +8,8 @@
 
 #define CHAR_BUFFER_SIZE 50
 
+#define AVG_STATES 2
+
 #define MAX_STATES 10
 
 #define DEFAULT_STATE 1.0
@@ -26,9 +28,27 @@
 
 #define BLOCK_SIZE_2_D_Y 16
 
+#define BLOCK_SIZE_3_D_X 4
+
+#define BLOCK_SIZE_3_D_Y 16
+
+#define BLOCK_SIZE_3_D_Z 16
+
 #define MAX_NUM_NODES 1048
 
 #define WARP_SIZE 32
 
+#define MAX_DEGREE 32
+
+#define CHARS_IN_KEY 20
+
+#define READ_SNAP_BUFFER_SIZE 256
+
+#define REGEX_GRAPH_INFO "^# Nodes:[\r\n\t\f\v ]*([0-9]+)[\r\n\t\f\v ]*Edges:[\r\n\t\f\v ]*([0-9]+)[\r\n\t\f\v ]*Beliefs:[\r\n\t\f\v ]*([0-9]+)[\r\n\t\f\v ]*Belief States:[\r\n\t\f\v ]*([0-9]+).*$"
+#define REGEX_EDGE_LINE "^([0-9]+)[\r\n\t\f\v ]+([0-9]+)[\r\n\t\f\v ]+(.*)$"
+#define REGEX_NODE_LINE "^([0-9]+)[\r\n\t\f\v ]+(.*)$"
+#define REGEX_WHITESPACE "\r\n\t\f\v "
+
+#define DAMPENING_FACTOR 0.85f
 
 #endif /* CONSTANTS_H_ */

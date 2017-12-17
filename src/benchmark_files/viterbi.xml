@@ -1,0 +1,66 @@
+<BIF version="0.3">
+    <NETWORK>
+        <NAME>Wikipedia-Example</NAME>
+
+        <!-- Variables -->
+        <VARIABLE TYPE="nature">
+            <NAME>healthy</NAME>
+            <OUTCOME>true</OUTCOME>
+            <OUTCOME>false</OUTCOME>
+            <PROPERTY>position = (73, 165)</PROPERTY>
+        </VARIABLE>
+
+        <VARIABLE TYPE="nature">
+            <NAME>dizzy</NAME>
+            <OUTCOME>true</OUTCOME>
+            <OUTCOME>false</OUTCOME>
+            <PROPERTY>position = (155, 165)</PROPERTY>
+        </VARIABLE>
+
+        <VARIABLE TYPE="nature">
+            <NAME>cold</NAME>
+            <OUTCOME>true</OUTCOME>
+            <OUTCOME>false</OUTCOME>
+            <PROPERTY>position = (154, 241)</PROPERTY>
+        </VARIABLE>
+
+        <VARIABLE TYPE="nature">
+            <NAME>normal</NAME>
+            <OUTCOME>true</OUTCOME>
+            <OUTCOME>false</OUTCOME>
+            <PROPERTY>position = (112, 69)</PROPERTY>
+        </VARIABLE>
+
+        <!-- Probability distributions -->
+
+        <DEFINITION>
+            <FOR>healthy</FOR>
+            <TABLE>0.6 0.4</TABLE>
+        </DEFINITION>
+
+
+        <DEFINITION>
+            <FOR>healthy</FOR>
+            <GIVEN>healthy</GIVEN>
+            <TABLE>0.7 0.6 0.3 0.4</TABLE>
+        </DEFINITION>
+
+        <DEFINITION>
+            <FOR>dizzy</FOR>
+            <GIVEN>healthy</GIVEN>
+            <TABLE>0.1 0.6 0.9 0.4</TABLE>
+        </DEFINITION>
+
+        <DEFINITION>
+            <FOR>cold</FOR>
+            <GIVEN>healthy</GIVEN>
+            <TABLE>0.4 0.3 0.6 0.7</TABLE>
+        </DEFINITION>
+
+        <DEFINITION>
+            <FOR>normal</FOR>
+            <GIVEN>healthy</GIVEN>
+            <TABLE>0.5 0.1 0.5 0.9</TABLE>
+        </DEFINITION>
+    </NETWORK>
+</BIF>

@@ -1,0 +1,36 @@
+language: c
+sudo: true
+dist: trusty
+compiler:
+- gcc
+os:
+- linux
+
+addons:
+    apt:
+        sources:
+            - ubuntu-toolchain-r-test
+        packages:
+            - lcov
+
+branches:
+  only:
+  - master
+
+before_install:
+  - echo "Installing CUDA library"
+  - source .travis/install_cuda.sh
+
+script: ./run_build.sh
+
+after_success:
+    # Creating report
+  - cd ${TRAVIS_BUILD_DIR}
+  - lcov --directory . --capture --output-file coverage.info # capture coverage info
+  - lcov --remove coverage.info '/usr/*' --output-file coverage.info # filter out system
+  - lcov --list coverage.info #debug info
+
+env:
+  global:
+    - LANG="en_US.UTF-8"
+    - CUDA="8.0.61-1"
