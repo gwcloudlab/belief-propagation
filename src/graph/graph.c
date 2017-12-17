@@ -2,13 +2,18 @@
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
-#include <math.h>
+#include "math.h"
 
 #include "graph.h"
 
 static char src_key[CHARS_IN_KEY], dest_key[CHARS_IN_KEY];
 
-
+float fmaxf(float a, float b) {
+    if(a >= b) {
+        return a;
+    }
+    return b;
+}
 /**
  * Allocate and init the graph
  * @param num_vertices The number of vertices to allocate
@@ -320,45 +325,90 @@ unsigned int find_node_by_name(char * name, Graph_t graph){
 	return i;
 }
 
+static void set_up_nodes_to_edges(unsigned int *edges_index, unsigned int * nodes_to_edges_nodes_list,
+                                  unsigned int * nodes_to_edges_edges_list, Graph_t graph){
+    unsigned int i, j, edge_index, num_vertices, num_edges, current_degree;
+    ENTRY entry, *ep;
+    struct htable_entry *metadata;
+    char *search_key;
+	struct hsearch_data *htab;
 
-/**
- * Sets up the parallel arrays holding the mapping of source nodes to their edges
- * @param graph The graph holding the arrays
- */
-void set_up_src_nodes_to_edges(Graph_t graph){
-	unsigned int i, j, index, edge_index, num_vertices, current_degree;
-    ENTRY e, *ep;
-    struct htable_entry * entry;
+    assert(graph->current_num_vertices == graph->total_num_vertices);
+    assert(graph->current_num_edges <= graph->total_num_edges);
 
-	assert(graph->current_num_vertices == graph->total_num_vertices);
-	assert(graph->current_num_edges <= graph->total_num_edges);
-    assert(graph->edge_tables_created != 0);
+    edge_index = 0;
 
-	edge_index = 0;
-
-	num_vertices = graph->total_num_vertices;
+    num_vertices = graph->total_num_vertices;
+    num_edges = graph->current_num_edges;
 
 
-	for(i = 0; i < num_vertices; ++i){
-		current_degree = 0;
-		graph->src_nodes_to_edges_node_list[i] = edge_index;
-		sprintf(src_key, "%d", i);
-        e.key = src_key;
-		e.data = NULL;
-		hsearch_r(e, FIND, &ep, graph->src_node_to_edge_table);
-        if(ep != NULL && ep->data != NULL){
-            entry = (struct htable_entry *)ep->data;
-            for(j = 0; j < entry->count; ++j){
-                index = entry->indices[j];
-                graph->src_nodes_to_edges_edge_list[edge_index] = index;
+	htab = (struct hsearch_data *)calloc(1, sizeof(struct hsearch_data));
+    hcreate_r(num_vertices, htab);
+    // fill hash table
+    for(j = 0; j < num_edges; ++j){
+        // search by node name
+        i = edges_index[j];
+        search_key = &(graph->node_names[i * CHAR_BUFFER_SIZE]);
+        entry.key = search_key;
+        entry.data = NULL;
+        hsearch_r(entry, FIND, &ep, htab);
+
+        // grab metadata if it exists or create it
+        if(ep == NULL) {
+            metadata = (struct htable_entry *)calloc(sizeof(struct htable_entry), 1);
+            assert(metadata > 0);
+			metadata->count = 0;
+        }
+        else {
+            metadata = ep->data;
+        }
+        // add current edge to list
+        metadata->indices[metadata->count] = j;
+        metadata->count += 1;
+        // ensure we're not going over
+        assert(metadata->count < num_edges + 1);
+        // insert
+        entry.data = metadata;
+        hsearch_r(entry, ENTER, &ep, htab);
+        assert(ep > 0);
+    }
+    // fill in array
+    for(i = 0; i < num_vertices; ++i){
+        nodes_to_edges_nodes_list[i] = edge_index;
+
+        current_degree = 0;
+
+        search_key = &(graph->node_names[i * CHAR_BUFFER_SIZE]);
+        entry.key = search_key;
+        entry.data = NULL;
+        hsearch_r(entry, FIND, &ep, htab);
+        if(ep > 0) {
+            metadata = ep->data;
+            assert(metadata);
+            assert(metadata->indices);
+            assert(metadata->count >= 0);
+
+            for (j = 0; j < metadata->count; ++j) {
+                nodes_to_edges_edges_list[edge_index] = metadata->indices[j];
                 edge_index += 1;
-				current_degree++;
+                current_degree += 1;
+            }
+
+            //cleanup
+            free(metadata);
+
+            if (current_degree > graph->max_degree) {
+                graph->max_degree = current_degree;
             }
         }
-		if(current_degree > graph->max_degree){
-			graph->max_degree = current_degree;
-		}
-	}
+    }
+    hdestroy_r(htab);
+	free(htab);
+}
+
+void set_up_src_nodes_to_edges(Graph_t graph){
+	set_up_nodes_to_edges(graph->edges_src_index, graph->src_nodes_to_edges_node_list,
+						  graph->src_nodes_to_edges_edge_list, graph);
 }
 
 /**
@@ -366,33 +416,8 @@ void set_up_src_nodes_to_edges(Graph_t graph){
  * @param graph The graph to add the arrays to
  */
 void set_up_dest_nodes_to_edges(Graph_t graph){
-	unsigned int i, j, index, edge_index, num_vertices;
-    ENTRY e, *ep;
-    struct htable_entry *entry;
-
-	assert(graph->current_num_vertices == graph->total_num_vertices);
-	assert(graph->current_num_edges <= graph->total_num_edges);
-	e.key = dest_key;
-
-	edge_index = 0;
-
-	num_vertices = graph->total_num_vertices;
-
-	for(i = 0; i < num_vertices; ++i){
-		graph->dest_nodes_to_edges_node_list[i] = edge_index;
-		sprintf(dest_key, "%d", i);
-        e.key = dest_key;
-		e.data = NULL;
-		hsearch_r(e, FIND, &ep, graph->dest_node_to_edge_table);
-        if(ep != NULL && ep->data != NULL){
-            entry = (struct htable_entry *)ep->data;
-            for(j = 0; j < entry->count; ++j){
-                index = entry->indices[j];
-                graph->dest_nodes_to_edges_edge_list[edge_index] = index;
-                edge_index += 1;
-            }
-        }
-	}
+    set_up_nodes_to_edges(graph->edges_dest_index, graph->dest_nodes_to_edges_node_list,
+						  graph->dest_nodes_to_edges_edge_list, graph);
 }
 
 /**
@@ -402,15 +427,15 @@ void set_up_dest_nodes_to_edges(Graph_t graph){
 void graph_destroy(Graph_t g) {
 	unsigned int i;
 	ENTRY src_e, dest_e, *src_ep, *dest_ep;
-    if(g->node_hash_table_created != 0){
-        hdestroy_r(g->node_hash_table);
+	if(g->node_hash_table_created != 0){
+		hdestroy_r(g->node_hash_table);
 		free(g->node_hash_table);
-    }
-    if(g->edge_tables_created != 0){
+	}
+	if(g->edge_tables_created != 0){
 		for(i = 0; i < g->current_num_vertices; ++i){
 			sprintf(src_key, "%d", i);
 			src_e.key = src_key;
-            src_e.data = NULL;
+			src_e.data = NULL;
 			hsearch_r(src_e, FIND, &src_ep, g->src_node_to_edge_table);
 			if(src_ep != NULL){
 				free(src_ep->data);
@@ -418,18 +443,17 @@ void graph_destroy(Graph_t g) {
 
 			sprintf(dest_key, "%d", i);
 			dest_e.key = dest_key;
-            dest_e.data = NULL;
+			dest_e.data = NULL;
 			hsearch_r(dest_e, FIND, &dest_ep, g->dest_node_to_edge_table);
 			if(dest_ep != NULL){
 				free(dest_ep->data);
 			}
 		}
-        hdestroy_r(g->src_node_to_edge_table);
-        hdestroy_r(g->dest_node_to_edge_table);
+		hdestroy_r(g->src_node_to_edge_table);
+		hdestroy_r(g->dest_node_to_edge_table);
 		free(g->src_node_to_edge_table);
 		free(g->dest_node_to_edge_table);
-    }
-
+	}
 	free(g->edges_src_index);
 	free(g->edges_dest_index);
 	free(g->edges_joint_probabilities);
