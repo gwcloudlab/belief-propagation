@@ -5,6 +5,7 @@ int main(void) {
     fprintf(out, "File Name,Propagation Type,Number of Nodes,Number of Edges,Diameter,Number of Iterations,BP Run Time(s)\n");
     fflush(out);
 
+    run_test_loopy_belief_propagation_edge_xml_file("../benchmark_files/test.bif.xml", out);
     run_test_loopy_belief_propagation_edge_xml_file("../benchmark_files/xml2/10_20.xml", out);
     run_test_loopy_belief_propagation_edge_xml_file("../benchmark_files/xml2/100_200.xml", out);
     run_test_loopy_belief_propagation_edge_xml_file("../benchmark_files/xml2/1000_2000.xml", out);
