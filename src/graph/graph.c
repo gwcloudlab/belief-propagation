@@ -1361,7 +1361,7 @@ static void marginalize_page_rank_nodes(Graph_t graph, struct belief *current_me
     current_num_edges = graph->current_num_edges;
     states = graph->node_states;
 
-#pragma omp parallel for default(none) shared(states, num_vertices, current_num_vertices, current_num_edges, dest_nodes_to_edges_nodes, dest_nodes_to_edges_edges, current_messages) private(i, j, num_variables, start_index, end_index, edge_index, sum, new_belief)
+#pragma omp parallel for default(none) shared(states, num_vertices, current_num_vertices, current_num_edges, dest_nodes_to_edges_nodes, dest_nodes_to_edges_edges, current_messages) private(i, j, num_variables, start_index, end_index, edge_index, new_belief, factor)
     for(j = 0; j < num_vertices; ++j) {
 
         num_variables = states[j].size;
@@ -1416,7 +1416,7 @@ static void argmax_loopy_nodes(Graph_t graph, struct belief *current_messages, u
     current_num_edges = graph->current_num_edges;
     states = graph->node_states;
 
-#pragma omp parallel for default(none) shared(states, num_vertices, current_num_vertices, current_num_edges, dest_nodes_to_edges_nodes, dest_nodes_to_edges_edges, current_messages) private(i, j, num_variables, start_index, end_index, edge_index, sum, new_belief)
+#pragma omp parallel for default(none) shared(states, num_vertices, current_num_vertices, current_num_edges, dest_nodes_to_edges_nodes, dest_nodes_to_edges_edges, current_messages) private(i, j, num_variables, start_index, end_index, edge_index, new_belief)
     for(j = 0; j < num_vertices; ++j) {
 
         num_variables = states[j].size;
@@ -2098,7 +2098,7 @@ unsigned int loopy_propagate_until(Graph_t graph, float convergence, unsigned in
 	if(i == max_iterations){
 		printf("No Convergence: previous: %f vs current: %f\n", previous_delta, delta);
 	}
-	assert(i > 0);
+//	assert(i > 0);
 	return i;
 }
 
@@ -2162,9 +2162,9 @@ unsigned int page_rank_until(Graph_t graph, float convergence, unsigned int max_
  * @return The actual number of iterations executed
  */
 unsigned int viterbi_until(Graph_t graph, float convergence, unsigned int max_iterations){
-    int j, k;
+    int j, k, num_variables;
     unsigned int i, num_edges, num_nodes;
-    float delta, diff, previous_delta, sum, num_variables;
+    float delta, diff, previous_delta, sum;
     struct belief *current_edge_messages;
     struct belief *states;
 

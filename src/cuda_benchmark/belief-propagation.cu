@@ -910,7 +910,7 @@ void marginalize_viterbi_beliefs(struct belief * nodes, unsigned int num_nodes){
     unsigned int idx, i, num_variables;
     float sum;
 
-    for(idx = blockIdx.x * blockDim.x + threadIdx.x; idx < num_edges; idx += blockDim.x * gridDim.x){
+    for(idx = blockIdx.x * blockDim.x + threadIdx.x; idx < num_nodes; idx += blockDim.x * gridDim.x){
         sum = 0.0;
         for(i = 0; i < nodes[idx].size; ++i){
             sum += nodes[idx].data[i];
@@ -1832,6 +1832,64 @@ void run_test_loopy_belief_propagation_snap_file_edge_cuda(const char * edge_fil
     graph_destroy(graph);
 }
 
+
+void run_test_loopy_belief_propagation_mtx_files_cuda(const char * edge_mtx, const char *node_mtx, FILE * out){
+    Graph_t graph;
+    clock_t start, end;
+    double time_elapsed;
+    unsigned int num_iterations;
+
+    graph = build_graph_from_mtx(edge_mtx, node_mtx);
+    assert(graph != NULL);
+    //print_nodes(graph);
+    //print_edges(graph);
+
+    set_up_src_nodes_to_edges(graph);
+    set_up_dest_nodes_to_edges(graph);
+    //calculate_diameter(graph);
+
+    start = clock();
+    init_previous_edge(graph);
+
+    num_iterations = loopy_propagate_until_cuda(graph, PRECISION, NUM_ITERATIONS);
+    end = clock();
+
+    time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
+    //print_nodes(graph);
+    fprintf(out, "%s-%s,loopy,%d,%d,%d,%d,%lf\n", edge_mtx, node_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
+    fflush(out);
+
+    graph_destroy(graph);
+}
+
+void run_test_loopy_belief_propagation_mtx_files_edge_cuda(const char * edge_mtx, const char * node_mtx, FILE * out){
+    Graph_t graph;
+    clock_t start, end;
+    double time_elapsed;
+    unsigned int num_iterations;
+
+    graph = build_graph_from_mtx(edge_mtx, node_mtx);
+    assert(graph != NULL);
+    //print_nodes(graph);
+    //print_edges(graph);
+
+    set_up_src_nodes_to_edges(graph);
+    set_up_dest_nodes_to_edges(graph);
+    //calculate_diameter(graph);
+
+    start = clock();
+    init_previous_edge(graph);
+
+    num_iterations = loopy_propagate_until_cuda_edge(graph, PRECISION, NUM_ITERATIONS);
+    end = clock();
+
+    time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
+    //print_nodes(graph);
+    fprintf(out, "%s-%s,loopy-edge,%d,%d,%d,%d,%lf\n", edge_mtx, node_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
+    fflush(out);
+
+    graph_destroy(graph);
+}
 
 /**
  * Checks that the CUDA kernel completed

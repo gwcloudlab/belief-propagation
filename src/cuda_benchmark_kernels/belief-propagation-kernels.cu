@@ -87,7 +87,7 @@ void combine_page_rank_message_cuda(struct belief *dest, struct belief *edge_mes
  * @param warp_size The warp size of the GPU
  */
 __device__
-void combine_message_cuda(struct belief *dest, struct belief *edge_messages, unsigned int num_vertices, unsigned int node_index,
+void combine_viterbi_message_cuda(struct belief *dest, struct belief *edge_messages, unsigned int num_vertices, unsigned int node_index,
                           unsigned int edge_offset, unsigned int num_edges, char n_is_pow_2, unsigned int warp_size){
     __shared__ float shared_dest[BLOCK_SIZE_3_D_Z];
     __shared__ float shared_src[BLOCK_SIZE_3_D_Z];
@@ -429,7 +429,7 @@ void marginalize_dampening_factor_kernel(struct belief * message_buffer, struct 
             if (edge_index == 0) {
                 factor[threadIdx.x] = (1 - DAMPENING_FACTOR) / (end_index - start_index);
             }
-            __synthreads();
+            __syncthreads();
             shared_message_buffer[threadIdx.x][threadIdx.y] = factor[threadIdx.x] + DAMPENING_FACTOR * message_buffer[node_index].data[edge_index];
             __syncthreads();
             node_states[node_index].data[edge_index] = shared_message_buffer[threadIdx.x][threadIdx.y];
@@ -443,7 +443,7 @@ void marginalize_viterbi_beliefs(struct belief * nodes, unsigned int num_nodes){
     unsigned int idx, i, num_variables;
     float sum;
 
-    for(idx = blockIdx.x * blockDim.x + threadIdx.x; idx < num_edges; idx += blockDim.x * gridDim.x){
+    for(idx = blockIdx.x * blockDim.x + threadIdx.x; idx < num_nodes; idx += blockDim.x * gridDim.x){
         sum = 0.0;
         for(i = 0; i < nodes[idx].size; ++i){
             sum += nodes[idx].data[i];
@@ -484,7 +484,7 @@ void argmax_kernel(struct belief * message_buffer, struct belief * node_states,
             if (edge_index == 0) {
                 shared_message_buffer[threadIdx.x][threadIdx.y] = -1.0f;
             }
-            __synthreads();
+            __syncthreads();
             shared_message_buffer[threadIdx.x][threadIdx.y] = fmaxf(shared_message_buffer[threadIdx.x][threadIdx.y], message_buffer[node_index].data[edge_index]);
             __syncthreads();
 
@@ -1357,6 +1357,38 @@ void run_test_loopy_belief_propagation_snap_file_kernels(const char * edge_file_
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
     //print_nodes(graph);
     fprintf(out, "%s-%s,loopy,%d,%d,%d,%d,%lf\n", edge_file_name, node_file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
+    fflush(out);
+
+    graph_destroy(graph);
+}
+
+
+
+void run_test_loopy_belief_propagation_mtx_files_kernels(const char * edges_mtx, const char * nodes_mtx,
+                                                         FILE * out){
+    Graph_t graph;
+    clock_t start, end;
+    double time_elapsed;
+    unsigned int num_iterations;
+
+    graph = build_graph_from_mtx(edges_mtx, nodes_mtx);
+    assert(graph != NULL);
+    //print_nodes(graph);
+    //print_edges(graph);
+
+    set_up_src_nodes_to_edges(graph);
+    set_up_dest_nodes_to_edges(graph);
+    //calculate_diameter(graph);
+
+    start = clock();
+    init_previous_edge(graph);
+
+    num_iterations = loopy_propagate_until_cuda_kernels(graph, PRECISION, NUM_ITERATIONS);
+    end = clock();
+
+    time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
+    //print_nodes(graph);
+    fprintf(out, "%s-%s,loopy,%d,%d,%d,%d,%lf\n", edges_mtx, nodes_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
     fflush(out);
 
     graph_destroy(graph);
