@@ -36,6 +36,9 @@ int main(void) {
     run_test_loopy_belief_propagation_edge_mtx_files_acc("/home/mjt5v/Desktop/gunrock_benchmark_files/200000_400000.bif.edges.mtx", "/home/mjt5v/Desktop/gunrock_benchmark_files/200000_400000.bif.nodes.mtx", out);
     run_test_loopy_belief_propagation_edge_mtx_files_acc("/home/mjt5v/Desktop/gunrock_benchmark_files/400000_800000.bif.edges.mtx", "/home/mjt5v/Desktop/gunrock_benchmark_files/400000_800000.bif.nodes.mtx", out);
     run_test_loopy_belief_propagation_edge_mtx_files_acc("/home/mjt5v/Desktop/gunrock_benchmark_files/800000_1600000.bif.edges.mtx", "/home/mjt5v/Desktop/gunrock_benchmark_files/800000_1600000.bif.nodes.mtx", out);
+    run_test_loopy_belief_propagation_edge_mtx_files_acc("/home/mjt5v/Desktop/gunrock_benchmark_files/1000000_2000000.bif.edges.mtx", "/home/mjt5v/Desktop/gunrock_benchmark_files/1000000_2000000.bif.nodes.mtx", out);
+    run_test_loopy_belief_propagation_edge_mtx_files_acc("/home/mjt5v/Desktop/gunrock_benchmark_files/2000000_4000000.bif.edges.mtx", "/home/mjt5v/Desktop/gunrock_benchmark_files/2000000_4000000.bif.nodes.mtx", out);
+    run_test_loopy_belief_propagation_edge_mtx_files_acc("/home/mjt5v/Desktop/gunrock_benchmark_files/4000000_8000000.bif.edges.mtx", "/home/mjt5v/Desktop/gunrock_benchmark_files/4000000_8000000.bif.nodes.mtx", out);
 
 
     return 0;
