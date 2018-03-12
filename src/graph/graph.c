@@ -1677,7 +1677,7 @@ void loopy_propagate_one_iteration(Graph_t graph){
 	work_queue_nodes = graph->work_queue_nodes;
 	num_work_queue_items = graph->num_work_items_nodes;
 
-#pragma omp parallel for default(none) shared(node_states, num_vertices, dest_node_to_edges_nodes, dest_node_to_edges_edges, src_node_to_edges_nodes, src_node_to_edges_edges, num_edges, current_edge_messages, joint_probabilities, work_queue_items, num_work_queue_items) private(buffer, i, num_variables, current_index) //schedule(dynamic, 16)
+#pragma omp parallel for default(none) shared(node_states, num_vertices, dest_node_to_edges_nodes, dest_node_to_edges_edges, src_node_to_edges_nodes, src_node_to_edges_edges, num_edges, current_edge_messages, joint_probabilities, work_queue_nodes, num_work_queue_items) private(buffer, i, num_variables, current_index) //schedule(dynamic, 16)
     for(i = 0; i < num_work_queue_items; ++i){
 		current_index = work_queue_nodes[i];
 
@@ -1972,7 +1972,7 @@ unsigned int loopy_propagate_until_edge(Graph_t graph, float convergence, unsign
 
     previous_delta = -1.0f;
     delta = 0.0f;
-	
+
 	init_work_queue_edges(graph);
 
     for(i = 0; i < max_iterations; ++i){
@@ -3216,16 +3216,16 @@ void init_work_queue_edges(Graph_t graph) {
 	work_queue_edges = graph->work_queue_edges;
 	num_work_item_edges = graph->num_work_items_edges;
 
-#pragma omp parallel for default(none) shared(num_work_items_edges, work_queue_edges) private(i)
+#pragma omp parallel for default(none) shared(num_work_item_edges, work_queue_edges) private(i)
 #pragma acc parallel private(i)
 	for(i = 0; i < num_work_item_edges; ++i) {
-		work_queue_edges[i] = i;
+        work_queue_edges[i] = i;
 	}
 }
 
 
 void update_work_queue_nodes(Graph_t graph, float convergence) {
-	unsigned int current_index, i, num_work_items_nodes;
+	unsigned int current_index, i, num_work_items_nodes, num_vertices;
 	unsigned int *work_queue_nodes, *work_queue_scratch;
 	struct belief *node_states;
 
@@ -3234,17 +3234,18 @@ void update_work_queue_nodes(Graph_t graph, float convergence) {
 	work_queue_nodes = graph->work_queue_nodes;
 	work_queue_scratch = graph->work_queue_scratch;
 	node_states = graph->node_states;
+    num_vertices = graph->current_num_vertices;
 
 #pragma omp parallel for default(none) shared(current_index, num_work_items_nodes, work_queue_scratch, convergence, work_queue_nodes, node_states) private(i)
-#pragma acc parallel
+#pragma acc parallel private(i) copyin(work_queue_nodes[0:num_vertices], node_states[0:num_vertices]) copyout(work_queue_scratch[0:num_vertices])
     for(i = 0; i < num_work_items_nodes; ++i) {
 		if(fabs(node_states[work_queue_nodes[i]].current - node_states[work_queue_nodes[i]].previous) >= convergence) {
-			#pragma omp atomic
-			#pragma acc atomic
+			#pragma omp critical
+#pragma acc atomic capture
             {
-				work_queue_scratch[current_index] = work_queue_nodes[i];
-				current_index++;
-			}
+                work_queue_scratch[current_index] = work_queue_nodes[i];
+                current_index++;
+            }
 		}
 	}
 	memcpy(work_queue_nodes, work_queue_scratch, graph->current_num_vertices);
@@ -3252,7 +3253,7 @@ void update_work_queue_nodes(Graph_t graph, float convergence) {
 }
 
 void update_work_queue_edges(Graph_t graph, float convergence) {
-	unsigned int current_index, i, num_work_items_edges;
+	unsigned int current_index, i, num_work_items_edges, num_edges;
 	unsigned int *work_queue_edges, *work_queue_scratch;
 	struct belief *edge_states;
 
@@ -3261,13 +3262,14 @@ void update_work_queue_edges(Graph_t graph, float convergence) {
 	work_queue_edges = graph->work_queue_edges;
 	work_queue_scratch = graph->work_queue_scratch;
 	edge_states = graph->edges_messages;
+    num_edges = graph->current_num_edges;
 
 #pragma omp parallel for default(none) shared(current_index, num_work_items_edges, work_queue_scratch, convergence, work_queue_edges, edge_states) private(i)
-#pragma acc parallel private(i)
+#pragma acc parallel private(i) copyin(work_queue_edges[0:num_edges], edge_states[0:num_edges]) copyout(work_queue_scratch[0:num_edges])
     for(i = 0; i < num_work_items_edges; ++i) {
 		if(fabs(edge_states[work_queue_edges[i]].current - edge_states[work_queue_edges[i]].previous) >= convergence) {
-#pragma omp atomic
-#pragma acc atomic
+#pragma omp critical
+#pragma acc atomic capture
 			{
 				work_queue_scratch[current_index] = work_queue_edges[i];
 				current_index++;
