@@ -57,6 +57,9 @@ create_graph(unsigned int num_vertices, unsigned int num_edges)
 	assert(g->variable_names);
     g->levels_to_nodes = (unsigned int *)malloc(sizeof(unsigned int) * 2 * num_vertices);
     assert(g->levels_to_nodes != NULL);
+	g->work_queue_edges = NULL;
+	g->work_queue_nodes = NULL;
+	g->work_queue_scratch = NULL;
 
     g->node_hash_table_created = 0;
     g->edge_tables_created = 0;
@@ -471,6 +474,17 @@ void graph_destroy(Graph_t g) {
 	free(g->variable_names);
 	free(g->levels_to_nodes);
 	free(g->node_states);
+
+	if(g->work_queue_nodes != NULL) {
+		free(g->work_queue_nodes);
+	}
+	if(g->work_queue_edges != NULL) {
+		free(g->work_queue_edges);
+	}
+	if(g->work_queue_scratch != NULL) {
+		free(g->work_queue_scratch);
+	}
+
 	free(g);
 }
 
@@ -1637,11 +1651,12 @@ static void argmax_node_acc(struct belief *node_states, int node_index,
  */
 void loopy_propagate_one_iteration(Graph_t graph){
 	int i;
-    unsigned int num_variables, num_vertices, num_edges;
+    unsigned int num_variables, num_vertices, num_edges, num_work_queue_items, current_index;
 	unsigned int * dest_node_to_edges_nodes;
 	unsigned int * dest_node_to_edges_edges;
 	unsigned int * src_node_to_edges_nodes;
 	unsigned int * src_node_to_edges_edges;
+	unsigned int * work_queue_nodes;
 	struct belief *node_states;
 	struct joint_probability *joint_probabilities;
 	struct belief *current_edge_messages;
@@ -1659,14 +1674,19 @@ void loopy_propagate_one_iteration(Graph_t graph){
     num_edges = graph->current_num_edges;
 	node_states = graph->node_states;
 
-#pragma omp parallel for default(none) shared(node_states, num_vertices, dest_node_to_edges_nodes, dest_node_to_edges_edges, src_node_to_edges_nodes, src_node_to_edges_edges, num_edges, current_edge_messages, joint_probabilities) private(buffer, i, num_variables) //schedule(dynamic, 16)
-    for(i = 0; i < num_vertices; ++i){
-		num_variables = node_states[i].size;
+	work_queue_nodes = graph->work_queue_nodes;
+	num_work_queue_items = graph->num_work_items_nodes;
 
-		initialize_message_buffer(&buffer, node_states, i, num_variables);
+#pragma omp parallel for default(none) shared(node_states, num_vertices, dest_node_to_edges_nodes, dest_node_to_edges_edges, src_node_to_edges_nodes, src_node_to_edges_edges, num_edges, current_edge_messages, joint_probabilities, work_queue_items, num_work_queue_items) private(buffer, i, num_variables, current_index) //schedule(dynamic, 16)
+    for(i = 0; i < num_work_queue_items; ++i){
+		current_index = work_queue_nodes[i];
+
+		num_variables = node_states[current_index].size;
+
+		initialize_message_buffer(&buffer, node_states, current_index, num_variables);
 
 		//read incoming messages
-		read_incoming_messages(&buffer, dest_node_to_edges_nodes, dest_node_to_edges_edges, current_edge_messages, num_edges, num_vertices, num_variables, i);
+		read_incoming_messages(&buffer, dest_node_to_edges_nodes, dest_node_to_edges_edges, current_edge_messages, num_edges, num_vertices, num_variables, current_index);
 
 /*
 		printf("Message at node\n");
@@ -1679,11 +1699,12 @@ void loopy_propagate_one_iteration(Graph_t graph){
 
 
 		//send belief
-		send_message_for_node(src_node_to_edges_nodes, src_node_to_edges_edges, &buffer, num_edges, joint_probabilities, current_edge_messages, num_vertices, i);
+		send_message_for_node(src_node_to_edges_nodes, src_node_to_edges_edges, &buffer, num_edges, joint_probabilities, current_edge_messages, num_vertices, current_index);
 
 	}
 
 	marginalize_loopy_nodes(graph, current_edge_messages, num_vertices);
+	update_work_queue_nodes(graph, PRECISION_ITERATION);
 }
 
 
@@ -1693,13 +1714,14 @@ void loopy_propagate_one_iteration(Graph_t graph){
  */
 void loopy_propagate_edge_one_iteration(Graph_t graph){
     int i;
-	unsigned int num_edges, num_nodes, src_node_index, dest_node_index;
+	unsigned int num_edges, num_nodes, src_node_index, dest_node_index, current_index, num_work_items_edges;
     struct belief *node_states;
     struct joint_probability *joint_probabilities;
     struct belief *current_edge_messages;
 
 	unsigned int * edges_src_index;
 	unsigned int * edges_dest_index;
+	unsigned int * work_queue_edges;
 
     current_edge_messages = graph->edges_messages;
     joint_probabilities = graph->edges_joint_probabilities;
@@ -1709,16 +1731,23 @@ void loopy_propagate_edge_one_iteration(Graph_t graph){
 	edges_src_index = graph->edges_src_index;
 	edges_dest_index = graph->edges_dest_index;
 
-    #pragma omp parallel for default(none) shared(node_states, joint_probabilities, current_edge_messages, edges_src_index, num_edges) private(src_node_index, i)
-    for(i = 0; i < num_edges; ++i){
-        src_node_index = edges_src_index[i];
-        send_message_for_edge_iteration(node_states, src_node_index, i, joint_probabilities, current_edge_messages);
+	num_work_items_edges = graph->num_work_items_edges;
+	work_queue_edges = graph->work_queue_edges;
+
+    #pragma omp parallel for default(none) shared(node_states, joint_probabilities, current_edge_messages, edges_src_index, num_edges, work_queue_edges, num_work_items_edges) private(src_node_index, i, current_index)
+    for(i = 0; i < num_work_items_edges; ++i){
+		current_index = work_queue_edges[i];
+
+        src_node_index = edges_src_index[current_index];
+        send_message_for_edge_iteration(node_states, src_node_index, current_index, joint_probabilities, current_edge_messages);
     }
 
-    #pragma omp parallel for default(none) shared(current_edge_messages, node_states, edges_dest_index, num_edges) private(dest_node_index, i)
-    for(i = 0; i < num_edges; ++i){
-        dest_node_index = edges_dest_index[i];
-		combine_loopy_edge(i, current_edge_messages, dest_node_index, node_states);
+    #pragma omp parallel for default(none) shared(current_edge_messages, node_states, edges_dest_index, num_edges, work_queue_edges, num_work_items_edges) private(dest_node_index, i, current_index)
+    for(i = 0; i < num_work_items_edges; ++i){
+		current_index = work_queue_edges[i];
+
+        dest_node_index = edges_dest_index[current_index];
+		combine_loopy_edge(current_index, current_edge_messages, dest_node_index, node_states);
     }
 	/*
 #pragma omp parallel for default(none) shared(node_states, num_vars, num_nodes) private(i)
@@ -1726,7 +1755,7 @@ void loopy_propagate_edge_one_iteration(Graph_t graph){
 		marginalize_loopy_node_edge(node_states, num_vars[i]);
 	}*/
 	marginalize_loopy_nodes(graph, current_edge_messages, num_nodes);
-
+	update_work_queue_edges(graph, PRECISION_ITERATION);
 }
 
 /**
@@ -1943,6 +1972,8 @@ unsigned int loopy_propagate_until_edge(Graph_t graph, float convergence, unsign
 
     previous_delta = -1.0f;
     delta = 0.0f;
+	
+	init_work_queue_edges(graph);
 
     for(i = 0; i < max_iterations; ++i){
         //printf("Current iteration: %d\n", i+1);
@@ -2070,6 +2101,8 @@ unsigned int loopy_propagate_until(Graph_t graph, float convergence, unsigned in
 
 	previous_delta = -1.0f;
 	delta = 0.0;
+
+	init_work_queue_nodes(graph);
 
 	for(i = 0; i < max_iterations; ++i){
 		//printf("Current iteration: %d\n", i+1);
@@ -2242,6 +2275,8 @@ unsigned int viterbi_until(Graph_t graph, float convergence, unsigned int max_it
  * @param previous_messages The previous messages in the graph
  * @param current_messages The current messages in the graph
  * @param joint_probabilities The joint probability tables of the edges
+ * @param work_items_nodes The work queue for the nodes
+ * @param num_work_items_nodes The number of items in the work queue
  * @param max_iterations The maximum number of iterations to run for
  * @param convergence The convergence threshold
  * @return The actual number of iterations used
@@ -2251,9 +2286,10 @@ static unsigned int loopy_propagate_iterations_acc(unsigned int num_vertices, un
 										   unsigned int *src_node_to_edges_nodes, unsigned int *src_node_to_edges_edges,
 										   struct belief *node_states, struct belief *current_messages,
 										   struct joint_probability *joint_probabilities,
+										   unsigned int *work_items_nodes, unsigned int num_work_items_nodes,
 										   unsigned int max_iterations,
 										   float convergence){
-	int j, k;
+	int j, k, current_index;
     unsigned int i, num_variables, num_iter;
 	float delta, previous_delta, diff;
 	struct belief *curr_messages;
@@ -2269,19 +2305,21 @@ static unsigned int loopy_propagate_iterations_acc(unsigned int num_vertices, un
 	delta = 0.0f;
 
     for(i = 0; i < max_iterations; i+= BATCH_SIZE) {
-#pragma acc data present_or_copy(node_states[0:(num_vertices)], curr_messages[0:(num_edges)]) present_or_copyin(dest_node_to_edges_nodes[0:num_vertices], dest_node_to_edges_edges[0:num_edges], src_node_to_edges_nodes[0:num_vertices], src_node_to_edges_edges[0:num_edges], joint_probabilities[0:(num_edges)])
+#pragma acc data present_or_copy(node_states[0:(num_vertices)], curr_messages[0:(num_edges)], work_items_nodes[0:(num_work_items_nodes)]) present_or_copyin(dest_node_to_edges_nodes[0:num_vertices], dest_node_to_edges_edges[0:num_edges], src_node_to_edges_nodes[0:num_vertices], src_node_to_edges_edges[0:num_edges], joint_probabilities[0:(num_edges)])
         {
             //printf("Current iteration: %d\n", i+1);
             for (j = 0; j < BATCH_SIZE; ++j) {
 #pragma acc kernels
-                for (k = 0; k < num_vertices; ++k) {
-                    num_variables = node_states[k].size;
+                for (k = 0; k < num_work_items_nodes; ++k) {
+					current_index = work_items_nodes[k];
 
-                    initialize_message_buffer(&belief_buffer, node_states, k, num_variables);
+                    num_variables = node_states[current_index].size;
+
+                    initialize_message_buffer(&belief_buffer, node_states, current_index, num_variables);
 
                     //read incoming messages
                     read_incoming_messages(&belief_buffer, dest_node_to_edges_nodes, dest_node_to_edges_edges, curr_messages, num_edges, num_vertices,
-                                           num_variables, k);
+                                           num_variables, current_index);
 
 /*
 		printf("Message at node\n");
@@ -2295,13 +2333,15 @@ static unsigned int loopy_propagate_iterations_acc(unsigned int num_vertices, un
 
                     //send belief
                     send_message_for_node(src_node_to_edges_nodes, src_node_to_edges_edges, &belief_buffer, num_edges, joint_probabilities,
-                                          curr_messages, num_vertices, k);
+                                          curr_messages, num_vertices, current_index);
 
                 }
 
 #pragma acc kernels
-                for (k = 0; k < num_vertices; ++k) {
-                    marginalize_node_acc(node_states, k, curr_messages, dest_node_to_edges_nodes, dest_node_to_edges_edges, num_vertices,
+                for (k = 0; k < num_work_items_nodes; ++k) {
+					current_index = work_items_nodes[k];
+
+                    marginalize_node_acc(node_states, current_index, curr_messages, dest_node_to_edges_nodes, dest_node_to_edges_edges, num_vertices,
                                          num_edges);
                 }
             }
@@ -2309,8 +2349,8 @@ static unsigned int loopy_propagate_iterations_acc(unsigned int num_vertices, un
 
             delta = 0.0f;
 #pragma acc kernels
-            for (j = 0; j < num_edges; ++j) {
-                diff = curr_messages[j].previous - curr_messages[j].current;
+            for (j = 0; j < num_vertices; ++j) {
+                diff = node_states[j].previous - node_states[j].current;
                 if (diff != diff) {
                     diff = 0.0f;
                 }
@@ -2562,6 +2602,8 @@ static unsigned int viterbi_iterations_acc(unsigned int num_vertices, unsigned i
 unsigned int loopy_propagate_until_acc(Graph_t graph, float convergence, unsigned int max_iterations){
 	unsigned int iter;
 
+	init_work_queue_nodes(graph);
+
 	/*printf("===BEFORE====\n");
 	print_nodes(graph);
 	print_edges(graph);
@@ -2571,6 +2613,7 @@ unsigned int loopy_propagate_until_acc(Graph_t graph, float convergence, unsigne
 										  graph->src_nodes_to_edges_node_list, graph->src_nodes_to_edges_edge_list,
 	graph->node_states,
 	graph->edges_messages, graph->edges_joint_probabilities,
+										  graph->work_queue_nodes, graph->num_work_items_nodes,
 										  max_iterations, convergence);
 
 	/*printf("===AFTER====\n");
@@ -3132,4 +3175,105 @@ void prep_as_page_rank(Graph_t g){
             joint_probability[edge_index].dim_y = 1;
         }
     }
+}
+
+void init_work_queue_nodes(Graph_t graph) {
+	unsigned int i, num_work_items_nodes;
+	unsigned int *work_queue_nodes;
+
+	graph->num_work_items_nodes = graph->current_num_vertices;
+	assert(graph->work_queue_nodes == NULL);
+	graph->work_queue_nodes = (unsigned int*)malloc(sizeof(unsigned int) * graph->num_work_items_nodes);
+	assert(graph->work_queue_nodes);
+
+	assert(graph->work_queue_scratch == NULL);
+	graph->work_queue_scratch = (unsigned int*)malloc(sizeof(unsigned int) * graph->current_num_vertices);
+	assert(graph->work_queue_scratch);
+
+	num_work_items_nodes = graph->num_work_items_nodes;
+	work_queue_nodes = graph->work_queue_nodes;
+
+#pragma omp parallel for default(none) shared(num_work_items_nodes, work_queue_nodes) private(i)
+#pragma acc parallel private(i)
+	for(i = 0; i < num_work_items_nodes; ++i) {
+		work_queue_nodes[i] = i;
+	}
+}
+
+void init_work_queue_edges(Graph_t graph) {
+	unsigned int i, num_work_item_edges;
+	unsigned int *work_queue_edges;
+
+	graph->num_work_items_edges = graph->current_num_edges;
+	assert(graph->work_queue_edges == NULL);
+	graph->work_queue_edges = (unsigned int*)malloc(sizeof(unsigned int) * graph->num_work_items_edges);
+	assert(graph->work_queue_edges);
+
+	assert(graph->work_queue_scratch == NULL);
+	graph->work_queue_scratch = (unsigned int*)malloc(sizeof(unsigned int) * graph->current_num_edges);
+	assert(graph->work_queue_scratch);
+
+	work_queue_edges = graph->work_queue_edges;
+	num_work_item_edges = graph->num_work_items_edges;
+
+#pragma omp parallel for default(none) shared(num_work_items_edges, work_queue_edges) private(i)
+#pragma acc parallel private(i)
+	for(i = 0; i < num_work_item_edges; ++i) {
+		work_queue_edges[i] = i;
+	}
+}
+
+
+void update_work_queue_nodes(Graph_t graph, float convergence) {
+	unsigned int current_index, i, num_work_items_nodes;
+	unsigned int *work_queue_nodes, *work_queue_scratch;
+	struct belief *node_states;
+
+	current_index = 0;
+	num_work_items_nodes = graph->num_work_items_nodes;
+	work_queue_nodes = graph->work_queue_nodes;
+	work_queue_scratch = graph->work_queue_scratch;
+	node_states = graph->node_states;
+
+#pragma omp parallel for default(none) shared(current_index, num_work_items_nodes, work_queue_scratch, convergence, work_queue_nodes, node_states) private(i)
+#pragma acc parallel
+    for(i = 0; i < num_work_items_nodes; ++i) {
+		if(fabs(node_states[work_queue_nodes[i]].current - node_states[work_queue_nodes[i]].previous) >= convergence) {
+			#pragma omp atomic
+			#pragma acc atomic
+            {
+				work_queue_scratch[current_index] = work_queue_nodes[i];
+				current_index++;
+			}
+		}
+	}
+	memcpy(work_queue_nodes, work_queue_scratch, graph->current_num_vertices);
+	graph->num_work_items_nodes = current_index;
+}
+
+void update_work_queue_edges(Graph_t graph, float convergence) {
+	unsigned int current_index, i, num_work_items_edges;
+	unsigned int *work_queue_edges, *work_queue_scratch;
+	struct belief *edge_states;
+
+	current_index = 0;
+	num_work_items_edges = graph->num_work_items_edges;
+	work_queue_edges = graph->work_queue_edges;
+	work_queue_scratch = graph->work_queue_scratch;
+	edge_states = graph->edges_messages;
+
+#pragma omp parallel for default(none) shared(current_index, num_work_items_edges, work_queue_scratch, convergence, work_queue_edges, edge_states) private(i)
+#pragma acc parallel private(i)
+    for(i = 0; i < num_work_items_edges; ++i) {
+		if(fabs(edge_states[work_queue_edges[i]].current - edge_states[work_queue_edges[i]].previous) >= convergence) {
+#pragma omp atomic
+#pragma acc atomic
+			{
+				work_queue_scratch[current_index] = work_queue_edges[i];
+				current_index++;
+			}
+		}
+	}
+	memcpy(work_queue_edges, work_queue_scratch, graph->current_num_edges);
+	graph->num_work_items_edges = current_index;
 }

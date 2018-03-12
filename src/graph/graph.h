@@ -140,6 +140,28 @@ struct graph {
 	unsigned int num_levels;
 
 	/**
+	 * Array of nodes left in the work queue
+	 */
+	unsigned int *work_queue_nodes;
+
+	/**
+	 * Array of edges left in the work queue
+	 */
+	unsigned int *work_queue_edges;
+
+	/**
+	 * Array for scratch space
+	 */
+	unsigned int *work_queue_scratch;
+
+	/**
+	 * Number of items in work queue
+	 */
+	unsigned int num_work_items_nodes;
+	unsigned int num_work_items_edges;
+
+
+	/**
 	 * The diameter of the graph
 	 */
     int diameter;
@@ -269,6 +291,12 @@ void print_edges(Graph_t);
 void print_src_nodes_to_edges(Graph_t);
 void print_dest_nodes_to_edges(Graph_t);
 void print_levels_to_nodes(Graph_t);
+
+void init_work_queue_nodes(Graph_t);
+void init_work_queue_edges(Graph_t);
+
+void update_work_queue_nodes(Graph_t, float);
+void update_work_queue_edges(Graph_t, float);
 
 
 #endif /* GRAPH_H_ */
