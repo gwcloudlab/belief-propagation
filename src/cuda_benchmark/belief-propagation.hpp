@@ -8,6 +8,7 @@
 #include <math.h>
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
+#include <cooperative_groups_helpers.h>
 
 extern "C" {
     #include "../bnf-parser/expression.h"
@@ -20,6 +21,15 @@ extern "C" {
 
 void CheckCudaErrorAux (const char *, unsigned, const char *, cudaError_t);
 #define CUDA_CHECK_RETURN(value) CheckCudaErrorAux(__FILE__,__LINE__, #value, value)
+
+__device__
+unsigned int atomic_add_inc(unsigned int *);
+
+__device__
+void update_work_queue_nodes_cuda(unsigned int *, unsigned int *, unsigned int *, struct belief *, unsigned int, float);
+
+__device__
+void update_work_queue_edges_cuda(unsigned int *, unsigned int *, unsigned int *, struct belief *, unsigned int, float);
 
 __device__
 void init_message_buffer_cuda(struct belief *, struct belief *, unsigned int, unsigned int);
@@ -84,6 +94,8 @@ void loopy_propagate_main_loop(unsigned int, unsigned int,
                                struct joint_probability *,
                                struct belief *,
                                unsigned int *, unsigned int *,
+                               unsigned int *,
+                               unsigned int *, unsigned int *,
                                unsigned int *, unsigned int *);
 
 __global__
@@ -111,11 +123,21 @@ void send_message_for_edge_iteration_cuda_kernel(unsigned int, unsigned int *,
                                                  struct belief *, struct joint_probability *,
                                                  struct belief *);
 
+__global__
+void send_message_for_edge_iteration_cuda_work_queue_kernel(unsigned int, unsigned int *,
+                                                            struct belief *, struct joint_probability *,
+                                                            struct belief *,
+                                                            unsigned int *, unsigned int *);
+
 __device__
 void combine_loopy_edge_cuda(unsigned int, struct belief *, unsigned int, struct belief *);
 
 __global__
 void combine_loopy_edge_cuda_kernel(unsigned int, unsigned int *, struct belief *, struct belief *);
+
+__global__
+void combine_loopy_edge_cuda_work_queue_kernel(unsigned int, unsigned int *, struct belief *, struct belief *,
+                                               unsigned int *, unsigned int *, unsigned int *);
 
 __global__
 void marginalize_loop_node_edge_kernel(struct belief *, unsigned int);

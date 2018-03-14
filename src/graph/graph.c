@@ -3248,7 +3248,7 @@ void update_work_queue_nodes(Graph_t graph, float convergence) {
             }
 		}
 	}
-	memcpy(work_queue_nodes, work_queue_scratch, graph->current_num_vertices);
+	memcpy(work_queue_nodes, work_queue_scratch, num_vertices);
 	graph->num_work_items_nodes = current_index;
 }
 
@@ -3276,6 +3276,6 @@ void update_work_queue_edges(Graph_t graph, float convergence) {
 			}
 		}
 	}
-	memcpy(work_queue_edges, work_queue_scratch, graph->current_num_edges);
+	memcpy(work_queue_edges, work_queue_scratch, num_edges);
 	graph->num_work_items_edges = current_index;
 }
