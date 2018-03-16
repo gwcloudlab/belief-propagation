@@ -32,7 +32,7 @@ void update_work_queue_nodes_cuda(unsigned int * work_queue_nodes, unsigned int 
     unsigned int orig_num_work_items = *num_work_items;
 
     for(i = blockIdx.x * blockDim.x + threadIdx.x; i < *num_work_items; i += blockDim.x * gridDim.x){
-        if(fabs(node_states[work_queue_nodes[i]].current - node_states[work_queue_nodes[i]].previous)) {
+        if(fabs(node_states[work_queue_nodes[i]].current - node_states[work_queue_nodes[i]].previous) >= precision) {
             work_queue_scratch[ctr] = work_queue_nodes[i];
             atomic_add_inc(&ctr);
         }
@@ -52,7 +52,7 @@ void update_work_queue_edges_cuda(unsigned int * work_queue_edge, unsigned int *
     unsigned int orig_num_work_items = *num_work_items;
 
     for(i = blockIdx.x * blockDim.x + threadIdx.x; i < *num_work_items; i += blockDim.x * gridDim.x){
-        if(fabs(edge_states[work_queue_edge[i]].current - edge_states[work_queue_edge[i]].previous)) {
+        if(fabs(edge_states[work_queue_edge[i]].current - edge_states[work_queue_edge[i]].previous) >= precision) {
             work_queue_scratch[ctr] = work_queue_edge[i];
             atomic_add_inc(&ctr);
         }
