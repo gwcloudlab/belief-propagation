@@ -16,5 +16,5 @@ set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} -lineinfo -gencode arch=compute_61,code=s
 cuda_add_executable(cuda_node_benchmark belief-propagation-node.cu belief-propagation.cu ../bnf-xml-parser/bnf-xml-wrapper.c ../bnf-xml-parser/xml-expression.c ../bnf-parser/bnf-wrapper.c ../bnf-parser/expression.c ../bnf-parser/Lexer.c ../bnf-parser/Parser.c ../graph/graph.c ../snap-parser/snap-parser.c  ../csr-parser/csr-parser.c)
 cuda_add_executable(cuda_edge_benchmark belief-propagation-edge.cu belief-propagation.cu ../bnf-xml-parser/bnf-xml-wrapper.c ../bnf-xml-parser/xml-expression.c ../bnf-parser/bnf-wrapper.c ../bnf-parser/expression.c ../bnf-parser/Lexer.c ../bnf-parser/Parser.c ../graph/graph.c ../snap-parser/snap-parser.c  ../csr-parser/csr-parser.c)
 include_directories(${LIBXML2_INCLUDE_DIR})
-target_link_libraries(cuda_node_benchmark ${LIBXML2_LIBRARIES} m)
-target_link_libraries(cuda_edge_benchmark ${LIBXML2_LIBRARIES} m)
+target_link_libraries(cuda_node_benchmark ${LIBXML2_LIBRARIES})
+target_link_libraries(cuda_edge_benchmark ${LIBXML2_LIBRARIES})

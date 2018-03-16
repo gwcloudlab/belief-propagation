@@ -1,5 +1,9 @@
 #include "belief-propagation.hpp"
 
+/**
+ * Lane mask lt asm call; used for leadership decision
+ * @return
+ */
 __device__ __forceinline__ unsigned int LaneMaskLt()
 {
     unsigned int ret;
@@ -7,8 +11,11 @@ __device__ __forceinline__ unsigned int LaneMaskLt()
     return ret;
 }
 
-
-
+/**
+ * Optimized atomic add for handling updating the work queue indirect addressing
+ * @param ctr Pointer to the index counter to incremnt
+ * @return Updated ctr
+ */
 __device__
 unsigned int atomic_add_inc(unsigned int * ctr) {
     // from https://devblogs.nvidia.com/cuda-pro-tip-optimized-filtering-warp-aggregated-atomics/
@@ -24,7 +31,15 @@ unsigned int atomic_add_inc(unsigned int * ctr) {
     return warp_res + rank;
 }
 
-
+/**
+ * Updates the work queue for node-parallel cuda code
+ * @param work_queue_nodes The current nodes in the work queue
+ * @param num_work_items The current size of the queue
+ * @param work_queue_scratch Scratch memory for building the new queue
+ * @param node_states The states of the nodes' beliefs to compare
+ * @param num_vertices The number of nodes in the graph
+ * @param precision The precision threshold for including in the work queue
+ */
 __device__
 void update_work_queue_nodes_cuda(unsigned int * work_queue_nodes, unsigned int * num_work_items, unsigned int *work_queue_scratch, struct belief * node_states, unsigned int num_vertices, float precision) {
     unsigned int i;
@@ -32,9 +47,8 @@ void update_work_queue_nodes_cuda(unsigned int * work_queue_nodes, unsigned int 
     unsigned int orig_num_work_items = *num_work_items;
 
     for(i = blockIdx.x * blockDim.x + threadIdx.x; i < *num_work_items; i += blockDim.x * gridDim.x){
-        if(fabs(node_states[work_queue_nodes[i]].current - node_states[work_queue_nodes[i]].previous)) {
-            work_queue_scratch[ctr] = work_queue_nodes[i];
-            atomic_add_inc(&ctr);
+        if(fabs(node_states[work_queue_nodes[i]].current - node_states[work_queue_nodes[i]].previous) >= precision) {
+            work_queue_scratch[atomic_add_inc(&ctr)] = work_queue_nodes[i];
         }
     }
 
@@ -45,6 +59,15 @@ void update_work_queue_nodes_cuda(unsigned int * work_queue_nodes, unsigned int 
     atomicCAS(num_work_items, orig_num_work_items, ctr);
 }
 
+/**
+ * Updates the work queue for edge-parallel cuda code
+ * @param work_queue_edge The current edges in the work queue
+ * @param num_work_items The number of items in the work queue
+ * @param work_queue_scratch Scratch memory for building the new queue
+ * @param edge_states The beliefs stored in the edge
+ * @param num_edges The number of edges in the graph
+ * @param precision The precision threshold for including in the work queue
+ */
 __device__
 void update_work_queue_edges_cuda(unsigned int * work_queue_edge, unsigned int * num_work_items, unsigned int *work_queue_scratch, struct belief * edge_states, unsigned int num_edges, float precision) {
     unsigned int i;
@@ -52,7 +75,7 @@ void update_work_queue_edges_cuda(unsigned int * work_queue_edge, unsigned int *
     unsigned int orig_num_work_items = *num_work_items;
 
     for(i = blockIdx.x * blockDim.x + threadIdx.x; i < *num_work_items; i += blockDim.x * gridDim.x){
-        if(fabs(edge_states[work_queue_edge[i]].current - edge_states[work_queue_edge[i]].previous)) {
+        if(fabs(edge_states[work_queue_edge[i]].current - edge_states[work_queue_edge[i]].previous) >= precision) {
             work_queue_scratch[ctr] = work_queue_edge[i];
             atomic_add_inc(&ctr);
         }

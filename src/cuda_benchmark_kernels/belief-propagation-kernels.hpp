@@ -7,6 +7,7 @@
 #include <math.h>
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
+#include <cooperative_groups_helpers.h>
 
 extern "C" {
 #include "../bnf-parser/expression.h"
@@ -20,8 +21,14 @@ extern "C" {
 void CheckCudaErrorAux (const char *, unsigned, const char *, cudaError_t);
 #define CUDA_CHECK_RETURN(value) CheckCudaErrorAux(__FILE__,__LINE__, #value, value)
 
+__device__
+unsigned int atomic_add_inc(unsigned int *);
+
 __global__
 void init_message_buffer_kernel(struct belief *, struct belief *, unsigned int);
+
+__global__
+void init_message_buffer_work_queue_kernel(unsigned int *, unsigned int *, struct belief *, struct belief *, unsigned int);
 
 __device__
 void combine_message_cuda(struct belief *, struct belief *, unsigned int, unsigned int,
@@ -41,6 +48,13 @@ void read_incoming_messages_kernel(struct belief *, struct belief *, unsigned in
                                    unsigned int,
                                    char, unsigned int);
 
+__global__
+void read_incoming_messages_work_queue_kernel(unsigned int *, unsigned int *,
+                                   struct belief *, struct belief *, unsigned int *,
+                                   unsigned int *, unsigned int,
+                                   unsigned int,
+                                   char, unsigned int);
+
 __device__
 void send_message_for_edge_cuda(struct belief * message_buffer, unsigned int edge_index, unsigned int node_index,
                                 struct joint_probability * joint_probabilities,
@@ -52,7 +66,13 @@ void send_message_for_node_kernel(struct belief *, unsigned int,
                                   unsigned int *, unsigned int *, unsigned int);
 
 __global__
-void marginalize_node_combine_kernel(struct belief *, struct belief *,
+void send_message_for_node_work_queue_kernel(unsigned int *, unsigned int *,
+                                             struct belief *, unsigned int,
+                                             struct joint_probability *, struct belief *,
+                                             unsigned int *, unsigned int *, unsigned int);
+
+__global__
+void marginalize_node_combine_kernel(unsigned int *, unsigned int *, struct belief *, struct belief *,
                                      struct belief *, unsigned int *, unsigned int *, unsigned int,
                                      unsigned int, char, unsigned int);
 
@@ -67,7 +87,8 @@ void argmax_node_combine_kernel(struct belief *, struct belief *,
                            unsigned int, char, unsigned int);
 
 __global__
-void marginalize_sum_node_kernel(struct belief *, struct belief *,
+void marginalize_sum_node_kernel(unsigned int *, unsigned int *,
+                                 struct belief *, struct belief *,
                                  struct belief *, unsigned int *,
                                  unsigned int *, unsigned int,
                                  unsigned int, char, unsigned int);
@@ -115,5 +136,8 @@ void run_test_loopy_belief_propagation_mtx_files_kernels(const char *, const cha
 
 __global__
 void calculate_delta(struct belief * previous_messages, struct belief * current_messages, float * delta, float * delta_array, unsigned int * edges_x_dim, unsigned int num_edges);
+
+__global__
+void update_work_queue_nodes_cuda(unsigned int *, unsigned int *, unsigned int *, struct belief *, unsigned int, float);
 
 #endif
