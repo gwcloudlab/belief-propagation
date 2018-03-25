@@ -16,6 +16,6 @@ add_executable(openacc_loopy_edge_benchmark loopy-edge-belief-propagation.c ../b
 
 include_directories(${LIBXML2_INCLUDE_DIR})
 
-target_link_libraries(openacc_non_loopy_benchmark ${LIBXML2_LIBRARIES})
-target_link_libraries(openacc_loopy_node_benchmark ${LIBXML2_LIBRARIES})
-target_link_libraries(openacc_loopy_edge_benchmark ${LIBXML2_LIBRARIES})
+target_link_libraries(openacc_non_loopy_benchmark ${LIBXML2_LIBRARIES} m)
+target_link_libraries(openacc_loopy_node_benchmark ${LIBXML2_LIBRARIES} m)
+target_link_libraries(openacc_loopy_edge_benchmark ${LIBXML2_LIBRARIES} m)

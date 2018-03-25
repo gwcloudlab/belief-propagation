@@ -18,6 +18,7 @@
 #include "../constants.h"
 
 #include <search.h>
+#include <metis.h>
 
 /**
  * Struct holding the priori probabilities and the size of the probabilities
@@ -134,6 +135,11 @@ struct graph {
 	 * Levels in the tree to the nodes there
 	 */
 	unsigned int * levels_to_nodes;
+    /**
+     * Nodes to their partitions
+     */
+    idx_t * partitioned_nodes;
+    
 	/**
 	 * The size of the level array
 	 */
@@ -242,6 +248,7 @@ void set_up_dest_nodes_to_edges(Graph_t);
 void init_levels_to_nodes(Graph_t);
 void calculate_diameter(Graph_t);
 void prep_as_page_rank(Graph_t);
+void partition_graph(Graph_t, unsigned int);
 
 void initialize_node(Graph_t, unsigned int, unsigned int);
 void node_set_state(Graph_t, unsigned int, unsigned int, struct belief *);
@@ -291,6 +298,7 @@ void print_edges(Graph_t);
 void print_src_nodes_to_edges(Graph_t);
 void print_dest_nodes_to_edges(Graph_t);
 void print_levels_to_nodes(Graph_t);
+void print_partitions(Graph_t);
 
 void init_work_queue_nodes(Graph_t);
 void init_work_queue_edges(Graph_t);

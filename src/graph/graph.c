@@ -47,6 +47,7 @@ create_graph(unsigned int num_vertices, unsigned int num_edges)
 	assert(g->dest_nodes_to_edges_node_list);
 	g->dest_nodes_to_edges_edge_list = (unsigned int *)malloc(sizeof(unsigned int) * num_edges);
 	assert(g->dest_nodes_to_edges_edge_list);
+	g->partitioned_nodes = NULL;
 	g->node_names = (char *)malloc(sizeof(char) * CHAR_BUFFER_SIZE * num_vertices);
 	assert(g->node_names);
 	g->visited = (char *)calloc(sizeof(char), (size_t)num_vertices);
@@ -89,6 +90,8 @@ void initialize_node(Graph_t graph, unsigned int node_index, unsigned int num_va
 	new_belief->size = num_variables;
 	for(i = 0; i < num_variables; ++i){
 		new_belief->data[i] = DEFAULT_STATE;
+        new_belief->previous = INFINITY;
+        new_belief->current = DEFAULT_STATE * num_variables;
 	}
 }
 
@@ -423,6 +426,118 @@ void set_up_dest_nodes_to_edges(Graph_t graph){
 						  graph->dest_nodes_to_edges_edge_list, graph);
 }
 
+static int edge_exists(Graph_t graph, unsigned int src_index, unsigned int dest_index) {
+	unsigned int i, start_index, end_index, edge_index;
+
+	start_index = graph->src_nodes_to_edges_node_list[src_index];
+	if(src_index + 1 >= graph->current_num_vertices){
+		end_index = graph->current_num_edges;
+	}
+	else{
+		end_index = graph->src_nodes_to_edges_node_list[src_index + 1];
+	}
+	for(i = start_index; i < end_index; ++i) {
+		edge_index = graph->src_nodes_to_edges_edge_list[i];
+		if(graph->edges_dest_index[edge_index] == dest_index) {
+			return 1;
+		}
+	}
+	return 0;
+}
+
+
+void partition_graph(Graph_t graph, unsigned int num_partitions) {
+	unsigned int *undirected_nodes_list, *undirected_edges_list;
+	unsigned int i, j, edge_index, start_index, end_index, current_edge_index;
+
+	int ret;
+	idx_t objval, ncon;
+	idx_t options[METIS_NOPTIONS];
+
+	ncon = 1;
+
+	graph->partitioned_nodes = (idx_t *)malloc(sizeof(idx_t) * graph->current_num_vertices);
+	assert(graph->partitioned_nodes);
+
+    METIS_SetDefaultOptions(options);
+	//options[METIS_OPTION_PTYPE] = METIS_PTYPE_KWAY;
+	//options[METIS_OPTION_OBJTYPE] = METIS_OBJTYPE_CUT;
+	options[METIS_OPTION_CTYPE] = METIS_CTYPE_RM;
+	options[METIS_OPTION_IPTYPE] = METIS_IPTYPE_RANDOM;
+	options[METIS_OPTION_RTYPE] = METIS_RTYPE_FM;
+	options[METIS_OPTION_NCUTS] = 1;
+	//options[METIS_OPTION_NSEPS] = 1;
+	options[METIS_OPTION_NUMBERING] = 0;
+	options[METIS_OPTION_NITER] = 10;
+	options[METIS_OPTION_SEED] = 0;
+	options[METIS_OPTION_MINCONN] = 1;
+	options[METIS_OPTION_NO2HOP] = 0;
+	//options[METIS_OPTION_COMPRESS] = 1;
+	//options[METIS_OPTION_PFACTOR] = 0;
+	//options[METIS_OPTION_UFACTOR] = 30;
+	options[METIS_OPTION_DBGLVL] = 1;
+
+    undirected_nodes_list = (unsigned int *)malloc(sizeof(unsigned int) * graph->current_num_vertices);
+    undirected_edges_list = (unsigned int *)malloc(sizeof(unsigned int) * graph->current_num_edges * 2);
+
+    edge_index = 0;
+
+    for(i = 0; i < graph->current_num_vertices; ++i) {
+        // point to start
+        undirected_nodes_list[i] = edge_index;
+
+        // add in i -> dest nodes
+        start_index = graph->src_nodes_to_edges_node_list[i];
+        if(i+1 >= graph->current_num_vertices) {
+            end_index = graph->current_num_edges;
+        }
+        else {
+            end_index = graph->src_nodes_to_edges_node_list[i + 1];
+        }
+        for(j = start_index; j < end_index; ++j) {
+            current_edge_index = graph->src_nodes_to_edges_edge_list[j];
+            undirected_edges_list[edge_index] = graph->edges_dest_index[current_edge_index];
+            edge_index++;
+        }
+
+        // add in dest -> i nodes
+        start_index = graph->dest_nodes_to_edges_node_list[i];
+        if(i+1 >= graph->current_num_vertices) {
+            end_index = graph->current_num_edges;
+        }
+        else {
+            end_index = graph->dest_nodes_to_edges_node_list[i+1];
+        }
+        for(j = start_index; j < end_index; ++j) {
+            current_edge_index = graph->dest_nodes_to_edges_edge_list[j];
+            undirected_edges_list[edge_index] = graph->edges_src_index[current_edge_index];
+            edge_index++;
+        }
+    }
+
+	ret = METIS_PartGraphKway((idx_t *)&graph->current_num_vertices, &ncon, (idx_t *)undirected_nodes_list, (idx_t *)undirected_edges_list, NULL, NULL,
+							  NULL, (idx_t *)&num_partitions, NULL, NULL, options, &objval, graph->partitioned_nodes);
+	assert(ret == METIS_OK);
+    print_partitions(graph);
+
+    free(undirected_nodes_list);
+    free(undirected_edges_list);
+}
+
+void print_partitions(Graph_t graph) {
+    unsigned int i;
+
+    if(graph->partitioned_nodes == NULL) {
+        perror("Graph has yet to be partitioned\n");
+        return;
+    }
+
+    for(i = 0; i < graph->current_num_vertices; ++i) {
+        print_node(graph, i);
+        printf("Belongs to partition: %d\n", graph->partitioned_nodes[i]);
+    }
+}
+
 /**
  * Frees all allocated memory for the graph and its associated members
  * @param g The graph
@@ -483,6 +598,9 @@ void graph_destroy(Graph_t g) {
 	}
 	if(g->work_queue_scratch != NULL) {
 		free(g->work_queue_scratch);
+	}
+	if(g->partitioned_nodes != NULL) {
+		free(g->partitioned_nodes);
 	}
 
 	free(g);
@@ -771,6 +889,8 @@ static void marginalize_node(Graph_t g, unsigned int node_index){
 		sum = 1.0;
 	}
 
+    g->node_states[node_index].previous = g->node_states[node_index].current;
+    g->node_states[node_index].current = sum;
 	for(i = 0; i < num_variables; ++i){
 		g->node_states[node_index].data[i] = g->node_states[node_index].data[i] / sum;
 	}
@@ -1545,6 +1665,8 @@ static void marginalize_node_acc(struct belief *node_states, int node_index,
 		sum = 1.0;
 	}
 
+    node_states[node_index].previous = node_states[node_index].current;
+    node_states[node_index].current = sum;
 	for(i = 0; i < num_variables; ++i){
         node_states[node_index].data[i] /= sum;
 	}

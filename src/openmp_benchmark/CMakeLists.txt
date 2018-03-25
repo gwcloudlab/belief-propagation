@@ -12,5 +12,5 @@ add_executable(openmp_edge_benchmark loopy-edge-belief-propagation.c ../bnf-xml-
 
 include_directories(${LIBXML2_INCLUDE_DIR})
 
-target_link_libraries(openmp_node_benchmark ${LIBXML2_LIBRARIES})
-target_link_libraries(openmp_edge_benchmark ${LIBXML2_LIBRARIES})
+target_link_libraries(openmp_node_benchmark ${LIBXML2_LIBRARIES} metis m)
+target_link_libraries(openmp_edge_benchmark ${LIBXML2_LIBRARIES} metis m)

@@ -2,6 +2,9 @@ cmake_minimum_required(VERSION 2.8)
 
 enable_testing()
 
+include_directories(/home/mjt5v/metis/include)
+link_directories(/home/mjt5v/metis/lib)
+
 add_subdirectory(src/bnf-parser)
 add_subdirectory(src/bnf-xml-parser)
 add_subdirectory(src/snap-parser)

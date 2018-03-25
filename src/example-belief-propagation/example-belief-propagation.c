@@ -164,6 +164,7 @@ void loopy_belief_propagation() {
 
 	set_up_src_nodes_to_edges(graph);
 	set_up_dest_nodes_to_edges(graph);
+	partition_graph(graph, 2);
 
 	print_nodes(graph);
 	print_edges(graph);

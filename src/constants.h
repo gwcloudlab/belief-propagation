@@ -12,7 +12,7 @@
 
 #define MAX_STATES 10
 
-#define DEFAULT_STATE 1.0
+#define DEFAULT_STATE 1.0f
 
 #define WEIGHT_INFINITY 99999
 

@@ -298,6 +298,9 @@ void marginalize_node(struct belief *node_states, unsigned int idx,
     if(sum <= 0.0){
         sum = 1.0;
     }
+
+    node_states[idx].previous = node_states[idx].current;
+    node_states[idx].current = sum;
     for(i = 0; i < num_variables; ++i){
         node_states[idx].data[i] /= sum;
     }
