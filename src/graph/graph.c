@@ -446,45 +446,50 @@ static int edge_exists(Graph_t graph, unsigned int src_index, unsigned int dest_
 }
 
 
-void partition_graph(Graph_t graph, unsigned int num_partitions) {
-	unsigned int *undirected_nodes_list, *undirected_edges_list;
+void partition_graph(Graph_t graph, unsigned int num_partitions_int) {
+	idx_t *undirected_nodes_list, *undirected_edges_list;
 	unsigned int i, j, edge_index, start_index, end_index, current_edge_index;
+	idx_t num_partitions, num_nodes;
 
 	int ret;
 	idx_t objval, ncon;
 	idx_t options[METIS_NOPTIONS];
 
 	ncon = 1;
+	num_partitions = (idx_t)num_partitions_int;
+	num_nodes = (idx_t)graph->current_num_vertices;
 
 	graph->partitioned_nodes = (idx_t *)malloc(sizeof(idx_t) * graph->current_num_vertices);
 	assert(graph->partitioned_nodes);
 
     METIS_SetDefaultOptions(options);
 	//options[METIS_OPTION_PTYPE] = METIS_PTYPE_KWAY;
-	//options[METIS_OPTION_OBJTYPE] = METIS_OBJTYPE_CUT;
-	options[METIS_OPTION_CTYPE] = METIS_CTYPE_RM;
-	options[METIS_OPTION_IPTYPE] = METIS_IPTYPE_RANDOM;
-	options[METIS_OPTION_RTYPE] = METIS_RTYPE_FM;
-	options[METIS_OPTION_NCUTS] = 1;
+	options[METIS_OPTION_OBJTYPE] = METIS_OBJTYPE_CUT;
+	//options[METIS_OPTION_CTYPE] = METIS_CTYPE_SHEM;
+	//options[METIS_OPTION_IPTYPE] = METIS_IPTYPE_NODE;
+	//options[METIS_OPTION_RTYPE] = METIS_RTYPE_GREEDY;
+	//options[METIS_OPTION_NCUTS] = 1;
 	//options[METIS_OPTION_NSEPS] = 1;
-	options[METIS_OPTION_NUMBERING] = 0;
-	options[METIS_OPTION_NITER] = 10;
-	options[METIS_OPTION_SEED] = 0;
-	options[METIS_OPTION_MINCONN] = 1;
-	options[METIS_OPTION_NO2HOP] = 0;
+	//options[METIS_OPTION_NUMBERING] = 0;
+	//options[METIS_OPTION_NITER] = 10;
+	//options[METIS_OPTION_SEED] = 0;
+	//options[METIS_OPTION_MINCONN] = 1;
+	//options[METIS_OPTION_NO2HOP] = 0;
 	//options[METIS_OPTION_COMPRESS] = 1;
 	//options[METIS_OPTION_PFACTOR] = 0;
-	//options[METIS_OPTION_UFACTOR] = 30;
-	options[METIS_OPTION_DBGLVL] = 1;
+	options[METIS_OPTION_UFACTOR] = 30;
+	//options[METIS_OPTION_DBGLVL] = 1 | 4;
 
-    undirected_nodes_list = (unsigned int *)malloc(sizeof(unsigned int) * graph->current_num_vertices);
-    undirected_edges_list = (unsigned int *)malloc(sizeof(unsigned int) * graph->current_num_edges * 2);
+    undirected_nodes_list = (idx_t *)malloc(sizeof(idx_t) * graph->current_num_vertices + 1);
+    undirected_edges_list = (idx_t *)malloc(sizeof(idx_t) * graph->current_num_edges * 2);
+
 
     edge_index = 0;
 
     for(i = 0; i < graph->current_num_vertices; ++i) {
+        //printf("Looking at node: %d\n", i);
         // point to start
-        undirected_nodes_list[i] = edge_index;
+        undirected_nodes_list[i] = (idx_t)edge_index;
 
         // add in i -> dest nodes
         start_index = graph->src_nodes_to_edges_node_list[i];
@@ -496,8 +501,9 @@ void partition_graph(Graph_t graph, unsigned int num_partitions) {
         }
         for(j = start_index; j < end_index; ++j) {
             current_edge_index = graph->src_nodes_to_edges_edge_list[j];
-            undirected_edges_list[edge_index] = graph->edges_dest_index[current_edge_index];
+            undirected_edges_list[edge_index] = (idx_t)graph->edges_dest_index[current_edge_index];
             edge_index++;
+            //printf("Adding des edge: %d -> %d; edge_index: %d\n", i, graph->edges_dest_index[current_edge_index], current_edge_index);
         }
 
         // add in dest -> i nodes
@@ -510,15 +516,17 @@ void partition_graph(Graph_t graph, unsigned int num_partitions) {
         }
         for(j = start_index; j < end_index; ++j) {
             current_edge_index = graph->dest_nodes_to_edges_edge_list[j];
-            undirected_edges_list[edge_index] = graph->edges_src_index[current_edge_index];
+            undirected_edges_list[edge_index] = (idx_t)graph->edges_src_index[current_edge_index];
             edge_index++;
+            //printf("Adding src edge: %d -> %d; edge_index; %d\n", graph->edges_src_index[current_edge_index], i, current_edge_index);
         }
     }
+    undirected_nodes_list[graph->current_num_vertices] = edge_index;
 
-	ret = METIS_PartGraphKway((idx_t *)&graph->current_num_vertices, &ncon, (idx_t *)undirected_nodes_list, (idx_t *)undirected_edges_list, NULL, NULL,
-							  NULL, (idx_t *)&num_partitions, NULL, NULL, options, &objval, graph->partitioned_nodes);
+	ret = METIS_PartGraphKway(&num_nodes, &ncon, undirected_nodes_list, undirected_edges_list, NULL, NULL,
+							  NULL, &num_partitions, NULL, NULL, options, &objval, graph->partitioned_nodes);
 	assert(ret == METIS_OK);
-    print_partitions(graph);
+    //print_partitions(graph);
 
     free(undirected_nodes_list);
     free(undirected_edges_list);
@@ -1829,6 +1837,72 @@ void loopy_propagate_one_iteration(Graph_t graph){
 	update_work_queue_nodes(graph, PRECISION_ITERATION);
 }
 
+void loopy_propagate_one_iteration_partition(Graph_t graph, idx_t current_partition, unsigned int num_partitions) {
+    int i;
+    unsigned int num_variables, num_vertices, num_edges, num_work_queue_items, current_index;
+    unsigned int * dest_node_to_edges_nodes;
+    unsigned int * dest_node_to_edges_edges;
+    unsigned int * src_node_to_edges_nodes;
+    unsigned int * src_node_to_edges_edges;
+    unsigned int * work_queue_nodes;
+    struct belief *node_states;
+    struct joint_probability *joint_probabilities;
+    struct belief *current_edge_messages;
+    idx_t * nodes_to_partitions;
+
+    current_edge_messages = graph->edges_messages;
+    joint_probabilities = graph->edges_joint_probabilities;
+
+    struct belief buffer;
+
+    num_vertices = graph->current_num_vertices;
+    dest_node_to_edges_nodes = graph->dest_nodes_to_edges_node_list;
+    dest_node_to_edges_edges = graph->dest_nodes_to_edges_edge_list;
+    src_node_to_edges_nodes = graph->src_nodes_to_edges_node_list;
+    src_node_to_edges_edges = graph->src_nodes_to_edges_edge_list;
+    num_edges = graph->current_num_edges;
+    node_states = graph->node_states;
+
+    work_queue_nodes = graph->work_queue_nodes;
+    num_work_queue_items = graph->num_work_items_nodes;
+    nodes_to_partitions = graph->partitioned_nodes;
+
+#pragma omp parallel for default(none) shared(node_states, num_vertices, dest_node_to_edges_nodes, dest_node_to_edges_edges, src_node_to_edges_nodes, src_node_to_edges_edges, num_edges, current_edge_messages, joint_probabilities, work_queue_nodes, num_work_queue_items) private(buffer, i, num_variables, current_index) //schedule(dynamic, 16)
+    for(i = 0; i < num_work_queue_items; ++i){
+        current_index = work_queue_nodes[i];
+
+        if(nodes_to_partitions[current_index] == current_partition) {
+
+            num_variables = node_states[current_index].size;
+
+            initialize_message_buffer(&buffer, node_states, current_index, num_variables);
+
+            //read incoming messages
+            read_incoming_messages(&buffer, dest_node_to_edges_nodes, dest_node_to_edges_edges, current_edge_messages,
+                                   num_edges, num_vertices, num_variables, current_index);
+
+/*
+		printf("Message at node\n");
+		print_node(graph, i);
+		printf("[\t");
+		for(j = 0; j < num_variables; ++j){
+			printf("%.6lf\t", message_buffer[j]);
+		}
+		printf("\t]\n");*/
+
+
+            //send belief
+            send_message_for_node(src_node_to_edges_nodes, src_node_to_edges_edges, &buffer, num_edges,
+                                  joint_probabilities, current_edge_messages, num_vertices, current_index);
+        }
+    }
+
+    if(current_partition+1 >= num_partitions) {
+        marginalize_loopy_nodes(graph, current_edge_messages, num_vertices);
+        update_work_queue_nodes(graph, PRECISION_ITERATION);
+    }
+}
+
 
 /**
  * Performs one iteration of edge-optimized loopy BP
@@ -2255,6 +2329,58 @@ unsigned int loopy_propagate_until(Graph_t graph, float convergence, unsigned in
 	}
 //	assert(i > 0);
 	return i;
+}
+
+unsigned int loopy_propagate_until_partitioned(Graph_t graph, float convergence, unsigned int max_iterations, unsigned int num_partitions) {
+    int j;
+    unsigned int i, num_edges;
+    idx_t current_partition;
+    float delta, diff, previous_delta;
+    struct belief *current_edge_messages;
+
+    current_edge_messages = graph->edges_messages;
+
+    num_edges = graph->current_num_edges;
+
+    previous_delta = -1.0f;
+    delta = 0.0;
+
+    init_work_queue_nodes(graph);
+
+    assert(num_partitions >= 2);
+    assert(graph->partitioned_nodes != NULL);
+
+    for(i = 0; i < max_iterations; ++i){
+        for(current_partition = 0; current_partition < num_partitions; ++current_partition) {
+            //printf("Current iteration: %d\n", i+1);
+            loopy_propagate_one_iteration(graph);
+        }
+
+		delta = 0.0;
+
+#pragma omp parallel for default(none) shared(current_edge_messages, num_edges)  private(j, diff) reduction(+:delta)
+		for (j = 0; j < num_edges; ++j) {
+			diff = current_edge_messages[j].previous - current_edge_messages[j].current;
+			//printf("Previous Edge[%d][%d]: %f\n", j, k, previous_edge_messages[j].data[k]);
+			//printf("Current Edge[%d][%d]: %f\n", j, k, current_edge_messages[j].data[k]);
+			if (diff != diff) {
+				diff = 0.0;
+			}
+			delta += fabsf(diff);
+		}
+
+		if (delta < convergence || fabsf(delta - previous_delta) < convergence) {
+			break;
+		}
+		if (i < max_iterations - 1) {
+			previous_delta = delta;
+		}
+    }
+    if(i == max_iterations){
+        printf("No Convergence: previous: %f vs current: %f\n", previous_delta, delta);
+    }
+//	assert(i > 0);
+    return i;
 }
 
 /**

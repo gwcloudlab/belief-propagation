@@ -24,6 +24,8 @@
 
 #define PRECISION_ITERATION 1E-3f
 
+#define PARTITION_SIZE 1000
+
 #define BLOCK_SIZE 1024
 
 #define BLOCK_SIZE_2_D_X 64
