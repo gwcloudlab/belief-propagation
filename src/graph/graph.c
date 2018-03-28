@@ -38,6 +38,7 @@ create_graph(unsigned int num_vertices, unsigned int num_edges)
     assert(g->edges_messages);
     g->node_states = (struct belief *)malloc(sizeof(struct belief) * num_vertices);
     assert(g->node_states);
+    g->node_buffer = (struct belief *)malloc(sizeof(struct belief) * num_vertices);
 
 	g->src_nodes_to_edges_node_list = (unsigned int *)malloc(sizeof(unsigned int) * num_vertices);
 	assert(g->src_nodes_to_edges_node_list);
@@ -597,6 +598,7 @@ void graph_destroy(Graph_t g) {
 	free(g->variable_names);
 	free(g->levels_to_nodes);
 	free(g->node_states);
+    free(g->node_buffer);
 
 	if(g->work_queue_nodes != NULL) {
 		free(g->work_queue_nodes);
@@ -1845,7 +1847,7 @@ void loopy_propagate_one_iteration_partition(Graph_t graph, idx_t current_partit
     unsigned int * src_node_to_edges_nodes;
     unsigned int * src_node_to_edges_edges;
     unsigned int * work_queue_nodes;
-    struct belief *node_states;
+    struct belief *node_states, *node_buffer;
     struct joint_probability *joint_probabilities;
     struct belief *current_edge_messages;
     idx_t * nodes_to_partitions;
@@ -1853,7 +1855,7 @@ void loopy_propagate_one_iteration_partition(Graph_t graph, idx_t current_partit
     current_edge_messages = graph->edges_messages;
     joint_probabilities = graph->edges_joint_probabilities;
 
-    struct belief buffer;
+    node_buffer = graph->node_buffer;
 
     num_vertices = graph->current_num_vertices;
     dest_node_to_edges_nodes = graph->dest_nodes_to_edges_node_list;
@@ -1867,7 +1869,7 @@ void loopy_propagate_one_iteration_partition(Graph_t graph, idx_t current_partit
     num_work_queue_items = graph->num_work_items_nodes;
     nodes_to_partitions = graph->partitioned_nodes;
 
-#pragma omp parallel for default(none) shared(current_partition, nodes_to_partitions, node_states, num_vertices, dest_node_to_edges_nodes, dest_node_to_edges_edges, src_node_to_edges_nodes, src_node_to_edges_edges, num_edges, current_edge_messages, joint_probabilities, work_queue_nodes, num_work_queue_items) private(buffer, i, num_variables, current_index) //schedule(dynamic, 16)
+#pragma omp parallel for default(none) shared(current_partition, nodes_to_partitions, node_states, num_vertices, dest_node_to_edges_nodes, dest_node_to_edges_edges, src_node_to_edges_nodes, src_node_to_edges_edges, num_edges, current_edge_messages, joint_probabilities, work_queue_nodes, num_work_queue_items, node_buffer) private(i, num_variables, current_index) //schedule(dynamic, 16)
     for(i = 0; i < num_work_queue_items; ++i){
         current_index = work_queue_nodes[i];
 
@@ -1875,10 +1877,10 @@ void loopy_propagate_one_iteration_partition(Graph_t graph, idx_t current_partit
 
             num_variables = node_states[current_index].size;
 
-            initialize_message_buffer(&buffer, node_states, current_index, num_variables);
+            initialize_message_buffer(&node_buffer[i], node_states, current_index, num_variables);
 
             //read incoming messages
-            read_incoming_messages(&buffer, dest_node_to_edges_nodes, dest_node_to_edges_edges, current_edge_messages,
+            read_incoming_messages(&node_buffer[i], dest_node_to_edges_nodes, dest_node_to_edges_edges, current_edge_messages,
                                    num_edges, num_vertices, num_variables, current_index);
 
 /*
@@ -1890,11 +1892,17 @@ void loopy_propagate_one_iteration_partition(Graph_t graph, idx_t current_partit
 		}
 		printf("\t]\n");*/
 
-
-            //send belief
-            send_message_for_node(src_node_to_edges_nodes, src_node_to_edges_edges, &buffer, num_edges,
-                                  joint_probabilities, current_edge_messages, num_vertices, current_index);
         }
+    }
+
+#pragma omp parallel for default(none) shared(current_partition, nodes_to_partitions, node_states, num_vertices, dest_node_to_edges_nodes, dest_node_to_edges_edges, src_node_to_edges_nodes, src_node_to_edges_edges, num_edges, current_edge_messages, joint_probabilities, work_queue_nodes, num_work_queue_items, node_buffer) private(i, num_variables, current_index) //schedule(dynamic, 16)
+    for(i = 0; i < num_work_queue_items; ++i) {
+        current_index = work_queue_nodes[i];
+		if(nodes_to_partitions[current_index] == current_partition) {
+			//send belief
+			send_message_for_node(src_node_to_edges_nodes, src_node_to_edges_edges, &node_buffer[i], num_edges,
+								  joint_probabilities, current_edge_messages, num_vertices, current_index);
+		}
     }
 
     if(current_partition+1 >= num_partitions) {

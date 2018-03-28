@@ -112,6 +112,7 @@ struct graph {
 	 * Array of belief states indexed by node
 	 */
 	struct belief * node_states;
+	struct belief * node_buffer;
 
 	/**
 	 * Array of indices in src_nodes_to_edges_edge_list indexed by their source node
