@@ -1867,7 +1867,7 @@ void loopy_propagate_one_iteration_partition(Graph_t graph, idx_t current_partit
     num_work_queue_items = graph->num_work_items_nodes;
     nodes_to_partitions = graph->partitioned_nodes;
 
-#pragma omp parallel for default(none) shared(node_states, num_vertices, dest_node_to_edges_nodes, dest_node_to_edges_edges, src_node_to_edges_nodes, src_node_to_edges_edges, num_edges, current_edge_messages, joint_probabilities, work_queue_nodes, num_work_queue_items) private(buffer, i, num_variables, current_index) //schedule(dynamic, 16)
+#pragma omp parallel for default(none) shared(current_partition, nodes_to_partitions, node_states, num_vertices, dest_node_to_edges_nodes, dest_node_to_edges_edges, src_node_to_edges_nodes, src_node_to_edges_edges, num_edges, current_edge_messages, joint_probabilities, work_queue_nodes, num_work_queue_items) private(buffer, i, num_variables, current_index) //schedule(dynamic, 16)
     for(i = 0; i < num_work_queue_items; ++i){
         current_index = work_queue_nodes[i];
 
@@ -2275,7 +2275,7 @@ unsigned int page_rank_until_edge(Graph_t graph, float convergence, unsigned int
     if(i == max_iterations){
         printf("No Convergence: previous: %f vs current: %f\n", previous_delta, delta);
     }
-    return i;
+    return i+1;
 }
 
 /**
@@ -2328,7 +2328,7 @@ unsigned int loopy_propagate_until(Graph_t graph, float convergence, unsigned in
 		printf("No Convergence: previous: %f vs current: %f\n", previous_delta, delta);
 	}
 //	assert(i > 0);
-	return i;
+	return i+1;
 }
 
 unsigned int loopy_propagate_until_partitioned(Graph_t graph, float convergence, unsigned int max_iterations, unsigned int num_partitions) {
@@ -2353,7 +2353,7 @@ unsigned int loopy_propagate_until_partitioned(Graph_t graph, float convergence,
     for(i = 0; i < max_iterations; ++i){
         for(current_partition = 0; current_partition < num_partitions; ++current_partition) {
             //printf("Current iteration: %d\n", i+1);
-            loopy_propagate_one_iteration(graph);
+            loopy_propagate_one_iteration_partition(graph, current_partition, num_partitions);
         }
 
 		delta = 0.0;
@@ -2380,7 +2380,7 @@ unsigned int loopy_propagate_until_partitioned(Graph_t graph, float convergence,
         printf("No Convergence: previous: %f vs current: %f\n", previous_delta, delta);
     }
 //	assert(i > 0);
-    return i;
+    return i+1;
 }
 
 /**
@@ -2431,7 +2431,7 @@ unsigned int page_rank_until(Graph_t graph, float convergence, unsigned int max_
         printf("No Convergence: previous: %f vs current: %f\n", previous_delta, delta);
     }
 //    assert(i > 0);
-    return i;
+    return i+1;
 }
 
 
@@ -2507,7 +2507,7 @@ unsigned int viterbi_until(Graph_t graph, float convergence, unsigned int max_it
         }
     }
 //    assert(i > 0);
-    return i;
+    return i+1;
 }
 
 
