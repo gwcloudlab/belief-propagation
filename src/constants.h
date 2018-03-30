@@ -20,6 +20,8 @@
 
 #define NUM_ITERATIONS 200
 
+#define NUM_PARTITIONS 32
+
 #define PRECISION 1E-3f
 
 #define PRECISION_ITERATION 1E-3f

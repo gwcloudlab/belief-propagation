@@ -14,6 +14,7 @@ void run_test_loopy_belief_propagation_mtx_files(const char *, const char *, FIL
 void run_test_loopy_belief_propagation_partitioned_mtx_files(const char *, const char *, FILE *);
 void run_test_loopy_belief_propagation_edge_mtx_files(const char *, const char *, FILE *);
 void run_test_loopy_belief_propagation_mtx_files_acc(const char *, const char *, FILE *);
+void run_test_loopy_belief_propagation_partitioned_mtx_files_acc(const char *, const char *, FILE *);
 void run_test_loopy_belief_propagation_edge_mtx_files_acc(const char *, const char *, FILE *);
 
 #endif //PROJECT_CSR_WRAPPER_H

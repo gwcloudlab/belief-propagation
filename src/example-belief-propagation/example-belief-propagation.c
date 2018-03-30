@@ -156,6 +156,13 @@ void forward_backward_belief_propagation() {
 
 void loopy_belief_propagation() {
 	Graph_t graph;
+	idx_t *perm, *iperm;
+	unsigned int i;
+
+	perm = (idx_t *)malloc(sizeof(idx_t) * NUM_NODES);
+	assert(perm != NULL);
+	iperm = (idx_t *)malloc(sizeof(idx_t) * NUM_NODES);
+	assert(iperm != NULL);
 
 	graph = create_graph(NUM_NODES, NUM_EDGES);
 
@@ -164,7 +171,12 @@ void loopy_belief_propagation() {
 
 	set_up_src_nodes_to_edges(graph);
 	set_up_dest_nodes_to_edges(graph);
-	partition_graph(graph, 2);
+	//partition_graph(graph, 2);
+	partition_and_reorder_nodes(graph, 2, perm, iperm);
+	print_partitions(graph);
+	for(i = 0; i < NUM_NODES; ++i) {
+		printf("perm[%d]: %d; iperm[%d]: %d\n", i, (int)perm[i], i, (int)iperm[i]);
+	}
 
 	print_nodes(graph);
 	print_edges(graph);

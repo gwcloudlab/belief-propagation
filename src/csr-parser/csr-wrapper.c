@@ -119,9 +119,10 @@ void run_test_loopy_belief_propagation_partitioned_mtx_files(const char * edges_
     set_up_src_nodes_to_edges(graph);
     set_up_dest_nodes_to_edges(graph);
     //calculate_diameter(graph);
-    num_partitions = graph->current_num_vertices / PARTITION_SIZE;
+    //num_partitions = graph->current_num_vertices / PARTITION_SIZE;
+    num_partitions = NUM_PARTITIONS;
 
-    if(num_partitions < 2) {
+    if(graph->current_num_vertices < num_partitions) {
         // start loopy BP
         start = clock();
         init_previous_edge(graph);
@@ -211,6 +212,54 @@ void run_test_loopy_belief_propagation_mtx_files_acc(const char *edges_mtx, cons
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
     //print_nodes(graph);
     fprintf(out, "%s,loopy,%d,%d,%d,%d,%lf\n", edges_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
+    fflush(out);
+
+    // cleanup
+    graph_destroy(graph);
+}
+
+void run_test_loopy_belief_propagation_partitioned_mtx_files_acc(const char *edges_mtx, const char *nodes_mtx, FILE *out) {
+    Graph_t graph;
+    clock_t start, end;
+    double time_elapsed;
+    unsigned int num_iterations, num_partitions;
+
+    graph = build_graph_from_mtx(edges_mtx, nodes_mtx);
+
+    assert(graph != NULL);
+    //print_nodes(graph);
+    //print_edges(graph);
+
+    // set up parallel arrays
+    set_up_src_nodes_to_edges(graph);
+    set_up_dest_nodes_to_edges(graph);
+    //calculate_diameter(graph);
+    //num_partitions = graph->current_num_vertices / PARTITION_SIZE;
+
+    num_partitions = NUM_PARTITIONS;
+
+    if(graph->current_num_vertices < num_partitions) {
+        // start loopy BP
+        start = clock();
+        init_previous_edge(graph);
+
+        num_iterations = loopy_propagate_until_acc(graph, PRECISION, NUM_ITERATIONS);
+        end = clock();
+    }
+    else {
+        partition_graph(graph, num_partitions);
+        // start loopy BP
+        start = clock();
+        init_previous_edge(graph);
+
+        num_iterations = loopy_propagate_until_partitioned_acc(graph, PRECISION, NUM_ITERATIONS, num_partitions);
+        end = clock();
+    }
+
+    // output
+    time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
+    //print_nodes(graph);
+    fprintf(out, "%s,loopy-partitioned,%d,%d,%d,%d,%lf\n", edges_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
     fflush(out);
 
     // cleanup
