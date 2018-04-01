@@ -40,6 +40,7 @@ create_graph(unsigned int num_vertices, unsigned int num_edges)
     g->node_states = (struct belief *)malloc(sizeof(struct belief) * num_vertices);
     assert(g->node_states);
     g->node_buffer = (struct belief *)malloc(sizeof(struct belief) * num_vertices);
+    assert(g->node_buffer);
 
 	g->src_nodes_to_edges_node_list = (unsigned int *)malloc(sizeof(unsigned int) * num_vertices);
 	assert(g->src_nodes_to_edges_node_list);

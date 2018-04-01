@@ -9,6 +9,7 @@
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
 #include <cooperative_groups_helpers.h>
+#include <pthread.h>
 
 extern "C" {
     #include "../bnf-parser/expression.h"
@@ -18,6 +19,24 @@ extern "C" {
     #include "../snap-parser/snap-parser.h"
     #include "../csr-parser/csr-parser.h"
 }
+
+struct stream_data {
+    unsigned int num_vertices;
+    unsigned int num_edges;
+    struct belief *node_messages;
+    struct joint_probability *joint_probabilities;
+    struct belief *current_edge_messages;
+    unsigned int *work_queue_nodes;
+    unsigned int *num_work_items;
+    unsigned int *work_queue_scratch;
+    unsigned int * src_nodes_to_edges_nodes;
+    unsigned int * src_nodes_to_edges_edges;
+    unsigned int * dest_nodes_to_edges_nodes;
+    unsigned int * dest_nodes_to_edges_edges;
+    struct belief *node_buffer;
+    idx_t * nodes_to_partitions;
+    idx_t current_partition;
+};
 
 void CheckCudaErrorAux (const char *, unsigned, const char *, cudaError_t);
 #define CUDA_CHECK_RETURN(value) CheckCudaErrorAux(__FILE__,__LINE__, #value, value)
@@ -99,6 +118,33 @@ void loopy_propagate_main_loop(unsigned int, unsigned int,
                                unsigned int *, unsigned int *);
 
 __global__
+void loopy_propagate_partitioned_read_main_loop(unsigned int, unsigned int,
+                                                struct belief *,
+                                                struct belief *,
+                                                unsigned int *, unsigned int *,
+                                                unsigned int *, unsigned int *,
+                                                struct belief *,
+                                                idx_t *, idx_t);
+
+__global__
+void loopy_propagate_partitioned_send_main_loop(unsigned int, unsigned int,
+                                    struct belief *,
+                                    struct joint_probability *,
+                                    struct belief *,
+                                    unsigned int *, unsigned int *,
+                                    unsigned int *,
+                                    unsigned int *, unsigned int *,
+                                    unsigned int *, unsigned int *,
+                                                struct belief *,
+                                                idx_t *, idx_t);
+
+__global__
+void loopy_propagate_partitioned_update(unsigned int,
+                                        struct belief *,
+                                        unsigned int *, unsigned int *,
+                                        unsigned int *);
+
+__global__
 void page_rank_main_loop(unsigned int, unsigned int,
                                struct belief *,
                                struct joint_probability *,
@@ -162,6 +208,7 @@ void calculate_delta_simple(struct belief *, float *, float *,
 void test_error();
 
 unsigned int loopy_propagate_until_cuda(Graph_t, float, unsigned int);
+unsigned int loopy_propagate_until_cuda_partitioned(Graph_t, float, unsigned int, unsigned int);
 unsigned int loopy_propagate_until_cuda_edge(Graph_t, float, unsigned int);
 
 unsigned int page_rank_until_cuda(Graph_t, float, unsigned int);
@@ -178,6 +225,7 @@ void run_test_loopy_belief_propagation_snap_file_cuda(const char *, const char *
 void run_test_loopy_belief_propagation_snap_file_edge_cuda(const char *, const char *, FILE *);
 
 void run_test_loopy_belief_propagation_mtx_files_cuda(const char *, const char *, FILE *);
+void run_test_loopy_belief_propagation_mtx_files_cuda_partitioned(const char *, const char *, FILE *);
 void run_test_loopy_belief_propagation_mtx_files_edge_cuda(const char *, const char *, FILE *);
 
 
