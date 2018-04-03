@@ -10,6 +10,7 @@ if (CMAKE_COMPILER_IS_GNUCC AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 5)
 endif()
 set(CMAKE_C_FLAGS_RELEASE "-O3 -march=native")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native")
+set(CUDA_NVCC_FLAGS_DEBUG "-g -G")
 set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} -lineinfo -gencode arch=compute_61,code=sm_61)
 
 

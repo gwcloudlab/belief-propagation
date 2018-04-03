@@ -45,10 +45,12 @@ __device__
 unsigned int atomic_add_inc(unsigned int *);
 
 __device__
-void update_work_queue_nodes_cuda(unsigned int *, unsigned int *, unsigned int *, struct belief *, unsigned int, float);
+void update_work_queue_nodes_cuda(unsigned int *, unsigned int *, unsigned int *, struct belief *, unsigned int, float,
+                                  unsigned int *);
 
 __device__
-void update_work_queue_edges_cuda(unsigned int *, unsigned int *, unsigned int *, struct belief *, unsigned int, float);
+void update_work_queue_edges_cuda(unsigned int *, unsigned int *, unsigned int *, struct belief *, unsigned int, float,
+                                  unsigned int *);
 
 __device__
 void init_message_buffer_cuda(struct belief *, struct belief *, unsigned int, unsigned int);
@@ -115,7 +117,8 @@ void loopy_propagate_main_loop(unsigned int, unsigned int,
                                unsigned int *, unsigned int *,
                                unsigned int *,
                                unsigned int *, unsigned int *,
-                               unsigned int *, unsigned int *);
+                               unsigned int *, unsigned int *,
+                               unsigned int *);
 
 __global__
 void loopy_propagate_partitioned_read_main_loop(unsigned int, unsigned int,
@@ -142,7 +145,7 @@ __global__
 void loopy_propagate_partitioned_update(unsigned int,
                                         struct belief *,
                                         unsigned int *, unsigned int *,
-                                        unsigned int *);
+                                        unsigned int *, unsigned int *);
 
 __global__
 void page_rank_main_loop(unsigned int, unsigned int,
@@ -183,7 +186,7 @@ void combine_loopy_edge_cuda_kernel(unsigned int, unsigned int *, struct belief 
 
 __global__
 void combine_loopy_edge_cuda_work_queue_kernel(unsigned int, unsigned int *, struct belief *, struct belief *,
-                                               unsigned int *, unsigned int *, unsigned int *);
+                                               unsigned int *, unsigned int *, unsigned int *, unsigned int *);
 
 __global__
 void marginalize_loop_node_edge_kernel(struct belief *, unsigned int);
