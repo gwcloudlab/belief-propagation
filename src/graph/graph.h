@@ -251,6 +251,7 @@ void calculate_diameter(Graph_t);
 void prep_as_page_rank(Graph_t);
 void partition_graph(Graph_t, unsigned int);
 void partition_and_reorder_nodes(Graph_t, unsigned int, idx_t*, idx_t*);
+void check_partitions(Graph_t);
 
 void initialize_node(Graph_t, unsigned int, unsigned int);
 void node_set_state(Graph_t, unsigned int, unsigned int, struct belief *);

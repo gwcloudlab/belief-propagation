@@ -530,6 +530,7 @@ void partition_graph(Graph_t graph, unsigned int num_partitions_int) {
 							  NULL, &num_partitions, NULL, NULL, options, &objval, graph->partitioned_nodes);
 	assert(ret == METIS_OK);
     //print_partitions(graph);
+    //check_partitions(graph);
 
     free(undirected_nodes_list);
     free(undirected_edges_list);
@@ -636,7 +637,22 @@ void print_partitions(Graph_t graph) {
 
     for(i = 0; i < graph->current_num_vertices; ++i) {
         print_node(graph, i);
-        printf("Belongs to partition: %d\n", graph->partitioned_nodes[i]);
+        printf("Belongs to partition: %d\n", (int)graph->partitioned_nodes[i]);
+    }
+}
+
+void check_partitions(Graph_t graph) {
+    unsigned int i, src_index, dest_index;
+    assert(graph->partitioned_nodes != NULL);
+    for(i = 0; i < graph->current_num_edges; ++i) {
+        src_index = graph->edges_src_index[i];
+        dest_index = graph->edges_dest_index[i];
+
+        //assert(graph->partitioned_nodes[src_index] == graph->partitioned_nodes[dest_index]);
+        if (graph->partitioned_nodes[src_index] != graph->partitioned_nodes[dest_index]) {
+            fprintf(stderr, "src_node[%d] belongs to partition: %d but dest_node[%d] belongs to partition: %d for edge: %d", src_index, (int)graph->partitioned_nodes[src_index], dest_index, (int)graph->partitioned_nodes[dest_index], i);
+            exit(-1);
+        }
     }
 }
 
