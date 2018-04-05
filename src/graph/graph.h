@@ -140,6 +140,10 @@ struct graph {
      * Nodes to their partitions
      */
     idx_t * partitioned_nodes;
+    /**
+     * Number of partitions in a graph
+     */
+    unsigned int num_partitions;
     
 	/**
 	 * The size of the level array
@@ -167,7 +171,11 @@ struct graph {
 	unsigned int num_work_items_nodes;
 	unsigned int num_work_items_edges;
 
+    unsigned int *src_graph_to_sub_graph_nodes;
+    unsigned int *sub_graph_to_src_graph_nodes;
 
+    unsigned int *src_graph_to_sub_graph_edges;
+    unsigned int *sub_graph_to_src_graph_edges;
 	/**
 	 * The diameter of the graph
 	 */
@@ -252,6 +260,8 @@ void prep_as_page_rank(Graph_t);
 void partition_graph(Graph_t, unsigned int);
 void partition_and_reorder_nodes(Graph_t, unsigned int, idx_t*, idx_t*);
 void check_partitions(Graph_t);
+Graph_t * generate_subgraphs(Graph_t);
+void update_src_graph_with_subgraphs(Graph_t, Graph_t*);
 
 void initialize_node(Graph_t, unsigned int, unsigned int);
 void node_set_state(Graph_t, unsigned int, unsigned int, struct belief *);

@@ -65,6 +65,12 @@ create_graph(unsigned int num_vertices, unsigned int num_edges)
 	g->work_queue_nodes = NULL;
 	g->work_queue_scratch = NULL;
 
+	g->src_graph_to_sub_graph_nodes = NULL;
+	g->sub_graph_to_src_graph_nodes = NULL;
+
+	g->src_graph_to_sub_graph_edges = NULL;
+	g->sub_graph_to_src_graph_edges = NULL;
+
     g->node_hash_table_created = 0;
     g->edge_tables_created = 0;
 
@@ -75,6 +81,7 @@ create_graph(unsigned int num_vertices, unsigned int num_edges)
 	g->current_num_edges = 0;
     g->diameter = -1;
     g->max_degree = 0;
+    g->num_partitions = 0;
 	return g;
 }
 
@@ -529,6 +536,7 @@ void partition_graph(Graph_t graph, unsigned int num_partitions_int) {
 	ret = METIS_PartGraphKway(&num_nodes, &ncon, undirected_nodes_list, undirected_edges_list, NULL, NULL,
 							  NULL, &num_partitions, NULL, NULL, options, &objval, graph->partitioned_nodes);
 	assert(ret == METIS_OK);
+	graph->num_partitions = num_partitions_int;
     //print_partitions(graph);
     //check_partitions(graph);
 
@@ -617,6 +625,7 @@ void partition_and_reorder_nodes(Graph_t graph, unsigned int num_partitions_int,
                               NULL, &num_partitions, NULL, NULL, options, &objval, graph->partitioned_nodes);
     assert(ret == METIS_OK);
     //print_partitions(graph);
+    graph->num_partitions = num_partitions_int;
 
     METIS_SetDefaultOptions(options);
 
@@ -625,6 +634,119 @@ void partition_and_reorder_nodes(Graph_t graph, unsigned int num_partitions_int,
 
     free(undirected_nodes_list);
     free(undirected_edges_list);
+}
+
+Graph_t * generate_subgraphs(Graph_t src_graph) {
+    Graph_t *sub_graphs;
+    unsigned int i, j, src_index, dest_index, current_num_nodes, current_num_edges;
+    idx_t partition, partition_src, partition_dest;
+    unsigned int *num_nodes, *num_edges, *sub_graph_current_num_nodes, *sub_graph_current_num_edges;
+
+    // require that the graph has already been partitioned
+    assert(src_graph->partitioned_nodes != NULL);
+
+    // count number of edges/nodes per sub_graph
+    num_nodes = (unsigned int *)calloc(sizeof(unsigned int), src_graph->num_partitions);
+    assert(num_nodes);
+    num_edges = (unsigned int *)calloc(sizeof(unsigned int), src_graph->num_partitions);
+    assert(num_edges);
+
+    sub_graph_current_num_nodes = (unsigned int *)calloc(sizeof(unsigned int), src_graph->num_partitions);
+    assert(sub_graph_current_num_nodes);
+    sub_graph_current_num_edges = (unsigned int *)calloc(sizeof(unsigned int), src_graph->num_partitions);
+    assert(sub_graph_current_num_edges);
+
+    for(i = 0; i < src_graph->current_num_vertices; ++i) {
+        partition = src_graph->partitioned_nodes[i];
+        num_nodes[partition]++;
+    }
+
+    for(i = 0; i < src_graph->current_num_edges; ++i) {
+        src_index = src_graph->edges_src_index[i];
+        dest_index = src_graph->edges_dest_index[i];
+
+        partition_src = src_graph->partitioned_nodes[src_index];
+        partition_dest = src_graph->partitioned_nodes[dest_index];
+
+        assert(partition_src == partition_dest);
+        num_edges[partition_dest]++;
+    }
+
+    src_graph->src_graph_to_sub_graph_nodes = (unsigned int *)malloc(sizeof(unsigned int) * src_graph->current_num_vertices);
+    assert(src_graph->src_graph_to_sub_graph_nodes);
+    src_graph->sub_graph_to_src_graph_nodes = (unsigned int *)malloc(sizeof(unsigned int) * src_graph->current_num_vertices);
+    assert(src_graph->sub_graph_to_src_graph_nodes);
+
+    src_graph->src_graph_to_sub_graph_edges = (unsigned int *)malloc(sizeof(unsigned int) * src_graph->current_num_edges);
+    assert(src_graph->src_graph_to_sub_graph_edges);
+    src_graph->sub_graph_to_src_graph_edges = (unsigned int *)malloc(sizeof(unsigned int) * src_graph->current_num_edges);
+
+    sub_graphs = (Graph_t *)malloc(sizeof(Graph_t) * src_graph->num_partitions);
+    assert(sub_graphs);
+
+    // create graphs
+    for(i = 0; i < src_graph->num_partitions; ++i) {
+        sub_graphs[i] = create_graph(num_nodes[i], num_edges[i]);
+    }
+    // fill in graphs
+    for(i = 0; i < src_graph->current_num_vertices; ++i) {
+        partition = src_graph->partitioned_nodes[i];
+        current_num_nodes = sub_graph_current_num_nodes[partition];
+        sub_graph_current_num_nodes[partition]++;
+        if(src_graph->observed_nodes[i] == 1) {
+            graph_add_and_set_node_state(sub_graphs[partition], src_graph->node_states[i].size, &src_graph->node_names[i], &src_graph->node_states[i]);
+        }
+        else {
+            graph_add_node(sub_graphs[partition], src_graph->node_states[i].size, &src_graph->node_names[i]);
+        }
+        src_graph->src_graph_to_sub_graph_nodes[i] = current_num_nodes;
+        src_graph->sub_graph_to_src_graph_nodes[current_num_nodes] = i;
+    }
+
+    for(i = 0; i < src_graph->current_num_edges; ++i) {
+        // already checked that src + dest belong to same partition
+        partition = src_graph->partitioned_nodes[src_graph->edges_src_index[i]];
+        current_num_edges = sub_graph_current_num_edges[partition];
+        sub_graph_current_num_edges[partition]++;
+
+        src_index = src_graph->edges_src_index[i];
+        dest_index = src_graph->edges_dest_index[i];
+        graph_add_edge(sub_graphs[partition], src_graph->src_graph_to_sub_graph_nodes[src_index],
+                       src_graph->src_graph_to_sub_graph_nodes[dest_index],
+                       src_graph->edges_joint_probabilities[i].dim_x, src_graph->edges_joint_probabilities[i].dim_x,
+                       &src_graph->edges_joint_probabilities[i]);
+        src_graph->src_graph_to_sub_graph_edges[i] = current_num_edges;
+        src_graph->sub_graph_to_src_graph_edges[current_num_edges] = i;
+    }
+
+    free(sub_graph_current_num_edges);
+    free(sub_graph_current_num_nodes);
+
+    free(num_edges);
+    free(num_nodes);
+
+    return sub_graphs;
+}
+
+void update_src_graph_with_subgraphs(Graph_t src_graph, Graph_t *subgraphs) {
+    idx_t partition;
+    unsigned int i, j, node_index, edge_index, src_index;
+
+    for(i = 0; i < src_graph->current_num_vertices; ++i) {
+        partition = src_graph->partitioned_nodes[i];
+        node_index = src_graph->src_graph_to_sub_graph_nodes[i];
+
+        memcpy(&src_graph->node_states[i], &subgraphs[partition]->node_states[node_index], sizeof(struct belief));
+    }
+
+    for(i = 0; i < src_graph->current_num_edges; ++i) {
+        src_index = src_graph->edges_src_index[i];
+        partition = src_graph->partitioned_nodes[src_index];
+
+        edge_index = src_graph->src_graph_to_sub_graph_edges[i];
+
+        memcpy(&src_graph->edges_messages[i], &subgraphs[partition]->edges_messages[edge_index], sizeof(struct belief));
+    }
 }
 
 void print_partitions(Graph_t graph) {
@@ -721,7 +843,18 @@ void graph_destroy(Graph_t g) {
 	if(g->partitioned_nodes != NULL) {
 		free(g->partitioned_nodes);
 	}
-
+    if(g->sub_graph_to_src_graph_nodes != NULL) {
+	    free(g->sub_graph_to_src_graph_nodes);
+	}
+	if(g->src_graph_to_sub_graph_nodes != NULL) {
+	    free(g->src_graph_to_sub_graph_nodes);
+	}
+	if(g->src_graph_to_sub_graph_edges != NULL) {
+	    free(g->src_graph_to_sub_graph_edges);
+	}
+	if(g->sub_graph_to_src_graph_edges != NULL) {
+	    free(g->sub_graph_to_src_graph_edges);
+	}
 	free(g);
 }
 

@@ -192,7 +192,43 @@ void loopy_belief_propagation() {
 	graph_destroy(graph);
 }
 
+void split_and_combine_graph() {
+	Graph_t graph, *sub_graphs;
+	unsigned int i;
+
+
+	graph = create_graph(NUM_NODES, NUM_EDGES);
+
+	add_nodes(graph);
+	add_edges(graph);
+
+	set_up_src_nodes_to_edges(graph);
+	set_up_dest_nodes_to_edges(graph);
+	partition_graph(graph, 2);
+	sub_graphs = generate_subgraphs(graph);
+	print_nodes(graph);
+	print_edges(graph);
+
+	init_previous_edge(graph);
+
+	loopy_propagate_until(graph, 1E-9, 10000);
+
+
+
+	update_src_graph_with_subgraphs(graph, sub_graphs);
+	print_nodes(graph);
+	print_edges(graph);
+
+	for(i = 0; i < graph->num_partitions; ++i) {
+		graph_destroy(sub_graphs[i]);
+	}
+	free(sub_graphs);
+	graph_destroy(graph);
+}
+
 int main() {
+	split_and_combine_graph();
+
 	forward_backward_belief_propagation();
 
 	loopy_belief_propagation();
