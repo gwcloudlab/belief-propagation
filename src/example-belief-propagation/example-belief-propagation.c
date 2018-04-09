@@ -219,10 +219,7 @@ void split_and_combine_graph() {
 	print_nodes(graph);
 	print_edges(graph);
 
-	for(i = 0; i < graph->num_partitions; ++i) {
-		graph_destroy(sub_graphs[i]);
-	}
-	free(sub_graphs);
+	sub_graphs_destroy(sub_graphs, graph->num_partitions);
 	graph_destroy(graph);
 }
 

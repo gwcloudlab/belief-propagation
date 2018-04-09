@@ -273,6 +273,7 @@ void fill_in_node_hash_table(Graph_t);
 unsigned int find_node_by_name(char *, Graph_t);
 
 void graph_destroy(Graph_t);
+void sub_graphs_destroy(Graph_t *, unsigned int);
 
 void propagate_using_levels_start(Graph_t);
 void propagate_using_levels(Graph_t, unsigned int);
@@ -281,7 +282,7 @@ void reset_visited(Graph_t);
 
 void init_previous_edge(Graph_t);
 void loopy_propagate_one_iteration(Graph_t);
-void loopy_propagate_one_iteration_partition(Graph_t, unsigned int);
+void loopy_propagate_one_iteration_partition(Graph_t, Graph_t *,unsigned int);
 void loopy_propagate_edge_one_iteration(Graph_t);
 void page_rank_one_iteration(Graph_t);
 void page_rank_edge_one_iteration(Graph_t);
