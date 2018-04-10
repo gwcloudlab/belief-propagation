@@ -2207,7 +2207,7 @@ void loopy_propagate_one_iteration_partition(Graph_t graph, Graph_t *sub_graphs,
 
     update_subgraphs_with_src_graph(sub_graphs, graph);
 
-    #pragma omp parallel for default(none) shared(sub_graphs, num_partitions, nodes_to_partitions, node_states, num_vertices, dest_node_to_edges_nodes, dest_node_to_edges_edges, src_node_to_edges_nodes, src_node_to_edges_edges, num_edges, current_edge_messages, joint_probabilities, work_queue_nodes, num_work_queue_items, node_buffer) private(i, num_variables, current_index, current_partition, sub_graph) //schedule(dynamic, 16)
+    #pragma omp parallel for default(none) shared(sub_graphs, num_partitions) private(i, num_variables, current_index, current_partition, sub_graph, current_edge_messages, node_buffer, num_vertices, dest_node_to_edges_nodes, dest_node_to_edges_edges, num_edges, node_states, work_queue_nodes, num_work_queue_items) //schedule(dynamic, 16)
     for(current_partition = 0; current_partition < num_partitions; ++current_partition) {
         sub_graph = sub_graphs[current_partition];
 
@@ -2267,7 +2267,7 @@ void loopy_propagate_one_iteration_partition(Graph_t graph, Graph_t *sub_graphs,
     work_queue_nodes = graph->work_queue_nodes;
     num_work_queue_items = graph->num_work_items_nodes;
 
-#pragma omp parallel for default(none) shared(current_edge_messages, node_buffer, num_vertices, dest_node_to_edges_nodes, dest_node_to_edges_edges, num_edges, node_states, work_queue_nodes, num_work_queue_nodes) private(current_index, i, num_variables)
+#pragma omp parallel for default(none) shared(current_edge_messages, node_buffer, num_vertices, dest_node_to_edges_nodes, dest_node_to_edges_edges, num_edges, node_states, work_queue_nodes, num_work_queue_items) private(current_index, i, num_variables)
     for (i = 0; i < num_work_queue_items; ++i) {
         current_index = work_queue_nodes[i];
 
@@ -2294,7 +2294,7 @@ void loopy_propagate_one_iteration_partition(Graph_t graph, Graph_t *sub_graphs,
 
     // send data
 
-#pragma omp parallel for default(none) shared(sub_graphs, num_partitions, nodes_to_partitions, node_states, num_vertices, dest_node_to_edges_nodes, dest_node_to_edges_edges, src_node_to_edges_nodes, src_node_to_edges_edges, num_edges, current_edge_messages, joint_probabilities, work_queue_nodes, num_work_queue_items, node_buffer) private(i, num_variables, current_index, current_partition, sub_graph) //schedule(dynamic, 16)
+#pragma omp parallel for default(none) shared(sub_graphs, num_partitions) private(i, num_variables, current_index, current_partition, sub_graph, current_edge_messages, node_buffer, num_vertices, src_node_to_edges_nodes, src_node_to_edges_edges, joint_probabilities, num_edges, work_queue_nodes, num_work_queue_items) //schedule(dynamic, 16)
     for(current_partition = 0; current_partition < num_partitions; ++current_partition) {
         sub_graph = sub_graphs[current_partition];
 
@@ -2349,7 +2349,7 @@ void loopy_propagate_one_iteration_partition(Graph_t graph, Graph_t *sub_graphs,
     work_queue_nodes = graph->work_queue_nodes;
     num_work_queue_items = graph->num_work_items_nodes;
 
-#pragma omp parallel for default(none) shared(num_partitions, nodes_to_partitions, node_states, num_vertices, dest_node_to_edges_nodes, dest_node_to_edges_edges, src_node_to_edges_nodes, src_node_to_edges_edges, num_edges, current_edge_messages, joint_probabilities, work_queue_nodes, num_work_queue_items, node_buffer) private(i, num_variables, current_index, current_partition) //schedule(dynamic, 16)
+#pragma omp parallel for default(none) shared(num_partitions, node_states, num_vertices, dest_node_to_edges_nodes, dest_node_to_edges_edges, src_node_to_edges_nodes, src_node_to_edges_edges, num_edges, current_edge_messages, joint_probabilities, work_queue_nodes, num_work_queue_items, node_buffer, graph) private(i, num_variables, current_index, current_partition) //schedule(dynamic, 16)
     for (i = 0; i < num_work_queue_items; ++i) {
         current_index = work_queue_nodes[i];
 
@@ -2821,8 +2821,8 @@ unsigned int loopy_propagate_until_partitioned(Graph_t graph, float convergence,
 
 		delta = 0.0;
 
-#pragma omp parallel for default(none) shared(sub_graph)  private(current_partition, j, diff) reduction(+:delta)
-		for(current_partition = 0; current_partition < graph->num_partitions; ++current_partition) {
+#pragma omp parallel for default(none) shared(sub_graphs, num_partitions)  private(current_partition, j, diff, current_edge_messages, num_edges) reduction(+:delta)
+		for(current_partition = 0; current_partition < num_partitions; ++current_partition) {
 		    current_edge_messages = sub_graphs[current_partition]->edges_messages;
 		    num_edges = sub_graphs[current_partition]->current_num_edges;
             for (j = 0; j < num_edges; ++j) {
