@@ -1627,7 +1627,9 @@ static void read_incoming_messages(struct belief *message_buffer,
 	for(j = start_index; j < end_index; ++j){
 		edge_index = dest_node_to_edges_edges[j];
 
-		combine_message(message_buffer, previous_messages, num_variables, edge_index);
+		if (edge_index < num_edges) {
+            combine_message(message_buffer, previous_messages, num_variables, edge_index);
+        }
 	}
 }
 
@@ -1751,7 +1753,9 @@ static void send_message_for_node(unsigned int * src_node_to_edges_nodes,
 		edge_index = src_node_to_edges_edges[j];
 		/*printf("Sending on edge\n");
         print_edge(graph, edge_index);*/
-		send_message_for_edge(message_buffer, edge_index, joint_probabilities, edge_messages);
+		if (edge_index < num_edges) {
+            send_message_for_edge(message_buffer, edge_index, joint_probabilities, edge_messages);
+        }
 	}
 }
 
@@ -3021,7 +3025,7 @@ static unsigned int loopy_propagate_iterations_acc(unsigned int num_vertices, un
 	delta = 0.0f;
 
     for(i = 0; i < max_iterations; i+= BATCH_SIZE) {
-#pragma acc data present_or_copy(node_states[0:(num_vertices)], curr_messages[0:(num_edges)], work_items_nodes[0:(num_work_items_nodes)]) present_or_copyin(dest_node_to_edges_nodes[0:num_vertices], dest_node_to_edges_edges[0:num_edges], src_node_to_edges_nodes[0:num_vertices], src_node_to_edges_edges[0:num_edges], joint_probabilities[0:(num_edges)])
+#pragma acc data present_or_copy(node_states[0:(num_vertices)], curr_messages[0:(num_edges)], work_items_nodes[0:(num_work_items_nodes)]) present_or_copyin(dest_node_to_edges_nodes[0:num_vertices], dest_node_to_edges_edges[0:num_edges], src_node_to_edges_nodes[0:num_vertices], src_node_to_edges_edges[0:num_edges], joint_probabilities[0:(num_edges)]) create(belief_buffer)
         {
             //printf("Current iteration: %d\n", i+1);
             for (j = 0; j < BATCH_SIZE; ++j) {
@@ -3065,6 +3069,7 @@ static unsigned int loopy_propagate_iterations_acc(unsigned int num_vertices, un
 
             delta = 0.0f;
 #pragma acc kernels
+#pragma acc for reduction(+:delta)
             for (j = 0; j < num_vertices; ++j) {
                 diff = node_states[j].previous - node_states[j].current;
                 if (diff != diff) {
@@ -3087,50 +3092,34 @@ static unsigned int loopy_propagate_iterations_acc(unsigned int num_vertices, un
 	return num_iter;
 }
 
-static unsigned int loopy_propagate_iterations_partitioned_acc(unsigned int num_vertices, unsigned int num_edges,
-                                                               unsigned int *dest_node_to_edges_nodes, unsigned int *dest_node_to_edges_edges,
-                                                               unsigned int *src_node_to_edges_nodes, unsigned int *src_node_to_edges_edges,
-                                                               struct belief *node_states, struct belief *current_messages,
-                                                               struct joint_probability *joint_probabilities,
-                                                               unsigned int *work_items_nodes, idx_t *partitions,
-                                                               unsigned int num_work_items_nodes,
-                                                               unsigned int max_iterations,
-                                                               float convergence, unsigned int num_partitions) {
-    int j, k, current_index, current_partition;
-    unsigned int i, num_variables, num_iter;
-    float delta, previous_delta, diff;
-    struct belief *curr_messages;
-
-    curr_messages = current_messages;
-
-
-    struct belief belief_buffer;
-
-    num_iter = 0;
-
-    previous_delta = -1.0f;
-    delta = 0.0f;
-
-    for(i = 0; i < max_iterations; i+= BATCH_SIZE) {
-#pragma acc data present_or_copy(node_states[0:(num_vertices)], curr_messages[0:(num_edges)], work_items_nodes[0:(num_work_items_nodes)]) present_or_copyin(dest_node_to_edges_nodes[0:num_vertices], dest_node_to_edges_edges[0:num_edges], src_node_to_edges_nodes[0:num_vertices], src_node_to_edges_edges[0:num_edges], joint_probabilities[0:(num_edges)], partitions[0:num_vertices])
-        {
-            //printf("Current iteration: %d\n", i+1);
-            for (j = 0; j < BATCH_SIZE; ++j) {
+static void update_graph_data_read(unsigned int num_vertices, unsigned int num_edges,
+                                            unsigned int *dest_node_to_edges_nodes, unsigned int *dest_node_to_edges_edges,
+                                            struct belief *node_states, struct belief *node_buffer,
+                                            struct belief *edges_messages,
+                                            unsigned int *work_queue_nodes, unsigned int num_work_queue_items) {
+    int k;
+    unsigned int current_index, num_variables;
+#pragma acc data copyin(dest_node_to_edges_nodes[0:num_vertices], dest_node_to_edges_edges[0:num_edges], node_states[0:num_vertices], edges_messages[0:num_edges], work_queue_nodes[0:num_vertices]) copy(node_buffer[0:num_vertices])
+    {
 #pragma acc kernels
-                for(current_partition = 0; current_partition < num_partitions; ++current_partition) {
-                    for (k = 0; k < num_work_items_nodes; ++k) {
-                        current_index = work_items_nodes[k];
-                        if(partitions[current_index] == current_partition) {
+        for (k = 0; k < num_vertices && k < num_work_queue_items; ++k) {
+            current_index = work_queue_nodes[k];
 
-                            num_variables = node_states[current_index].size;
 
-                            initialize_message_buffer(&belief_buffer, node_states, current_index, num_variables);
+            num_variables = node_states[current_index].size;
 
-                            //read incoming messages
-                            read_incoming_messages(&belief_buffer, dest_node_to_edges_nodes, dest_node_to_edges_edges,
-                                                   curr_messages, num_edges, num_vertices,
-                                                   num_variables, current_index);
-                        }
+            initialize_message_buffer(&node_buffer[k],
+                                      node_states, current_index,
+                                      num_variables);
+
+            //read incoming messages
+            read_incoming_messages(&node_buffer[k],
+                                   dest_node_to_edges_nodes,
+                                   dest_node_to_edges_edges,
+                                   edges_messages, num_edges,
+                                   num_vertices,
+                                   num_variables, current_index);
+
 
 /*
 		printf("Message at node\n");
@@ -3142,49 +3131,158 @@ static unsigned int loopy_propagate_iterations_partitioned_acc(unsigned int num_
 		printf("\t]\n");*/
 
 
-                    }
-                }
-
-#pragma acc kernels
-                for(current_partition = 0; current_partition < num_partitions; ++current_partition) {
-                    for (k = 0; k < num_work_items_nodes; ++k) {
-                        current_index = work_items_nodes[k];
-                        if(partitions[current_index] == current_partition) {
-                            //send belief
-                            send_message_for_node(src_node_to_edges_nodes, src_node_to_edges_edges, &belief_buffer,
-                                                  num_edges, joint_probabilities,
-                                                  curr_messages, num_vertices, current_index);
-                        }
-                    }
-                }
-
-#pragma acc kernels
-                for (k = 0; k < num_work_items_nodes; ++k) {
-                    current_index = work_items_nodes[k];
-
-                    marginalize_node_acc(node_states, current_index, curr_messages, dest_node_to_edges_nodes, dest_node_to_edges_edges, num_vertices,
-                                         num_edges);
-                }
-            }
-
-
-            delta = 0.0f;
-#pragma acc kernels
-            for (j = 0; j < num_vertices; ++j) {
-                diff = node_states[j].previous - node_states[j].current;
-                if (diff != diff) {
-                    diff = 0.0f;
-                }
-                delta += fabsf(diff);
-            }
         }
-        if(delta < convergence || fabsf(delta - previous_delta) < convergence){
+    }
+}
+
+static void update_graph_data_write(unsigned int num_vertices, unsigned int num_edges,
+                                    unsigned int *src_node_to_edges_nodes, unsigned int *src_node_to_edges_edges,
+                                    struct belief *node_buffer, struct belief *node_states,
+                                    struct belief *edges_messages,
+                                    struct joint_probability *edges_joint_probabilities,
+                                    unsigned int *work_queue_nodes, unsigned int *work_queue_scratch, unsigned int *num_work_queue_nodes
+                                    ) {
+    int k, current_index;
+    
+#pragma acc data copyin(src_node_to_edges_nodes[0:num_vertices], src_node_to_edges_edges[0:num_edges], edges_joint_probabilities[0:num_edges]) copy(work_queue_scratch[0:num_vertices], node_buffer[0:num_vertices], node_states[0:num_vertices], edges_messages[0:num_edges], work_queue_nodes[0:num_vertices], num_work_queue_nodes[0:1])
+    {
+#pragma acc kernels
+        for (k = 0; k < num_vertices && k < *num_work_queue_nodes; ++k) {
+            current_index = work_queue_nodes[k];
+
+            //send belief
+            send_message_for_node(src_node_to_edges_nodes, src_node_to_edges_edges, &node_buffer[k],
+                                  num_edges, edges_joint_probabilities,
+                                  edges_messages, num_vertices, current_index);
+
+
+        }
+        update_work_queue_nodes_acc(num_vertices, num_work_queue_nodes, work_queue_nodes, work_queue_scratch,
+                                    node_states, PRECISION_ITERATION);
+    }
+}
+
+static void marginalize_nodes_acc(struct belief *node_states, struct belief *edges_messages,
+                                           unsigned int *dest_nodes_to_edges_node_list, unsigned int *dest_nodes_to_edges_edge_list,
+                                           unsigned int num_vertices, unsigned int num_edges) {
+    int k;
+
+#pragma acc data copyin(dest_nodes_to_edges_node_list[0:num_vertices], dest_nodes_to_edges_edge_list[0:num_edges], edges_messages[0:num_edges]) copy(node_states[0:num_vertices])
+    {
+        #pragma acc kernels
+        for (k = 0; k < num_vertices; ++k) {
+
+            marginalize_node_acc(node_states, k, edges_messages,
+                                 dest_nodes_to_edges_node_list, dest_nodes_to_edges_edge_list,
+                                 num_vertices,
+                                 num_edges);
+        }
+    }
+}
+
+static float calc_delta_acc(struct belief *node_states, unsigned int num_vertices) {
+    float delta, diff;
+    int j;
+
+    delta = 0.0f;
+#pragma acc data copyin(node_states[0:num_vertices])
+    {
+#pragma acc kernels
+#pragma acc for reduction(+:delta)
+        for (j = 0; j < num_vertices; ++j) {
+            diff = node_states[j].previous - node_states[j].current;
+            if (diff != diff) {
+                diff = 0.0f;
+            }
+            delta += fabsf(diff);
+        }
+    }
+
+    return delta;
+}
+
+static unsigned int loopy_propagate_iterations_partitioned_acc(Graph_t graph, Graph_t *sub_graphs,
+                                                               unsigned int max_iterations,
+                                                               float convergence, unsigned int num_partitions) {
+    int j, k, current_index;
+    unsigned int i, num_variables, num_vertices, num_edges, num_work_queue_items, num_iter;
+    float previous_delta, delta, diff;
+    idx_t current_partition;
+
+    num_iter = 0;
+
+    previous_delta = -1.0f;
+    delta = 0.0f;
+
+    for(i = 0; i < max_iterations; i+= BATCH_SIZE) {
+        update_subgraphs_with_src_graph(sub_graphs, graph);
+        //printf("Current iteration: %d\n", i+1)
+        for (j = 0; j < BATCH_SIZE; ++j) {
+            for (current_partition = 0; current_partition < num_partitions; ++current_partition) {
+                num_vertices = sub_graphs[current_partition]->current_num_vertices;
+                num_edges = sub_graphs[current_partition]->current_num_edges;
+
+                num_work_queue_items = sub_graphs[current_partition]->num_work_items_nodes;
+
+                update_graph_data_read(sub_graphs[current_partition]->current_num_vertices,
+                                       sub_graphs[current_partition]->current_num_edges,
+                                       sub_graphs[current_partition]->dest_nodes_to_edges_node_list,
+                                       sub_graphs[current_partition]->dest_nodes_to_edges_edge_list,
+                                       sub_graphs[current_partition]->node_states,
+                                       sub_graphs[current_partition]->node_buffer,
+                                       sub_graphs[current_partition]->edges_messages,
+                                       sub_graphs[current_partition]->work_queue_nodes, num_work_queue_items);
+
+            }
+            update_src_graph_with_subgraphs(graph, sub_graphs);
+
+
+            update_graph_data_read(graph->current_num_vertices, graph->current_num_edges,
+                                   graph->dest_nodes_to_edges_node_list, graph->dest_nodes_to_edges_edge_list,
+                                   graph->node_states, graph->node_buffer, graph->edges_messages,
+                                   graph->work_queue_nodes, graph->num_work_items_nodes);
+
+            // send data
+            for (current_partition = 0; current_partition < num_partitions; ++current_partition) {
+
+                num_edges = sub_graphs[current_partition]->current_num_edges;
+                num_vertices = sub_graphs[current_partition]->current_num_vertices;
+
+                update_graph_data_write(num_vertices, num_edges,
+                                        sub_graphs[current_partition]->src_nodes_to_edges_node_list,
+                                        sub_graphs[current_partition]->src_nodes_to_edges_edge_list,
+                                        sub_graphs[current_partition]->node_buffer,
+                                        sub_graphs[current_partition]->node_states,
+                                        sub_graphs[current_partition]->edges_messages,
+                                        sub_graphs[current_partition]->edges_joint_probabilities,
+                                        sub_graphs[current_partition]->work_queue_nodes,
+                                        sub_graphs[current_partition]->work_queue_scratch,
+                                        &(sub_graphs[current_partition]->num_work_items_nodes));
+            }
+
+
+            num_vertices = graph->current_num_vertices;
+            update_graph_data_write(num_vertices, num_edges,
+                                    graph->src_nodes_to_edges_node_list, graph->src_nodes_to_edges_edge_list,
+                                    graph->node_buffer, graph->node_states,
+                                    graph->edges_messages, graph->edges_joint_probabilities,
+                                    graph->work_queue_nodes, graph->work_queue_scratch, &(graph->num_work_items_nodes));
+
+            marginalize_nodes_acc(graph->node_states, graph->edges_messages, graph->dest_nodes_to_edges_node_list,
+                                  graph->dest_nodes_to_edges_edge_list, graph->current_num_vertices,
+                                  graph->current_num_edges);
+
+        }
+
+        num_vertices = graph->current_num_vertices;
+        delta = calc_delta_acc(graph->node_states, graph->current_num_vertices);
+        if (delta < convergence || fabsf(delta - previous_delta) < convergence) {
             break;
         }
         previous_delta = delta;
         num_iter += BATCH_SIZE;
     }
-    if(i == max_iterations) {
+    if (i == max_iterations) {
         printf("No Convergence: previous: %f vs current: %f\n", previous_delta, delta);
     }
 
@@ -3232,7 +3330,7 @@ static unsigned int page_rank_iterations_acc(unsigned int num_vertices, unsigned
     delta = 0.0f;
 
     for(i = 0; i < max_iterations; i+= BATCH_SIZE) {
-#pragma acc data present_or_copy(node_states[0:(num_vertices)], curr_messages[0:(num_edges)]) present_or_copyin(dest_node_to_edges_nodes[0:num_vertices], dest_node_to_edges_edges[0:num_edges], src_node_to_edges_nodes[0:num_vertices], src_node_to_edges_edges[0:num_edges], joint_probabilities[0:(num_edges)])
+#pragma acc data present_or_copy(node_states[0:(num_vertices)], curr_messages[0:(num_edges)]) present_or_copyin(dest_node_to_edges_nodes[0:num_vertices], dest_node_to_edges_edges[0:num_edges], src_node_to_edges_nodes[0:num_vertices], src_node_to_edges_edges[0:num_edges], joint_probabilities[0:(num_edges)]) create(belief_buffer)
         {
             //printf("Current iteration: %d\n", i+1);
             for (j = 0; j < BATCH_SIZE; ++j) {
@@ -3272,6 +3370,7 @@ static unsigned int page_rank_iterations_acc(unsigned int num_vertices, unsigned
 
             delta = 0.0f;
 #pragma acc kernels
+#pragma acc for reduction(+:delta)
             for (j = 0; j < num_edges; ++j) {
                 diff = curr_messages[j].previous - curr_messages[j].current;
                 if (diff != diff) {
@@ -3333,7 +3432,7 @@ static unsigned int viterbi_iterations_acc(unsigned int num_vertices, unsigned i
     delta = 0.0f;
 
     for(i = 0; i < max_iterations; i+= BATCH_SIZE) {
-#pragma acc data present_or_copy(node_states[0:(num_vertices)], curr_messages[0:(num_edges)]) present_or_copyin(dest_node_to_edges_nodes[0:num_vertices], dest_node_to_edges_edges[0:num_edges], src_node_to_edges_nodes[0:num_vertices], src_node_to_edges_edges[0:num_edges], joint_probabilities[0:(num_edges)])
+#pragma acc data present_or_copy(node_states[0:(num_vertices)], curr_messages[0:(num_edges)]) present_or_copyin(dest_node_to_edges_nodes[0:num_vertices], dest_node_to_edges_edges[0:num_edges], src_node_to_edges_nodes[0:num_vertices], src_node_to_edges_edges[0:num_edges], joint_probabilities[0:(num_edges)]) create(belief_buffer)
         {
             //printf("Current iteration: %d\n", i+1);
             for (j = 0; j < BATCH_SIZE; ++j) {
@@ -3373,6 +3472,7 @@ static unsigned int viterbi_iterations_acc(unsigned int num_vertices, unsigned i
 
             delta = 0.0f;
 #pragma acc kernels
+#pragma acc for reduction(+:delta)
             for (j = 0; j < num_edges; ++j) {
                 diff = curr_messages[j].previous - curr_messages[j].current;
                 if (diff != diff) {
@@ -3391,12 +3491,14 @@ static unsigned int viterbi_iterations_acc(unsigned int num_vertices, unsigned i
         printf("No Convergence: previous: %f vs current: %f\n", previous_delta, delta);
     }
 
-    #pragma acc data present_or_copy(node_states[0:(num_vertices)])
+    #pragma acc data present_or_copy(node_states[0:(num_vertices)]) create(sum, num_variables)
     {
         #pragma acc kernels
+#pragma acc for independent
         for(j = 0; j < num_vertices; ++j){
             sum = 0.0;
             num_variables = node_states[j].size;
+
             for (k = 0; k < num_variables; ++k) {
                 sum += node_states[j].data[k];
             }
@@ -3445,21 +3547,24 @@ unsigned int loopy_propagate_until_acc(Graph_t graph, float convergence, unsigne
 }
 
 unsigned int loopy_propagate_until_partitioned_acc(Graph_t graph, float convergence, unsigned int max_iterations, unsigned int num_partitions) {
-    unsigned int iter;
+    unsigned int i, iter;
+    Graph_t  *sub_graphs;
 
     init_work_queue_nodes(graph);
+
+    assert(num_partitions >= 2);
+    assert(graph->partitioned_nodes != NULL);
+
+    sub_graphs = generate_subgraphs(graph);
+    for(i = 0; i < graph->num_partitions; ++i) {
+        init_work_queue_nodes(sub_graphs[i]);
+    }
 
     /*printf("===BEFORE====\n");
     print_nodes(graph);
     print_edges(graph);
 */
-    iter = loopy_propagate_iterations_partitioned_acc(graph->current_num_vertices, graph->current_num_edges,
-                                          graph->dest_nodes_to_edges_node_list, graph->dest_nodes_to_edges_edge_list,
-                                          graph->src_nodes_to_edges_node_list, graph->src_nodes_to_edges_edge_list,
-                                          graph->node_states,
-                                          graph->edges_messages, graph->edges_joint_probabilities,
-                                          graph->work_queue_nodes, graph->partitioned_nodes,
-                                                      graph->num_work_items_nodes,
+    iter = loopy_propagate_iterations_partitioned_acc(graph, sub_graphs,
                                           max_iterations, convergence, num_partitions);
 
     /*printf("===AFTER====\n");
@@ -3563,7 +3668,7 @@ static unsigned int loopy_propagate_iterations_edges_acc(unsigned int num_vertic
 	delta = 0.0f;
 
 	for(i = 0; i < max_iterations; i+= BATCH_SIZE) {
-#pragma acc data present_or_copy(node_states[0:(num_vertices)], curr_messages[0:(num_edges)]) present_or_copyin(dest_node_to_edges_node_list[0:num_vertices], dest_node_to_edges_edge_list[0:num_edges], joint_probabilities[0:(num_edges)], edges_src_index[0:num_edges])
+#pragma acc data present_or_copy(node_states[0:(num_vertices)], curr_messages[0:(num_edges)]) present_or_copyin(dest_node_to_edges_node_list[0:num_vertices], dest_node_to_edges_edge_list[0:num_edges], joint_probabilities[0:(num_edges)], edges_src_index[0:num_edges], edges_dest_index[0:num_edges])
 		{
 			//printf("Current iteration: %d\n", i+1);
 			for (j = 0; j < BATCH_SIZE; ++j) {
@@ -3592,6 +3697,7 @@ static unsigned int loopy_propagate_iterations_edges_acc(unsigned int num_vertic
 
 			delta = 0.0f;
 #pragma acc kernels
+#pragma acc for reduction(+:delta)
 			for (j = 0; j < num_edges; ++j) {
                 diff = curr_messages[j].previous - curr_messages[j].current;
                 if (diff != diff) {
@@ -3652,7 +3758,7 @@ static unsigned int page_rank_iterations_edges_acc(unsigned int num_vertices, un
     delta = 0.0f;
 
     for(i = 0; i < max_iterations; i+= BATCH_SIZE) {
-#pragma acc data present_or_copy(node_states[0:(num_vertices)], curr_messages[0:(num_edges)]) present_or_copyin(dest_node_to_edges_node_list[0:num_vertices], dest_node_to_edges_edge_list[0:num_edges], joint_probabilities[0:(num_edges)], edges_src_index[0:num_edges])
+#pragma acc data present_or_copy(node_states[0:(num_vertices)], curr_messages[0:(num_edges)]) present_or_copyin(dest_node_to_edges_node_list[0:num_vertices], dest_node_to_edges_edge_list[0:num_edges], joint_probabilities[0:(num_edges)], edges_src_index[0:num_edges], edges_dest_index[0:num_edges])
         {
             //printf("Current iteration: %d\n", i+1);
             for (j = 0; j < BATCH_SIZE; ++j) {
@@ -3681,6 +3787,7 @@ static unsigned int page_rank_iterations_edges_acc(unsigned int num_vertices, un
 
             delta = 0.0f;
 #pragma acc kernels
+#pragma acc for reduction(+:delta)
             for (j = 0; j < num_edges; ++j) {
                 diff = curr_messages[j].previous - curr_messages[j].current;
                 if (diff != diff) {
@@ -3740,7 +3847,7 @@ static unsigned int viterbi_iterations_edges_acc(unsigned int num_vertices, unsi
     delta = 0.0f;
 
     for(i = 0; i < max_iterations; i+= BATCH_SIZE) {
-#pragma acc data present_or_copy(node_states[0:(num_vertices)], curr_messages[0:(num_edges)]) present_or_copyin(dest_node_to_edges_node_list[0:num_vertices], dest_node_to_edges_edge_list[0:num_edges], joint_probabilities[0:(num_edges)], edges_src_index[0:num_edges])
+#pragma acc data present_or_copy(node_states[0:(num_vertices)], curr_messages[0:(num_edges)]) present_or_copyin(dest_node_to_edges_node_list[0:num_vertices], dest_node_to_edges_edge_list[0:num_edges], joint_probabilities[0:(num_edges)], edges_src_index[0:num_edges], edges_dest_index[0:num_edges])
         {
             //printf("Current iteration: %d\n", i+1);
             for (j = 0; j < BATCH_SIZE; ++j) {
@@ -3769,6 +3876,7 @@ static unsigned int viterbi_iterations_edges_acc(unsigned int num_vertices, unsi
 
             delta = 0.0f;
 #pragma acc kernels
+#pragma acc for reduction(+:delta)
             for (j = 0; j < num_edges; ++j) {
                 diff = curr_messages[j].previous - curr_messages[j].current;
                 if (diff != diff) {
@@ -3790,6 +3898,7 @@ static unsigned int viterbi_iterations_edges_acc(unsigned int num_vertices, unsi
     #pragma acc data present_or_copy(node_states[0:(num_vertices)])
     {
         #pragma acc kernels
+#pragma acc for independent reduction(+:sum)
         for(j = 0; j < num_vertices; ++j){
             sum = 0.0;
             num_variables = node_states[j].size;
@@ -4040,7 +4149,7 @@ void init_work_queue_nodes(Graph_t graph) {
 	work_queue_nodes = graph->work_queue_nodes;
 
 #pragma omp parallel for default(none) shared(num_work_items_nodes, work_queue_nodes) private(i)
-#pragma acc parallel private(i)
+#pragma acc parallel private(i) copyout(work_queue_nodes[0:graph->current_num_vertices])
 	for(i = 0; i < num_work_items_nodes; ++i) {
 		work_queue_nodes[i] = i;
 	}
@@ -4063,13 +4172,45 @@ void init_work_queue_edges(Graph_t graph) {
 	num_work_item_edges = graph->num_work_items_edges;
 
 #pragma omp parallel for default(none) shared(num_work_item_edges, work_queue_edges) private(i)
-#pragma acc parallel private(i)
+#pragma acc parallel private(i) copyout(work_queue_edges[0:graph->current_num_edges])
 	for(i = 0; i < num_work_item_edges; ++i) {
         work_queue_edges[i] = i;
 	}
 }
 
+#pragma acc routine
+void memcopy(unsigned int *restrict dest, unsigned int *restrict src, unsigned int size)
+{
+    int i;
+#pragma acc for
+#pragma omp parallel for default(none) shared(dest, src, size) private(i)
+    for(i = 0; i < size; ++i) {
+        dest[i] = src[i];
+    }
+}
 
+#pragma acc routine
+void update_work_queue_nodes_acc(unsigned int num_vertices,
+                                        unsigned int *num_work_queue_nodes, unsigned int *work_queue_nodes, unsigned int *work_queue_scratch,
+                                        struct belief *nodes_states, float convergence) {
+    unsigned int current_index, i;
+    current_index = 0;
+#pragma acc for seq
+        for(i = 0; i < *num_work_queue_nodes && i < num_vertices; ++i) {
+            if(fabs(nodes_states[work_queue_nodes[i]].current - nodes_states[work_queue_nodes[i]].previous) >= convergence) {
+#pragma acc atomic capture
+                {
+                    work_queue_scratch[current_index] = work_queue_nodes[i];
+                    current_index++;
+                }
+            }
+        }
+    
+    memcopy(work_queue_nodes, work_queue_scratch, num_vertices);
+    *num_work_queue_nodes = current_index;
+}
+
+#pragma acc routine
 void update_work_queue_nodes(Graph_t graph, float convergence) {
 	unsigned int current_index, i, num_work_items_nodes, num_vertices;
 	unsigned int *work_queue_nodes, *work_queue_scratch;
@@ -4083,7 +4224,7 @@ void update_work_queue_nodes(Graph_t graph, float convergence) {
     num_vertices = graph->current_num_vertices;
 
 #pragma omp parallel for default(none) shared(current_index, num_work_items_nodes, work_queue_scratch, convergence, work_queue_nodes, node_states) private(i)
-#pragma acc parallel private(i) copyin(work_queue_nodes[0:num_vertices], node_states[0:num_vertices]) copyout(work_queue_scratch[0:num_vertices])
+#pragma acc for seq
     for(i = 0; i < num_work_items_nodes; ++i) {
 		if(fabs(node_states[work_queue_nodes[i]].current - node_states[work_queue_nodes[i]].previous) >= convergence) {
 			#pragma omp critical
@@ -4094,10 +4235,11 @@ void update_work_queue_nodes(Graph_t graph, float convergence) {
             }
 		}
 	}
-	memcpy(work_queue_nodes, work_queue_scratch, num_vertices);
+	memcopy(work_queue_nodes, work_queue_scratch, num_vertices);
 	graph->num_work_items_nodes = current_index;
 }
 
+#pragma acc routine
 void update_work_queue_edges(Graph_t graph, float convergence) {
 	unsigned int current_index, i, num_work_items_edges, num_edges;
 	unsigned int *work_queue_edges, *work_queue_scratch;
@@ -4111,7 +4253,7 @@ void update_work_queue_edges(Graph_t graph, float convergence) {
     num_edges = graph->current_num_edges;
 
 #pragma omp parallel for default(none) shared(current_index, num_work_items_edges, work_queue_scratch, convergence, work_queue_edges, edge_states) private(i)
-#pragma acc parallel private(i) copyin(work_queue_edges[0:num_edges], edge_states[0:num_edges]) copyout(work_queue_scratch[0:num_edges])
+#pragma acc for seq
     for(i = 0; i < num_work_items_edges; ++i) {
 		if(fabs(edge_states[work_queue_edges[i]].current - edge_states[work_queue_edges[i]].previous) >= convergence) {
 #pragma omp critical
@@ -4122,6 +4264,6 @@ void update_work_queue_edges(Graph_t graph, float convergence) {
 			}
 		}
 	}
-	memcpy(work_queue_edges, work_queue_scratch, num_edges);
+	memcopy(work_queue_edges, work_queue_scratch, num_edges);
 	graph->num_work_items_edges = current_index;
 }

@@ -320,8 +320,13 @@ void print_partitions(Graph_t);
 void init_work_queue_nodes(Graph_t);
 void init_work_queue_edges(Graph_t);
 
+void update_work_queue_nodes_acc(unsigned int,
+                                 unsigned int *, unsigned int *, unsigned int *,
+                                 struct belief *, float);
 void update_work_queue_nodes(Graph_t, float);
 void update_work_queue_edges(Graph_t, float);
+
+void memcopy(unsigned int *restrict dest, unsigned int *restrict src, unsigned int size);
 
 
 #endif /* GRAPH_H_ */
