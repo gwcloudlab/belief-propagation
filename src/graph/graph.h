@@ -273,6 +273,7 @@ void fill_in_node_hash_table(Graph_t);
 unsigned int find_node_by_name(char *, Graph_t);
 
 void graph_destroy(Graph_t);
+void sub_graphs_destroy(Graph_t *, unsigned int);
 
 void propagate_using_levels_start(Graph_t);
 void propagate_using_levels(Graph_t, unsigned int);
@@ -282,6 +283,7 @@ void reset_visited(Graph_t);
 void init_previous_edge(Graph_t);
 void loopy_propagate_one_iteration(Graph_t);
 void loopy_propagate_one_iteration_partition(Graph_t, unsigned int);
+void loopy_propagate_one_iteration_partitioned_replicated(Graph_t, Graph_t *, unsigned int);
 void loopy_propagate_edge_one_iteration(Graph_t);
 void page_rank_one_iteration(Graph_t);
 void page_rank_edge_one_iteration(Graph_t);
@@ -290,6 +292,7 @@ void viterbi_edge_one_iteration(Graph_t);
 
 unsigned int loopy_propagate_until(Graph_t, float, unsigned int);
 unsigned int loopy_propagate_until_partitioned(Graph_t, float, unsigned int, unsigned int);
+unsigned int loopy_propagate_until_partitioned_replicated(Graph_t, float, unsigned int, unsigned int);
 unsigned int loopy_propagate_until_edge(Graph_t, float, unsigned int);
 unsigned int loopy_propagate_until_acc(Graph_t, float, unsigned int);
 unsigned int loopy_propagate_until_partitioned_acc(Graph_t, float, unsigned int, unsigned int);
@@ -319,8 +322,13 @@ void print_partitions(Graph_t);
 void init_work_queue_nodes(Graph_t);
 void init_work_queue_edges(Graph_t);
 
+void update_work_queue_nodes_replicated_acc(unsigned int,
+								 unsigned int *, unsigned int *, unsigned int *,
+								 struct belief *, float);
 void update_work_queue_nodes(Graph_t, float);
 void update_work_queue_edges(Graph_t, float);
+void memcopy(unsigned int *restrict dest, unsigned int *restrict src, unsigned int size);
+
 
 
 #endif /* GRAPH_H_ */
