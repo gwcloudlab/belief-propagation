@@ -296,6 +296,7 @@ unsigned int loopy_propagate_until_partitioned_replicated(Graph_t, float, unsign
 unsigned int loopy_propagate_until_edge(Graph_t, float, unsigned int);
 unsigned int loopy_propagate_until_acc(Graph_t, float, unsigned int);
 unsigned int loopy_propagate_until_partitioned_acc(Graph_t, float, unsigned int, unsigned int);
+unsigned int loopy_propagate_until_partitioned_replicated_acc(Graph_t, float, unsigned int, unsigned int);
 unsigned int loopy_propagate_until_edge_acc(Graph_t, float, unsigned int);
 
 unsigned int page_rank_until(Graph_t, float, unsigned int);

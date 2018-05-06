@@ -2796,7 +2796,7 @@ unsigned int loopy_propagate_until_partitioned_replicated(Graph_t graph, float c
 
         delta = 0.0;
 
-#pragma omp parallel for default(none) shared(sub_graph)  private(current_partition, j, diff) reduction(+:delta)
+#pragma omp parallel for default(none) shared(sub_graphs, graph)  private(current_partition, j, diff, current_edge_messages, num_edges) reduction(+:delta)
         for(current_partition = 0; current_partition < graph->num_partitions; ++current_partition) {
             current_edge_messages = sub_graphs[current_partition]->edges_messages;
             num_edges = sub_graphs[current_partition]->current_num_edges;
