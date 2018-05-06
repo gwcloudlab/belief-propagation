@@ -1624,10 +1624,10 @@ static void read_incoming_messages(struct belief *message_buffer,
 		end_index = dest_node_to_edges_nodes[i + 1];
 	}
 
-	for(j = start_index; j < end_index; ++j){
+	for(j = start_index; j < end_index && j < num_edges; ++j){
 		edge_index = dest_node_to_edges_edges[j];
 
-        if (edge_index < num_edges) {
+		if (edge_index < num_edges) {
             combine_message(message_buffer, previous_messages, num_variables, edge_index);
         }
 	}
@@ -1749,11 +1749,11 @@ static void send_message_for_node(unsigned int * src_node_to_edges_nodes,
 		end_index = src_node_to_edges_nodes[i + 1];
 	}
     
-	for(j = start_index; j < end_index; ++j){
+	for(j = start_index; j < end_index && j < num_edges; ++j){
 		edge_index = src_node_to_edges_edges[j];
 		/*printf("Sending on edge\n");
         print_edge(graph, edge_index);*/
-        if (edge_index < num_edges) {
+		if (edge_index < num_edges) {
             send_message_for_edge(message_buffer, edge_index, joint_probabilities, edge_messages);
         }
 	}
@@ -3198,6 +3198,7 @@ static unsigned int loopy_propagate_iterations_acc(unsigned int num_vertices, un
 
             delta = 0.0f;
 #pragma acc kernels
+#pragma acc loop reduction(+:delta)
             for (j = 0; j < num_vertices; ++j) {
                 diff = node_states[j].previous - node_states[j].current;
                 if (diff != diff) {
@@ -3303,6 +3304,7 @@ static unsigned int loopy_propagate_iterations_partitioned_acc(unsigned int num_
 
             delta = 0.0f;
 #pragma acc kernels
+#pragma acc loop reduction(+:delta)
             for (j = 0; j < num_vertices; ++j) {
                 diff = node_states[j].previous - node_states[j].current;
                 if (diff != diff) {
@@ -3422,7 +3424,7 @@ static float calc_delta_acc(struct belief *node_states, unsigned int num_vertice
 #pragma acc data copyin(node_states[0:num_vertices])
     {
 #pragma acc kernels
-#pragma acc for reduction(+:delta)
+#pragma acc loop reduction(+:delta)
         for (j = 0; j < num_vertices; ++j) {
             diff = node_states[j].previous - node_states[j].current;
             if (diff != diff) {
@@ -3605,6 +3607,7 @@ static unsigned int page_rank_iterations_acc(unsigned int num_vertices, unsigned
 
             delta = 0.0f;
 #pragma acc kernels
+#pragma acc loop reduction(+:delta)
             for (j = 0; j < num_edges; ++j) {
                 diff = curr_messages[j].previous - curr_messages[j].current;
                 if (diff != diff) {
@@ -3706,7 +3709,7 @@ static unsigned int viterbi_iterations_acc(unsigned int num_vertices, unsigned i
 
             delta = 0.0f;
 #pragma acc kernels
-#pragma acc for reduction(+:delta)
+#pragma acc loop reduction(+:delta)
             for (j = 0; j < num_edges; ++j) {
                 diff = curr_messages[j].previous - curr_messages[j].current;
                 if (diff != diff) {
@@ -3728,7 +3731,7 @@ static unsigned int viterbi_iterations_acc(unsigned int num_vertices, unsigned i
 #pragma acc data present_or_copy(node_states[0:(num_vertices)]) create(sum, num_variables)
     {
         #pragma acc kernels
-#pragma acc for independent
+#pragma acc loop independent
         for(j = 0; j < num_vertices; ++j){
             sum = 0.0;
             num_variables = node_states[j].size;
@@ -3956,7 +3959,7 @@ static unsigned int loopy_propagate_iterations_edges_acc(unsigned int num_vertic
 
 			delta = 0.0f;
 #pragma acc kernels
-#pragma acc for reduction(+:delta)
+#pragma acc loop reduction(+:delta)
 			for (j = 0; j < num_edges; ++j) {
                 diff = curr_messages[j].previous - curr_messages[j].current;
                 if (diff != diff) {
@@ -4046,7 +4049,7 @@ static unsigned int page_rank_iterations_edges_acc(unsigned int num_vertices, un
 
             delta = 0.0f;
 #pragma acc kernels
-#pragma acc for reduction(+:delta)
+#pragma acc loop reduction(+:delta)
             for (j = 0; j < num_edges; ++j) {
                 diff = curr_messages[j].previous - curr_messages[j].current;
                 if (diff != diff) {
@@ -4135,7 +4138,7 @@ static unsigned int viterbi_iterations_edges_acc(unsigned int num_vertices, unsi
 
             delta = 0.0f;
 #pragma acc kernels
-#pragma acc for reduction(+:delta)
+#pragma acc loop reduction(+:delta)
             for (j = 0; j < num_edges; ++j) {
                 diff = curr_messages[j].previous - curr_messages[j].current;
                 if (diff != diff) {
@@ -4157,7 +4160,7 @@ static unsigned int viterbi_iterations_edges_acc(unsigned int num_vertices, unsi
     #pragma acc data present_or_copy(node_states[0:(num_vertices)])
     {
         #pragma acc kernels
-#pragma acc for independent reduction(+:sum)
+#pragma acc loop independent reduction(+:sum)
         for(j = 0; j < num_vertices; ++j){
             sum = 0.0;
             num_variables = node_states[j].size;
@@ -4442,7 +4445,7 @@ void init_work_queue_edges(Graph_t graph) {
 void memcopy(unsigned int *restrict dest, unsigned int *restrict src, unsigned int size)
 {
     int i;
-#pragma acc for
+#pragma acc loop
 #pragma omp parallel for default(none) shared(dest, src, size) private(i)
     for(i = 0; i < size; ++i) {
         dest[i] = src[i];
@@ -4455,7 +4458,7 @@ void update_work_queue_nodes_replicated_acc(unsigned int num_vertices,
                                  struct belief *nodes_states, float convergence) {
     unsigned int current_index, i;
     current_index = 0;
-#pragma acc for seq
+#pragma acc loop seq
     for(i = 0; i < *num_work_queue_nodes && i < num_vertices; ++i) {
         if(fabs(nodes_states[work_queue_nodes[i]].current - nodes_states[work_queue_nodes[i]].previous) >= convergence) {
 #pragma acc atomic capture
@@ -4470,7 +4473,6 @@ void update_work_queue_nodes_replicated_acc(unsigned int num_vertices,
     *num_work_queue_nodes = current_index;
 }
 
-#pragma acc routine
 void update_work_queue_nodes(Graph_t graph, float convergence) {
 	unsigned int current_index, i, num_work_items_nodes, num_vertices;
 	unsigned int *work_queue_nodes, *work_queue_scratch;
@@ -4484,7 +4486,7 @@ void update_work_queue_nodes(Graph_t graph, float convergence) {
     num_vertices = graph->current_num_vertices;
 
 #pragma omp parallel for default(none) shared(current_index, num_work_items_nodes, work_queue_scratch, convergence, work_queue_nodes, node_states) private(i)
-#pragma acc parallel private(i) copyin(work_queue_nodes[0:num_vertices], node_states[0:num_vertices]) copyout(work_queue_scratch[0:num_vertices])
+#pragma acc loop seq
     for(i = 0; i < num_work_items_nodes; ++i) {
 		if(fabs(node_states[work_queue_nodes[i]].current - node_states[work_queue_nodes[i]].previous) >= convergence) {
 			#pragma omp critical
@@ -4499,7 +4501,6 @@ void update_work_queue_nodes(Graph_t graph, float convergence) {
 	graph->num_work_items_nodes = current_index;
 }
 
-#pragma acc routine
 void update_work_queue_edges(Graph_t graph, float convergence) {
 	unsigned int current_index, i, num_work_items_edges, num_edges;
 	unsigned int *work_queue_edges, *work_queue_scratch;
@@ -4513,7 +4514,7 @@ void update_work_queue_edges(Graph_t graph, float convergence) {
     num_edges = graph->current_num_edges;
 
 #pragma omp parallel for default(none) shared(current_index, num_work_items_edges, work_queue_scratch, convergence, work_queue_edges, edge_states) private(i)
-#pragma acc parallel private(i) copyin(work_queue_edges[0:num_edges], edge_states[0:num_edges]) copyout(work_queue_scratch[0:num_edges])
+#pragma acc loop seq
     for(i = 0; i < num_work_items_edges; ++i) {
 		if(fabs(edge_states[work_queue_edges[i]].current - edge_states[work_queue_edges[i]].previous) >= convergence) {
 #pragma omp critical
