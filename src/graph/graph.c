@@ -65,12 +65,6 @@ create_graph(unsigned int num_vertices, unsigned int num_edges)
 	g->work_queue_nodes = NULL;
 	g->work_queue_scratch = NULL;
 
-	g->src_graph_to_sub_graph_nodes = NULL;
-	g->sub_graph_to_src_graph_nodes = NULL;
-
-	g->src_graph_to_sub_graph_edges = NULL;
-	g->sub_graph_to_src_graph_edges = NULL;
-
     g->node_hash_table_created = 0;
     g->edge_tables_created = 0;
 
@@ -544,6 +538,7 @@ void partition_graph(Graph_t graph, unsigned int num_partitions_int) {
 
     free(undirected_nodes_list);
     free(undirected_edges_list);
+
 }
 
 void partition_and_reorder_nodes(Graph_t graph, unsigned int num_partitions_int, idx_t *perm, idx_t *inv_perm) {
@@ -636,219 +631,11 @@ void partition_and_reorder_nodes(Graph_t graph, unsigned int num_partitions_int,
 
     free(undirected_nodes_list);
     free(undirected_edges_list);
+
 }
 
-Graph_t * generate_subgraphs(Graph_t src_graph) {
-    Graph_t *sub_graphs;
-    unsigned int i, j, src_index, dest_index, current_num_nodes, current_num_edges, current_queue_index,
-            node_index, start_index, end_index, edge_index, translated_edge_index, ctr;
-    idx_t partition, partition_src, partition_dest;
-    unsigned int *num_nodes, *num_edges;
 
-    // require that the graph has already been partitioned
-    assert(src_graph->partitioned_nodes != NULL);
 
-    const unsigned int invalid_node_index = src_graph->current_num_vertices;
-
-    // count number of edges/nodes per sub_graph
-    num_nodes = (unsigned int *)calloc(sizeof(unsigned int), src_graph->num_partitions);
-    assert(num_nodes);
-    num_edges = (unsigned int *)calloc(sizeof(unsigned int), src_graph->num_partitions);
-    assert(num_edges);
-
-    for(i = 0; i < src_graph->current_num_vertices; ++i) {
-        partition = src_graph->partitioned_nodes[i];
-        num_nodes[partition]++;
-    }
-
-    for(i = 0; i < src_graph->current_num_edges; ++i) {
-        src_index = src_graph->edges_src_index[i];
-        dest_index = src_graph->edges_dest_index[i];
-
-        partition_src = src_graph->partitioned_nodes[src_index];
-        partition_dest = src_graph->partitioned_nodes[dest_index];
-
-        if(partition_src == partition_dest) {
-            num_edges[partition_dest]++;
-        }
-        else {
-            num_edges[src_graph->num_partitions]++;
-        }
-    }
-
-    src_graph->src_graph_to_sub_graph_nodes = (unsigned int *)malloc(sizeof(unsigned int) * src_graph->current_num_vertices);
-    assert(src_graph->src_graph_to_sub_graph_nodes);
-
-    src_graph->src_graph_to_sub_graph_edges = (unsigned int *)malloc(sizeof(unsigned int) * src_graph->current_num_edges);
-
-    sub_graphs = (Graph_t *)malloc(sizeof(Graph_t) * src_graph->num_partitions);
-    assert(sub_graphs);
-
-    // create graphs
-    for(i = 0; i < src_graph->num_partitions; ++i) {
-        sub_graphs[i] = create_graph(num_nodes[i], num_edges[i]);
-        sub_graphs[i]->sub_graph_to_src_graph_nodes = (unsigned int *)malloc(sizeof(unsigned int) * num_nodes[i]);
-        assert(sub_graphs[i]->sub_graph_to_src_graph_nodes);
-        sub_graphs[i]->sub_graph_to_src_graph_edges = (unsigned int *)malloc(sizeof(unsigned int) * num_edges[i]);
-        assert(sub_graphs[i]->sub_graph_to_src_graph_edges);
-    }
-    // fill in graphs
-    for(i = 0; i < src_graph->current_num_vertices; ++i) {
-        partition = src_graph->partitioned_nodes[i];
-        current_num_nodes = sub_graphs[partition]->current_num_vertices;
-        assert(current_num_nodes < num_nodes[partition]);
-        if(src_graph->observed_nodes[i] == 1) {
-            graph_add_and_set_node_state(sub_graphs[partition], src_graph->node_states[i].size, &src_graph->node_names[i], &src_graph->node_states[i]);
-        }
-        else {
-            graph_add_node(sub_graphs[partition], src_graph->node_states[i].size, &src_graph->node_names[i]);
-        }
-        src_graph->src_graph_to_sub_graph_nodes[i] = current_num_nodes;
-        sub_graphs[partition]->sub_graph_to_src_graph_nodes[current_num_nodes] = i;
-    }
-
-    for(i = 0; i < src_graph->current_num_edges; ++i) {
-        src_index = src_graph->edges_src_index[i];
-        dest_index = src_graph->edges_dest_index[i];
-
-        partition_src = src_graph->partitioned_nodes[src_index];
-        partition_dest = src_graph->partitioned_nodes[dest_index];
-        if(partition_src != partition_dest) {
-            src_graph->work_queue_scratch[src_index] = invalid_node_index;
-            src_graph->work_queue_scratch[dest_index] = invalid_node_index;
-            continue;
-        }
-        partition = partition_src;
-        current_num_edges = sub_graphs[partition]->current_num_edges;
-        assert(current_num_edges < num_edges[partition]);
-
-        graph_add_edge(sub_graphs[partition], src_graph->src_graph_to_sub_graph_nodes[src_index],
-                       src_graph->src_graph_to_sub_graph_nodes[dest_index],
-                       src_graph->edges_joint_probabilities[i].dim_x, src_graph->edges_joint_probabilities[i].dim_x,
-                       &src_graph->edges_joint_probabilities[i]);
-        src_graph->src_graph_to_sub_graph_edges[i] = current_num_edges;
-        sub_graphs[partition]->sub_graph_to_src_graph_edges[current_num_edges] = i;
-    }
-
-    current_queue_index = 0;
-    for(i = 0; i < src_graph->current_num_vertices; ++i) {
-        if(src_graph->work_queue_scratch[i] < invalid_node_index) {
-            src_graph->work_queue_nodes[current_queue_index] = i;
-            current_queue_index++;
-        }
-    }
-    src_graph->num_work_items_nodes = current_queue_index;
-
-    // set up src/dest nodes
-    if(src_graph->src_nodes_to_edges_edge_list != NULL && src_graph->dest_nodes_to_edges_node_list != NULL) {
-        for(partition = 0; partition < src_graph->num_partitions; ++partition) {
-            ctr = 0;
-            for(i = 0; i < sub_graphs[partition]->current_num_vertices; ++i) {
-                node_index = sub_graphs[partition]->sub_graph_to_src_graph_nodes[i];
-                start_index = src_graph->src_nodes_to_edges_node_list[node_index];
-                if((node_index + 1) < src_graph->current_num_vertices) {
-                    end_index = src_graph->src_nodes_to_edges_node_list[node_index+1];
-                }
-                else {
-                    end_index = src_graph->current_num_vertices;
-                }
-                sub_graphs[partition]->src_nodes_to_edges_node_list[i] = ctr;
-                for(j = start_index; j < end_index; ++j) {
-                    edge_index = src_graph->src_nodes_to_edges_edge_list[j];
-                    assert(edge_index < src_graph->current_num_edges);
-                    if(src_graph->partitioned_nodes[src_graph->edges_src_index[edge_index]] != partition ||
-                       src_graph->partitioned_nodes[src_graph->edges_dest_index[edge_index]] != partition) {
-                        continue;
-                    }
-                    translated_edge_index = src_graph->src_graph_to_sub_graph_edges[edge_index];
-                    assert(translated_edge_index < sub_graphs[partition]->current_num_edges);
-                    sub_graphs[partition]->src_nodes_to_edges_edge_list[ctr] = translated_edge_index;
-                    ctr++;
-                }
-            }
-
-            ctr = 0;
-            for(i = 0; i < sub_graphs[partition]->current_num_vertices; ++i) {
-                node_index = sub_graphs[partition]->sub_graph_to_src_graph_nodes[i];
-                start_index = src_graph->dest_nodes_to_edges_node_list[node_index];
-                if((node_index + 1) < src_graph->current_num_vertices) {
-                    end_index = src_graph->dest_nodes_to_edges_node_list[node_index+1];
-                }
-                else {
-                    end_index = src_graph->current_num_vertices;
-                }
-                sub_graphs[partition]->dest_nodes_to_edges_node_list[i] = ctr;
-                for(j = start_index; j < end_index; ++j) {
-                    edge_index = src_graph->dest_nodes_to_edges_edge_list[j];
-                    assert(edge_index < src_graph->current_num_edges);
-                    if(src_graph->partitioned_nodes[src_graph->edges_src_index[edge_index]] != partition ||
-                       src_graph->partitioned_nodes[src_graph->edges_dest_index[edge_index]] != partition) {
-                        continue;
-                    }
-                    translated_edge_index = src_graph->src_graph_to_sub_graph_edges[edge_index];
-                    assert(translated_edge_index < sub_graphs[partition]->current_num_edges);
-                    sub_graphs[partition]->dest_nodes_to_edges_edge_list[ctr] = translated_edge_index;
-                    ctr++;
-                }
-            }
-        }
-    }
-
-    free(num_edges);
-    free(num_nodes);
-
-    return sub_graphs;
-}
-
-void update_src_graph_with_subgraphs(Graph_t src_graph, Graph_t *subgraphs) {
-    idx_t partition, partition_src, partition_dest;
-    unsigned int i, j, node_index, edge_index, src_index, dest_index;
-
-    for(i = 0; i < src_graph->current_num_vertices; ++i) {
-        partition = src_graph->partitioned_nodes[i];
-        node_index = src_graph->src_graph_to_sub_graph_nodes[i];
-
-        memcpy(&src_graph->node_states[i], &subgraphs[partition]->node_states[node_index], sizeof(struct belief));
-    }
-
-    for(i = 0; i < src_graph->current_num_edges; ++i) {
-        src_index = src_graph->edges_src_index[i];
-        dest_index = src_graph->edges_dest_index[i];
-
-        partition_src = src_graph->partitioned_nodes[src_index];
-        partition_dest = src_graph->partitioned_nodes[dest_index];
-
-        if(partition_src == partition_dest) {
-            edge_index = src_graph->src_graph_to_sub_graph_edges[i];
-            memcpy(&src_graph->edges_messages[i], &subgraphs[partition_src]->edges_messages[edge_index], sizeof(struct belief));
-        }
-    }
-}
-
-void update_subgraphs_with_src_graph(Graph_t *subgraphs, Graph_t src_graph) {
-    idx_t partition, src_partition, dest_partition;
-    unsigned int i, j, node_index, edge_index, src_index, dest_index;
-
-    for(i = 0; i < src_graph->current_num_vertices; ++i) {
-        partition = src_graph->partitioned_nodes[i];
-        node_index = src_graph->src_graph_to_sub_graph_nodes[i];
-
-        memcpy(&subgraphs[partition]->node_states[node_index], &src_graph->node_states[i], sizeof(struct belief));
-    }
-
-    for(i = 0; i < src_graph->current_num_edges; ++i) {
-        src_index = src_graph->edges_src_index[i];
-        dest_index = src_graph->edges_dest_index[i];
-
-        src_partition = src_graph->partitioned_nodes[src_index];
-        dest_partition = src_graph->partitioned_nodes[dest_index];
-
-        if(src_partition == dest_partition) {
-            edge_index = src_graph->src_graph_to_sub_graph_edges[i];
-            memcpy(&subgraphs[src_partition]->edges_messages[edge_index], &src_graph->edges_messages[i], sizeof(struct belief));
-        }
-    }
-}
 
 void print_partitions(Graph_t graph) {
     unsigned int i;
@@ -864,20 +651,6 @@ void print_partitions(Graph_t graph) {
     }
 }
 
-void check_partitions(Graph_t graph) {
-    unsigned int i, src_index, dest_index;
-    assert(graph->partitioned_nodes != NULL);
-    for(i = 0; i < graph->current_num_edges; ++i) {
-        src_index = graph->edges_src_index[i];
-        dest_index = graph->edges_dest_index[i];
-
-        //assert(graph->partitioned_nodes[src_index] == graph->partitioned_nodes[dest_index]);
-        if (graph->partitioned_nodes[src_index] != graph->partitioned_nodes[dest_index]) {
-            fprintf(stderr, "src_node[%d] belongs to partition: %d but dest_node[%d] belongs to partition: %d for edge: %d", src_index, (int)graph->partitioned_nodes[src_index], dest_index, (int)graph->partitioned_nodes[dest_index], i);
-            exit(-1);
-        }
-    }
-}
 
 /**
  * Frees all allocated memory for the graph and its associated members
@@ -944,29 +717,10 @@ void graph_destroy(Graph_t g) {
 	if(g->partitioned_nodes != NULL) {
 		free(g->partitioned_nodes);
 	}
-    if(g->sub_graph_to_src_graph_nodes != NULL) {
-	    free(g->sub_graph_to_src_graph_nodes);
-	}
-	if(g->src_graph_to_sub_graph_nodes != NULL) {
-	    free(g->src_graph_to_sub_graph_nodes);
-	}
-	if(g->src_graph_to_sub_graph_edges != NULL) {
-	    free(g->src_graph_to_sub_graph_edges);
-	}
-	if(g->sub_graph_to_src_graph_edges != NULL) {
-	    free(g->sub_graph_to_src_graph_edges);
-	}
+
 	free(g);
 }
 
-void sub_graphs_destroy(Graph_t *sub_graphs, unsigned int num_sub_graphs) {
-    unsigned int i;
-
-    for(i = 0; i < num_sub_graphs; ++i) {
-        graph_destroy(sub_graphs[i]);
-    }
-    free(sub_graphs);
-}
 
 /**
  * Propagates beliefs by level for regular BP
@@ -2226,7 +1980,7 @@ void loopy_propagate_one_iteration_partition(Graph_t graph, unsigned int num_par
     num_work_queue_items = graph->num_work_items_nodes;
     nodes_to_partitions = graph->partitioned_nodes;
 
-    #pragma omp parallel for default(none) shared(num_partitions, nodes_to_partitions, node_states, num_vertices, dest_node_to_edges_nodes, dest_node_to_edges_edges, src_node_to_edges_nodes, src_node_to_edges_edges, num_edges, current_edge_messages, joint_probabilities, work_queue_nodes, num_work_queue_items, node_buffer) private(i, num_variables, current_index, current_partition) //schedule(dynamic, 16)
+    #pragma omp parallel for default(none) shared(num_partitions, nodes_to_partitions, node_states, num_vertices, dest_node_to_edges_nodes, dest_node_to_edges_edges, src_node_to_edges_nodes, src_node_to_edges_edges, num_edges, current_edge_messages, joint_probabilities, work_queue_nodes, num_work_queue_items, node_buffer, partitions_to_nodes_partition_list, partitions_to_nodes_node_list) private(i, num_variables, current_index, current_partition) //schedule(dynamic, 16)
     for(current_partition = 0; current_partition < num_partitions; ++current_partition) {
         for (i = 0; i < num_work_queue_items; ++i) {
             current_index = work_queue_nodes[i];
@@ -2269,178 +2023,6 @@ for(current_partition = 0; current_partition < num_partitions; ++current_partiti
     marginalize_loopy_nodes(graph, current_edge_messages, num_vertices);
     update_work_queue_nodes(graph, PRECISION_ITERATION);
 
-}
-
-void loopy_propagate_one_iteration_partitioned_replicated(Graph_t graph, Graph_t *sub_graphs, unsigned int num_partitions) {
-    int i;
-    unsigned int num_variables, num_vertices, num_edges, num_work_queue_items, current_index;
-    unsigned int * dest_node_to_edges_nodes;
-    unsigned int * dest_node_to_edges_edges;
-    unsigned int * src_node_to_edges_nodes;
-    unsigned int * src_node_to_edges_edges;
-    unsigned int * work_queue_nodes;
-    struct belief *node_states, *node_buffer;
-    struct joint_probability *joint_probabilities;
-    struct belief *current_edge_messages;
-    idx_t current_partition;
-    Graph_t sub_graph;
-
-    update_subgraphs_with_src_graph(sub_graphs, graph);
-
-#pragma omp parallel for default(none) shared(sub_graphs, num_partitions) private(i, num_variables, current_index, current_partition, sub_graph, current_edge_messages, node_buffer, num_vertices, dest_node_to_edges_nodes, dest_node_to_edges_edges, num_edges, node_states, work_queue_nodes, num_work_queue_items) //schedule(dynamic, 16)
-    for(current_partition = 0; current_partition < num_partitions; ++current_partition) {
-        sub_graph = sub_graphs[current_partition];
-
-        current_edge_messages = sub_graph->edges_messages;
-
-        node_buffer = sub_graph->node_buffer;
-
-        num_vertices = sub_graph->current_num_vertices;
-        dest_node_to_edges_nodes = sub_graph->dest_nodes_to_edges_node_list;
-        dest_node_to_edges_edges = sub_graph->dest_nodes_to_edges_edge_list;
-        num_edges = sub_graph->current_num_edges;
-        node_states = sub_graph->node_states;
-
-        work_queue_nodes = sub_graph->work_queue_nodes;
-        num_work_queue_items = sub_graph->num_work_items_nodes;
-
-        for (i = 0; i < num_work_queue_items; ++i) {
-            current_index = work_queue_nodes[i];
-
-            num_variables = node_states[current_index].size;
-
-            initialize_message_buffer(&node_buffer[i], node_states, current_index, num_variables);
-
-            //read incoming messages
-            read_incoming_messages(&node_buffer[i], dest_node_to_edges_nodes, dest_node_to_edges_edges,
-                                   current_edge_messages,
-                                   num_edges, num_vertices, num_variables, current_index);
-
-            /*
-                    printf("Message at node\n");
-                    print_node(graph, i);
-                    printf("[\t");
-                    for(j = 0; j < num_variables; ++j){
-                        printf("%.6lf\t", message_buffer[j]);
-                    }
-                    printf("\t]\n");*/
-
-
-        }
-    }
-
-    // run for graph
-
-
-    update_src_graph_with_subgraphs(graph, sub_graphs);
-
-    current_edge_messages = graph->edges_messages;
-
-    node_buffer = graph->node_buffer;
-
-    num_vertices = graph->current_num_vertices;
-    dest_node_to_edges_nodes = graph->dest_nodes_to_edges_node_list;
-    dest_node_to_edges_edges = graph->dest_nodes_to_edges_edge_list;
-    num_edges = graph->current_num_edges;
-    node_states = graph->node_states;
-
-    work_queue_nodes = graph->work_queue_nodes;
-    num_work_queue_items = graph->num_work_items_nodes;
-
-#pragma omp parallel for default(none) shared(current_edge_messages, node_buffer, num_vertices, dest_node_to_edges_nodes, dest_node_to_edges_edges, num_edges, node_states, work_queue_nodes, num_work_queue_items) private(current_index, i, num_variables)
-    for (i = 0; i < num_work_queue_items; ++i) {
-        current_index = work_queue_nodes[i];
-
-        num_variables = node_states[current_index].size;
-
-        initialize_message_buffer(&node_buffer[i], node_states, current_index, num_variables);
-
-        //read incoming messages
-        read_incoming_messages(&node_buffer[i], dest_node_to_edges_nodes, dest_node_to_edges_edges,
-                               current_edge_messages,
-                               num_edges, num_vertices, num_variables, current_index);
-
-        /*
-                printf("Message at node\n");
-                print_node(graph, i);
-                printf("[\t");
-                for(j = 0; j < num_variables; ++j){
-                    printf("%.6lf\t", message_buffer[j]);
-                }
-                printf("\t]\n");*/
-
-
-    }
-
-    // send data
-
-#pragma omp parallel for default(none) shared(sub_graphs, num_partitions) private(i, num_variables, current_index, current_partition, sub_graph, current_edge_messages, node_buffer, num_vertices, src_node_to_edges_nodes, src_node_to_edges_edges, joint_probabilities, num_edges, work_queue_nodes, num_work_queue_items) //schedule(dynamic, 16)
-    for(current_partition = 0; current_partition < num_partitions; ++current_partition) {
-        sub_graph = sub_graphs[current_partition];
-
-        current_edge_messages = sub_graph->edges_messages;
-
-        node_buffer = sub_graph->node_buffer;
-
-        num_vertices = sub_graph->current_num_vertices;
-        src_node_to_edges_nodes = sub_graph->src_nodes_to_edges_node_list;
-        src_node_to_edges_edges = sub_graph->src_nodes_to_edges_edge_list;
-
-        joint_probabilities = sub_graph->edges_joint_probabilities;
-
-        num_edges = sub_graph->current_num_edges;
-
-        work_queue_nodes = sub_graph->work_queue_nodes;
-        num_work_queue_items = sub_graph->num_work_items_nodes;
-
-        for (i = 0; i < num_work_queue_items; ++i) {
-            current_index = work_queue_nodes[i];
-
-            send_message_for_node(src_node_to_edges_nodes, src_node_to_edges_edges, &node_buffer[i], num_edges,
-                                  joint_probabilities, current_edge_messages, num_vertices, current_index);
-            update_work_queue_nodes(sub_graph, PRECISION_ITERATION);
-        }
-
-        /*
-                printf("Message at node\n");
-                print_node(graph, i);
-                printf("[\t");
-                for(j = 0; j < num_variables; ++j){
-                    printf("%.6lf\t", message_buffer[j]);
-                }
-                printf("\t]\n");*/
-
-
-    }
-    update_src_graph_with_subgraphs(graph, sub_graphs);
-
-    current_edge_messages = graph->edges_messages;
-
-    node_buffer = graph->node_buffer;
-
-    num_vertices = graph->current_num_vertices;
-    src_node_to_edges_nodes = graph->src_nodes_to_edges_node_list;
-    src_node_to_edges_edges = graph->src_nodes_to_edges_edge_list;
-
-    joint_probabilities = graph->edges_joint_probabilities;
-
-    num_edges = graph->current_num_edges;
-
-    work_queue_nodes = graph->work_queue_nodes;
-    num_work_queue_items = graph->num_work_items_nodes;
-
-#pragma omp parallel for default(none) shared(num_partitions, node_states, num_vertices, dest_node_to_edges_nodes, dest_node_to_edges_edges, src_node_to_edges_nodes, src_node_to_edges_edges, num_edges, current_edge_messages, joint_probabilities, work_queue_nodes, num_work_queue_items, node_buffer, graph) private(i, num_variables, current_index, current_partition) //schedule(dynamic, 16)
-    for (i = 0; i < num_work_queue_items; ++i) {
-        current_index = work_queue_nodes[i];
-
-        send_message_for_node(src_node_to_edges_nodes, src_node_to_edges_edges, &node_buffer[i], num_edges,
-                              joint_probabilities, current_edge_messages, num_vertices, current_index);
-        update_work_queue_nodes(graph, PRECISION_ITERATION);
-    }
-
-    for(i = 0; i < graph->current_num_vertices; ++i) {
-        marginalize_node(graph, (unsigned int)i);
-    }
 }
 
 
@@ -2765,66 +2347,6 @@ unsigned int loopy_propagate_until_edge(Graph_t graph, float convergence, unsign
     return i;
 }
 
-
-unsigned int loopy_propagate_until_partitioned_replicated(Graph_t graph, float convergence, unsigned int max_iterations, unsigned int num_partitions) {
-    int j;
-    unsigned int i, num_edges;
-    idx_t current_partition;
-    float delta, diff, previous_delta;
-    struct belief *current_edge_messages;
-    Graph_t *sub_graphs;
-
-    previous_delta = -1.0f;
-    delta = 0.0;
-
-    init_work_queue_nodes(graph);
-
-    assert(num_partitions >= 2);
-    assert(graph->partitioned_nodes != NULL);
-
-    sub_graphs = generate_subgraphs(graph);
-    for(i = 0; i < graph->num_partitions; ++i) {
-        init_work_queue_nodes(sub_graphs[i]);
-    }
-
-    for(i = 0; i < max_iterations; ++i){
-
-
-        //printf("Current iteration: %d\n", i+1);
-        loopy_propagate_one_iteration_partitioned_replicated(graph, sub_graphs, num_partitions);
-
-
-        delta = 0.0;
-
-#pragma omp parallel for default(none) shared(sub_graphs, graph)  private(current_partition, j, diff, current_edge_messages, num_edges) reduction(+:delta)
-        for(current_partition = 0; current_partition < graph->num_partitions; ++current_partition) {
-            current_edge_messages = sub_graphs[current_partition]->edges_messages;
-            num_edges = sub_graphs[current_partition]->current_num_edges;
-            for (j = 0; j < num_edges; ++j) {
-                diff = current_edge_messages[j].previous - current_edge_messages[j].current;
-                //printf("Previous Edge[%d][%d]: %f\n", j, k, previous_edge_messages[j].data[k]);
-                //printf("Current Edge[%d][%d]: %f\n", j, k, current_edge_messages[j].data[k]);
-                if (diff != diff) {
-                    diff = 0.0;
-                }
-                delta += fabsf(diff);
-            }
-        }
-
-        if (delta < convergence || fabsf(delta - previous_delta) < convergence) {
-            break;
-        }
-        if (i < max_iterations - 1) {
-            previous_delta = delta;
-        }
-    }
-    if(i == max_iterations){
-        printf("No Convergence: previous: %f vs current: %f\n", previous_delta, delta);
-    }
-    update_src_graph_with_subgraphs(graph, sub_graphs);
-//	assert(i > 0);
-    return i+1;
-}
 
 /**
  * Runs edge-optimized PageRank until convergence or max iterations reached
@@ -3327,95 +2849,6 @@ static unsigned int loopy_propagate_iterations_partitioned_acc(unsigned int num_
     return num_iter;
 }
 
-
-static void update_graph_data_replicated_read(unsigned int num_vertices, unsigned int num_edges,
-                                   unsigned int *dest_node_to_edges_nodes, unsigned int *dest_node_to_edges_edges,
-                                   struct belief *node_states, struct belief *node_buffer,
-                                   struct belief *edges_messages,
-                                   unsigned int *work_queue_nodes, unsigned int num_work_queue_items) {
-    int k;
-    unsigned int current_index, num_variables;
-#pragma acc data copyin(dest_node_to_edges_nodes[0:num_vertices], dest_node_to_edges_edges[0:num_edges], node_states[0:num_vertices], edges_messages[0:num_edges], work_queue_nodes[0:num_vertices]) copy(node_buffer[0:num_vertices])
-    {
-#pragma acc kernels
-        for (k = 0; k < num_vertices && k < num_work_queue_items; ++k) {
-            current_index = work_queue_nodes[k];
-
-
-            num_variables = node_states[current_index].size;
-
-            initialize_message_buffer(&node_buffer[k],
-                                      node_states, current_index,
-                                      num_variables);
-
-            //read incoming messages
-            read_incoming_messages(&node_buffer[k],
-                                   dest_node_to_edges_nodes,
-                                   dest_node_to_edges_edges,
-                                   edges_messages, num_edges,
-                                   num_vertices,
-                                   num_variables, current_index);
-
-
-/*
-		printf("Message at node\n");
-		print_node(graph, i);
-		printf("[\t");
-		for(j = 0; j < num_variables; ++j){
-			printf("%.6lf\t", message_buffer[j]);
-		}
-		printf("\t]\n");*/
-
-
-        }
-    }
-}
-
-static void update_graph_data_replicated_write(unsigned int num_vertices, unsigned int num_edges,
-                                    unsigned int *src_node_to_edges_nodes, unsigned int *src_node_to_edges_edges,
-                                    struct belief *node_buffer, struct belief *node_states,
-                                    struct belief *edges_messages,
-                                    struct joint_probability *edges_joint_probabilities,
-                                    unsigned int *work_queue_nodes, unsigned int *work_queue_scratch, unsigned int *num_work_queue_nodes
-) {
-    int k, current_index;
-
-#pragma acc data copyin(src_node_to_edges_nodes[0:num_vertices], src_node_to_edges_edges[0:num_edges], edges_joint_probabilities[0:num_edges]) copy(work_queue_scratch[0:num_vertices], node_buffer[0:num_vertices], node_states[0:num_vertices], edges_messages[0:num_edges], work_queue_nodes[0:num_vertices], num_work_queue_nodes[0:1])
-    {
-#pragma acc kernels
-        for (k = 0; k < num_vertices && k < *num_work_queue_nodes; ++k) {
-            current_index = work_queue_nodes[k];
-
-            //send belief
-            send_message_for_node(src_node_to_edges_nodes, src_node_to_edges_edges, &node_buffer[k],
-                                  num_edges, edges_joint_probabilities,
-                                  edges_messages, num_vertices, current_index);
-
-
-        }
-        update_work_queue_nodes_replicated_acc(num_vertices, num_work_queue_nodes, work_queue_nodes, work_queue_scratch,
-                                    node_states, PRECISION_ITERATION);
-    }
-}
-
-static void marginalize_nodes_replicated_acc(struct belief *node_states, struct belief *edges_messages,
-                                  unsigned int *dest_nodes_to_edges_node_list, unsigned int *dest_nodes_to_edges_edge_list,
-                                  unsigned int num_vertices, unsigned int num_edges) {
-    int k;
-
-#pragma acc data copyin(dest_nodes_to_edges_node_list[0:num_vertices], dest_nodes_to_edges_edge_list[0:num_edges], edges_messages[0:num_edges]) copy(node_states[0:num_vertices])
-    {
-#pragma acc kernels
-        for (k = 0; k < num_vertices; ++k) {
-
-            marginalize_node_acc(node_states, k, edges_messages,
-                                 dest_nodes_to_edges_node_list, dest_nodes_to_edges_edge_list,
-                                 num_vertices,
-                                 num_edges);
-        }
-    }
-}
-
 static float calc_delta_acc(struct belief *node_states, unsigned int num_vertices) {
     float delta, diff;
     int j;
@@ -3436,96 +2869,6 @@ static float calc_delta_acc(struct belief *node_states, unsigned int num_vertice
 
     return delta;
 }
-
-static unsigned int loopy_propagate_iterations_partitioned_replicated_acc(Graph_t graph, Graph_t *sub_graphs,
-                                                               unsigned int max_iterations,
-                                                               float convergence, unsigned int num_partitions) {
-    int j, k, current_index;
-    unsigned int i, num_variables, num_vertices, num_edges, num_work_queue_items, num_iter;
-    float previous_delta, delta, diff;
-    idx_t current_partition;
-
-    num_iter = 0;
-
-    previous_delta = -1.0f;
-    delta = 0.0f;
-
-    for(i = 0; i < max_iterations; i+= BATCH_SIZE) {
-        update_subgraphs_with_src_graph(sub_graphs, graph);
-        //printf("Current iteration: %d\n", i+1)
-        for (j = 0; j < BATCH_SIZE; ++j) {
-            for (current_partition = 0; current_partition < num_partitions; ++current_partition) {
-                num_vertices = sub_graphs[current_partition]->current_num_vertices;
-                num_edges = sub_graphs[current_partition]->current_num_edges;
-
-                num_work_queue_items = sub_graphs[current_partition]->num_work_items_nodes;
-
-                update_graph_data_replicated_read(sub_graphs[current_partition]->current_num_vertices,
-                                       sub_graphs[current_partition]->current_num_edges,
-                                       sub_graphs[current_partition]->dest_nodes_to_edges_node_list,
-                                       sub_graphs[current_partition]->dest_nodes_to_edges_edge_list,
-                                       sub_graphs[current_partition]->node_states,
-                                       sub_graphs[current_partition]->node_buffer,
-                                       sub_graphs[current_partition]->edges_messages,
-                                       sub_graphs[current_partition]->work_queue_nodes, num_work_queue_items);
-
-            }
-            update_src_graph_with_subgraphs(graph, sub_graphs);
-
-
-            update_graph_data_replicated_read(graph->current_num_vertices, graph->current_num_edges,
-                                   graph->dest_nodes_to_edges_node_list, graph->dest_nodes_to_edges_edge_list,
-                                   graph->node_states, graph->node_buffer, graph->edges_messages,
-                                   graph->work_queue_nodes, graph->num_work_items_nodes);
-
-            // send data
-            for (current_partition = 0; current_partition < num_partitions; ++current_partition) {
-
-                num_edges = sub_graphs[current_partition]->current_num_edges;
-                num_vertices = sub_graphs[current_partition]->current_num_vertices;
-
-                update_graph_data_replicated_write(num_vertices, num_edges,
-                                        sub_graphs[current_partition]->src_nodes_to_edges_node_list,
-                                        sub_graphs[current_partition]->src_nodes_to_edges_edge_list,
-                                        sub_graphs[current_partition]->node_buffer,
-                                        sub_graphs[current_partition]->node_states,
-                                        sub_graphs[current_partition]->edges_messages,
-                                        sub_graphs[current_partition]->edges_joint_probabilities,
-                                        sub_graphs[current_partition]->work_queue_nodes,
-                                        sub_graphs[current_partition]->work_queue_scratch,
-                                        &(sub_graphs[current_partition]->num_work_items_nodes));
-            }
-
-
-            num_vertices = graph->current_num_vertices;
-            update_graph_data_replicated_write(num_vertices, num_edges,
-                                    graph->src_nodes_to_edges_node_list, graph->src_nodes_to_edges_edge_list,
-                                    graph->node_buffer, graph->node_states,
-                                    graph->edges_messages, graph->edges_joint_probabilities,
-                                    graph->work_queue_nodes, graph->work_queue_scratch, &(graph->num_work_items_nodes));
-
-            marginalize_nodes_replicated_acc(graph->node_states, graph->edges_messages, graph->dest_nodes_to_edges_node_list,
-                                  graph->dest_nodes_to_edges_edge_list, graph->current_num_vertices,
-                                  graph->current_num_edges);
-
-        }
-
-        num_vertices = graph->current_num_vertices;
-        delta = calc_delta_acc(graph->node_states, graph->current_num_vertices);
-        if (delta < convergence || fabsf(delta - previous_delta) < convergence) {
-            break;
-        }
-        previous_delta = delta;
-        num_iter += BATCH_SIZE;
-    }
-    if (i == max_iterations) {
-        printf("No Convergence: previous: %f vs current: %f\n", previous_delta, delta);
-    }
-
-
-    return num_iter;
-}
-
 
 
 /**
@@ -3800,34 +3143,6 @@ unsigned int loopy_propagate_until_partitioned_acc(Graph_t graph, float converge
                                           graph->work_queue_nodes, graph->partitioned_nodes,
                                                       graph->num_work_items_nodes,
                                           max_iterations, convergence, num_partitions);
-
-    /*printf("===AFTER====\n");
-    print_nodes(graph);
-    print_edges(graph);*/
-
-    return iter;
-}
-
-unsigned int loopy_propagate_until_partitioned_replicated_acc(Graph_t graph, float convergence, unsigned int max_iterations, unsigned int num_partitions) {
-    unsigned int i, iter;
-    Graph_t  *sub_graphs;
-
-    init_work_queue_nodes(graph);
-
-    assert(num_partitions >= 2);
-    assert(graph->partitioned_nodes != NULL);
-
-    sub_graphs = generate_subgraphs(graph);
-    for(i = 0; i < graph->num_partitions; ++i) {
-        init_work_queue_nodes(sub_graphs[i]);
-    }
-
-    /*printf("===BEFORE====\n");
-    print_nodes(graph);
-    print_edges(graph);
-*/
-    iter = loopy_propagate_iterations_partitioned_replicated_acc(graph, sub_graphs,
-                                                      max_iterations, convergence, num_partitions);
 
     /*printf("===AFTER====\n");
     print_nodes(graph);
@@ -4450,27 +3765,6 @@ void memcopy(unsigned int *restrict dest, unsigned int *restrict src, unsigned i
     for(i = 0; i < size; ++i) {
         dest[i] = src[i];
     }
-}
-
-#pragma acc routine
-void update_work_queue_nodes_replicated_acc(unsigned int num_vertices,
-                                 unsigned int *num_work_queue_nodes, unsigned int *work_queue_nodes, unsigned int *work_queue_scratch,
-                                 struct belief *nodes_states, float convergence) {
-    unsigned int current_index, i;
-    current_index = 0;
-#pragma acc loop seq
-    for(i = 0; i < *num_work_queue_nodes && i < num_vertices; ++i) {
-        if(fabs(nodes_states[work_queue_nodes[i]].current - nodes_states[work_queue_nodes[i]].previous) >= convergence) {
-#pragma acc atomic capture
-            {
-                work_queue_scratch[current_index] = work_queue_nodes[i];
-                current_index++;
-            }
-        }
-    }
-
-    memcopy(work_queue_nodes, work_queue_scratch, num_vertices);
-    *num_work_queue_nodes = current_index;
 }
 
 void update_work_queue_nodes(Graph_t graph, float convergence) {
