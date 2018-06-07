@@ -154,6 +154,8 @@ struct graph {
 	 * Array of nodes left in the work queue
 	 */
 	unsigned int *work_queue_nodes;
+	unsigned int *partition_nodes_to_work_queue_partitions;
+	unsigned int *partition_nodes_to_work_queue_nodes;
 
 	/**
 	 * Array of edges left in the work queue
@@ -252,8 +254,9 @@ void set_up_dest_nodes_to_edges(Graph_t);
 void init_levels_to_nodes(Graph_t);
 void calculate_diameter(Graph_t);
 void prep_as_page_rank(Graph_t);
-void partition_graph(Graph_t, unsigned int);
+void partition_graph_by_nodes(Graph_t, unsigned int);
 void partition_and_reorder_nodes(Graph_t, unsigned int, idx_t*, idx_t*);
+void update_partitions_with_node_work_queue(Graph_t);
 
 void initialize_node(Graph_t, unsigned int, unsigned int);
 void node_set_state(Graph_t, unsigned int, unsigned int, struct belief *);

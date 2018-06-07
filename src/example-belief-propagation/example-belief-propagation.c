@@ -171,7 +171,7 @@ void loopy_belief_propagation() {
 
 	set_up_src_nodes_to_edges(graph);
 	set_up_dest_nodes_to_edges(graph);
-	//partition_graph(graph, 2);
+	//partition_graph_by_nodes(graph, 2);
 	partition_and_reorder_nodes(graph, 2, perm, iperm);
 	print_partitions(graph);
 	for(i = 0; i < NUM_NODES; ++i) {

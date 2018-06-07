@@ -2361,7 +2361,7 @@ void run_test_loopy_belief_propagation_mtx_files_cuda_partitioned(const char * e
         end = clock();
     }
     else {
-        partition_graph(graph, num_partitions);
+        partition_graph_by_nodes(graph, num_partitions);
 
         start = clock();
         init_previous_edge(graph);

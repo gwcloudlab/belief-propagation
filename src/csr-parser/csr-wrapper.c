@@ -131,7 +131,6 @@ void run_test_loopy_belief_propagation_partitioned_mtx_files(const char * edges_
         end = clock();
     }
     else {
-        partition_graph(graph, num_partitions);
         // start loopy BP
         start = clock();
         init_previous_edge(graph);
@@ -247,7 +246,7 @@ void run_test_loopy_belief_propagation_partitioned_mtx_files_acc(const char *edg
         end = clock();
     }
     else {
-        partition_graph(graph, num_partitions);
+        partition_graph_by_nodes(graph, num_partitions);
         // start loopy BP
         start = clock();
         init_previous_edge(graph);
