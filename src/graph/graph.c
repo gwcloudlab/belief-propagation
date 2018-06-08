@@ -2021,7 +2021,7 @@ void loopy_propagate_one_iteration_partition(Graph_t graph, unsigned int num_par
     partitions_to_work_queue_partitions = graph->partition_nodes_to_work_queue_partitions;
     partitions_to_work_queue_nodes = graph->partition_nodes_to_work_queue_nodes;
 
-    #pragma omp parallel for default(none) shared(num_partitions, nodes_to_partitions, node_states, num_vertices, dest_node_to_edges_nodes, dest_node_to_edges_edges, src_node_to_edges_nodes, src_node_to_edges_edges, num_edges, current_edge_messages, joint_probabilities, work_queue_nodes, num_work_queue_items, node_buffer, partitions_to_nodes_partition_list, partitions_to_nodes_node_list, partitions_to_work_queue_partitions, partitions_to_work_queue_nodes) private(i, num_variables, current_index, current_partition, begin_index, end_index) //schedule(dynamic, 16)
+    #pragma omp parallel for default(none) shared(num_partitions, nodes_to_partitions, node_states, num_vertices, dest_node_to_edges_nodes, dest_node_to_edges_edges, src_node_to_edges_nodes, src_node_to_edges_edges, num_edges, current_edge_messages, joint_probabilities, work_queue_nodes, num_work_queue_items, node_buffer, partitions_to_work_queue_partitions, partitions_to_work_queue_nodes) private(i, num_variables, current_index, current_partition, begin_index, end_index) //schedule(dynamic, 16)
     for(current_partition = 0; current_partition < num_partitions; ++current_partition) {
         begin_index = partitions_to_work_queue_partitions[current_partition];
         if((current_partition + 1) == num_partitions) {
@@ -2376,7 +2376,7 @@ unsigned int loopy_propagate_until_edge(Graph_t graph, float convergence, unsign
 
     states = graph->node_states;
 
-#pragma omp parallel for default(none) shared(states, num_nodes) private(sum, num_variables)
+#pragma omp parallel for default(none) shared(states, num_nodes) private(sum, num_variables, j, k)
     for(j = 0; j < num_nodes; ++j){
         sum = 0.0;
         num_variables = states[j].size;
@@ -2662,7 +2662,7 @@ unsigned int viterbi_until(Graph_t graph, float convergence, unsigned int max_it
 
     states = graph->node_states;
 
-    #pragma omp parallel for default(none) shared(states, num_nodes) private(sum, num_variables)
+    #pragma omp parallel for default(none) shared(states, num_nodes) private(sum, num_variables, j, k)
     for(j = 0; j < num_nodes; ++j){
         sum = 0.0;
         num_variables = states[j].size;
@@ -2802,10 +2802,12 @@ static unsigned int loopy_propagate_iterations_partitioned_acc(unsigned int num_
                                                                struct joint_probability *joint_probabilities,
                                                                unsigned int *work_items_nodes, idx_t *partitions,
                                                                unsigned int num_work_items_nodes,
+                                                               unsigned int *partitions_to_nodes_partitions,
+                                                               unsigned int *partitions_to_nodes_nodes,
                                                                unsigned int max_iterations,
                                                                float convergence, unsigned int num_partitions) {
     int j, k, current_index, current_partition;
-    unsigned int i, num_variables, num_iter;
+    unsigned int i, num_variables, num_iter, begin_index, end_index;
     float delta, previous_delta, diff;
     struct belief *curr_messages;
 
@@ -2820,25 +2822,30 @@ static unsigned int loopy_propagate_iterations_partitioned_acc(unsigned int num_
     delta = 0.0f;
 
     for(i = 0; i < max_iterations; i+= BATCH_SIZE) {
-#pragma acc data present_or_copy(node_states[0:(num_vertices)], curr_messages[0:(num_edges)], work_items_nodes[0:(num_work_items_nodes)]) present_or_copyin(dest_node_to_edges_nodes[0:num_vertices], dest_node_to_edges_edges[0:num_edges], src_node_to_edges_nodes[0:num_vertices], src_node_to_edges_edges[0:num_edges], joint_probabilities[0:(num_edges)], partitions[0:num_vertices]) create(belief_buffer)
+#pragma acc data present_or_copy(node_states[0:(num_vertices)], curr_messages[0:(num_edges)], work_items_nodes[0:(num_work_items_nodes)]) present_or_copyin(dest_node_to_edges_nodes[0:num_vertices], dest_node_to_edges_edges[0:num_edges], src_node_to_edges_nodes[0:num_vertices], src_node_to_edges_edges[0:num_edges], joint_probabilities[0:(num_edges)], partitions[0:num_vertices], partitions_to_nodes_partitions[0:num_partitions], partitions_to_nodes_nodes[0:num_vertices]) create(belief_buffer)
         {
             //printf("Current iteration: %d\n", i+1);
             for (j = 0; j < BATCH_SIZE; ++j) {
 #pragma acc kernels
                 for(current_partition = 0; current_partition < num_partitions; ++current_partition) {
-                    for (k = 0; k < num_work_items_nodes; ++k) {
-                        current_index = work_items_nodes[k];
-                        if(partitions[current_index] == current_partition) {
+                    begin_index = partitions_to_nodes_partitions[current_partition];
+                    if((current_partition + 1) == num_partitions) {
+                        end_index = num_work_items_nodes;
+                    } else{
+                        end_index = partitions_to_nodes_partitions[current_partition + 1];
+                    }
+                    for (k = begin_index; k < end_index; ++k) {
+                        current_index = partitions_to_nodes_nodes[k];
 
-                            num_variables = node_states[current_index].size;
+                        num_variables = node_states[current_index].size;
 
-                            initialize_message_buffer(&belief_buffer, node_states, current_index, num_variables);
+                        initialize_message_buffer(&belief_buffer, node_states, current_index, num_variables);
 
-                            //read incoming messages
-                            read_incoming_messages(&belief_buffer, dest_node_to_edges_nodes, dest_node_to_edges_edges,
-                                                   curr_messages, num_edges, num_vertices,
-                                                   num_variables, current_index);
-                        }
+                        //read incoming messages
+                        read_incoming_messages(&belief_buffer, dest_node_to_edges_nodes, dest_node_to_edges_edges,
+                                               curr_messages, num_edges, num_vertices,
+                                               num_variables, current_index);
+
 
 /*
 		printf("Message at node\n");
@@ -2855,23 +2862,39 @@ static unsigned int loopy_propagate_iterations_partitioned_acc(unsigned int num_
 
 #pragma acc kernels
                 for(current_partition = 0; current_partition < num_partitions; ++current_partition) {
-                    for (k = 0; k < num_work_items_nodes; ++k) {
+                    begin_index = partitions_to_nodes_partitions[current_partition];
+                    if((current_partition + 1) == num_partitions) {
+                        end_index = num_work_items_nodes;
+                    }
+                    else {
+                        end_index = partitions_to_nodes_partitions[current_partition + 1];
+                    }
+                    for(k = begin_index; k < end_index; ++k) {
                         current_index = work_items_nodes[k];
-                        if(partitions[current_index] == current_partition) {
-                            //send belief
-                            send_message_for_node(src_node_to_edges_nodes, src_node_to_edges_edges, &belief_buffer,
-                                                  num_edges, joint_probabilities,
-                                                  curr_messages, num_vertices, current_index);
-                        }
+
+                        //send belief
+                        send_message_for_node(src_node_to_edges_nodes, src_node_to_edges_edges, &belief_buffer,
+                                              num_edges, joint_probabilities,
+                                              curr_messages, num_vertices, current_index);
+
                     }
                 }
 
 #pragma acc kernels
-                for (k = 0; k < num_work_items_nodes; ++k) {
-                    current_index = work_items_nodes[k];
+                for(current_partition = 0; current_partition < num_partitions; ++current_partition) {
+                    begin_index = partitions_to_nodes_partitions[current_partition];
+                    if((current_partition + 1) == num_partitions) {
+                        end_index = num_work_items_nodes;
+                    }
+                    else {
+                        end_index = partitions_to_nodes_partitions[current_partition + 1];
+                    }
+                    for(k = begin_index; k < end_index; ++k) {
+                        current_index = work_items_nodes[k];
 
-                    marginalize_node_acc(node_states, current_index, curr_messages, dest_node_to_edges_nodes, dest_node_to_edges_edges, num_vertices,
-                                         num_edges);
+                        marginalize_node_acc(node_states, current_index, curr_messages, dest_node_to_edges_nodes, dest_node_to_edges_edges, num_vertices,
+                                             num_edges);
+                    }
                 }
             }
 
@@ -2962,7 +2985,7 @@ static unsigned int page_rank_iterations_acc(unsigned int num_vertices, unsigned
     delta = 0.0f;
 
     for(i = 0; i < max_iterations; i+= BATCH_SIZE) {
-#pragma acc data present_or_copy(node_states[0:(num_vertices)], curr_messages[0:(num_edges)]) present_or_copyin(dest_node_to_edges_nodes[0:num_vertices], dest_node_to_edges_edges[0:num_edges], src_node_to_edges_nodes[0:num_vertices], src_node_to_edges_edges[0:num_edges], joint_probabilities[0:(num_edges)]) create(belief_buffer)
+#pragma acc data copy(delta) present_or_copy(node_states[0:(num_vertices)], curr_messages[0:(num_edges)]) present_or_copyin(dest_node_to_edges_nodes[0:num_vertices], dest_node_to_edges_edges[0:num_edges], src_node_to_edges_nodes[0:num_vertices], src_node_to_edges_edges[0:num_edges], joint_probabilities[0:(num_edges)]) create(belief_buffer)
         {
             //printf("Current iteration: %d\n", i+1);
             for (j = 0; j < BATCH_SIZE; ++j) {
@@ -3064,7 +3087,7 @@ static unsigned int viterbi_iterations_acc(unsigned int num_vertices, unsigned i
     delta = 0.0f;
 
     for(i = 0; i < max_iterations; i+= BATCH_SIZE) {
-#pragma acc data present_or_copy(node_states[0:(num_vertices)], curr_messages[0:(num_edges)]) present_or_copyin(dest_node_to_edges_nodes[0:num_vertices], dest_node_to_edges_edges[0:num_edges], src_node_to_edges_nodes[0:num_vertices], src_node_to_edges_edges[0:num_edges], joint_probabilities[0:(num_edges)]) create(belief_buffer)
+#pragma acc data copy(delta) present_or_copy(node_states[0:(num_vertices)], curr_messages[0:(num_edges)]) present_or_copyin(dest_node_to_edges_nodes[0:num_vertices], dest_node_to_edges_edges[0:num_edges], src_node_to_edges_nodes[0:num_vertices], src_node_to_edges_edges[0:num_edges], joint_probabilities[0:(num_edges)]) create(belief_buffer)
         {
             //printf("Current iteration: %d\n", i+1);
             for (j = 0; j < BATCH_SIZE; ++j) {
@@ -3181,8 +3204,6 @@ unsigned int loopy_propagate_until_acc(Graph_t graph, float convergence, unsigne
 unsigned int loopy_propagate_until_partitioned_acc(Graph_t graph, float convergence, unsigned int max_iterations, unsigned int num_partitions) {
     unsigned int iter;
 
-    init_work_queue_nodes(graph);
-
     /*printf("===BEFORE====\n");
     print_nodes(graph);
     print_edges(graph);
@@ -3194,6 +3215,7 @@ unsigned int loopy_propagate_until_partitioned_acc(Graph_t graph, float converge
                                           graph->edges_messages, graph->edges_joint_probabilities,
                                           graph->work_queue_nodes, graph->partitioned_nodes,
                                                       graph->num_work_items_nodes,
+                                          graph->partition_nodes_to_work_queue_partitions, graph->partition_nodes_to_work_queue_nodes,
                                           max_iterations, convergence, num_partitions);
 
     /*printf("===AFTER====\n");
@@ -3297,7 +3319,7 @@ static unsigned int loopy_propagate_iterations_edges_acc(unsigned int num_vertic
 	delta = 0.0f;
 
 	for(i = 0; i < max_iterations; i+= BATCH_SIZE) {
-#pragma acc data present_or_copy(node_states[0:(num_vertices)], curr_messages[0:(num_edges)]) present_or_copyin(dest_node_to_edges_node_list[0:num_vertices], dest_node_to_edges_edge_list[0:num_edges], joint_probabilities[0:(num_edges)], edges_src_index[0:num_edges], edges_dest_index[0:num_edges])
+#pragma acc data copy(delta) present_or_copy(node_states[0:(num_vertices)], curr_messages[0:(num_edges)]) present_or_copyin(dest_node_to_edges_node_list[0:num_vertices], dest_node_to_edges_edge_list[0:num_edges], joint_probabilities[0:(num_edges)], edges_src_index[0:num_edges], edges_dest_index[0:num_edges])
 		{
 			//printf("Current iteration: %d\n", i+1);
 			for (j = 0; j < BATCH_SIZE; ++j) {
