@@ -1323,6 +1323,7 @@ unsigned int loopy_propagate_until_cuda_partitioned(Graph_t graph, float converg
     host_delta = 0.0;
 
     init_work_queue_nodes(graph);
+    partition_graph_by_nodes(graph, num_partitions);
 
     struct cudaChannelFormatDesc channel_desc_unsigned_int = cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindUnsigned);
 
@@ -1334,6 +1335,7 @@ unsigned int loopy_propagate_until_cuda_partitioned(Graph_t graph, float converg
     unsigned int * work_queue_scratch;
     unsigned int * num_work_items;
     idx_t * nodes_to_partitions;
+    int retval;
 
     pthread_t threads[num_partitions];
     cudaStream_t streams[num_partitions];
@@ -1427,26 +1429,30 @@ unsigned int loopy_propagate_until_cuda_partitioned(Graph_t graph, float converg
 
             // read data
             for(k = 0; k < num_partitions; ++k) {
-                if (pthread_create(&threads[i], NULL, launch_read_kernel, &thread_data[i])) {
-                    fprintf(stderr, "Error creating read thread %d\n", k);
+                retval = pthread_create(&threads[i], NULL, launch_read_kernel, &thread_data[i]);
+                if (retval && retval != ESRCH) {
+                    fprintf(stderr, "Error creating read thread %d: %d\n", k, retval);
                     return 1;
                 }
             }
             for(k = 0; k < num_partitions; ++k) {
-                if (pthread_join(threads[i], NULL)) {
-                    fprintf(stderr, "Error joining read thread %d\n", k);
+                retval = pthread_join(threads[i], NULL);
+                if (retval && retval != ESRCH) {
+                    fprintf(stderr, "Error joining read thread %d: %d\n", k, retval);
                 }
             }
 
             // send data
             for(k = 0; k < num_partitions; ++k) {
-                if (pthread_create(&threads[i], NULL, launch_send_kernel, &thread_data[i])) {
-                    fprintf(stderr, "Error creating send thread %d\n", k);
+                retval = pthread_create(&threads[i], NULL, launch_send_kernel, &thread_data[i]);
+                if (retval && retval != ESRCH) {
+                    fprintf(stderr, "Error creating send thread %d: %d\n", k, retval);
                 }
             }
             for(k = 0; k < num_partitions; ++k) {
-                if (pthread_join(threads[i], NULL)) {
-                    fprintf(stderr, "Error joining send thread %d\n", k);
+                retval = pthread_join(threads[i], NULL);
+                if (retval && retval != ESRCH) {
+                    fprintf(stderr, "Error joining send thread %d: %d\n", k, retval);
                 }
             }
 
@@ -2361,7 +2367,6 @@ void run_test_loopy_belief_propagation_mtx_files_cuda_partitioned(const char * e
         end = clock();
     }
     else {
-        partition_graph_by_nodes(graph, num_partitions);
 
         start = clock();
         init_previous_edge(graph);
