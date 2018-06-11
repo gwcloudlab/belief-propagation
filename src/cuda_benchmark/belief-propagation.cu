@@ -85,6 +85,28 @@ void init_message_buffer_cuda(struct belief *buffer, struct belief *node_states,
 
 }
 
+__global__
+void init_and_read_message_buffer_cuda_streaming(
+        unsigned int begin_index, unsigned int end_index,
+        struct belief *buffers, struct belief *node_states,
+                                                 struct belief * previous_messages,
+                                                 unsigned int * dest_nodes_to_edges_nodes,
+                                                 unsigned int * dest_nodes_to_edges_edges,
+                                                 unsigned int current_num_edges,
+                                                 unsigned int num_vertices,
+        unsigned int *work_queue, unsigned int *num_work_queue_items) {
+    unsigned int i, node_index, num_variables;
+
+    for(i = blockIdx.x * blockDim.x + threadIdx.x + begin_index; i < end_index && i < *num_work_queue_items; i += blockDim.x * gridDim.x){
+        node_index = work_queue[i];
+
+        num_variables = node_states[node_index].size;
+        init_message_buffer_cuda(&(buffers[node_index]), node_states, num_variables, node_index);
+        read_incoming_messages_cuda(&(buffers[node_index]), previous_messages, dest_nodes_to_edges_nodes,
+                                    dest_nodes_to_edges_edges, current_num_edges, num_vertices, num_variables, node_index);
+    }
+}
+
 /**
  * Combine the dest node with the incoming belief
  * @param dest The belief to update
@@ -245,6 +267,25 @@ void send_message_for_node_cuda(struct belief *message_buffer, unsigned int curr
     }
 }
 
+__global__
+void send_message_for_node_cuda_streaming(unsigned int begin_index, unsigned int end_index,
+                                          unsigned int *work_queue, unsigned int *num_work_queue_items,
+                                          struct belief *message_buffers, unsigned int current_num_edges,
+                                          struct joint_probability *joint_probabilities,
+                                          struct belief *current_edge_messages,
+                                          unsigned int * src_nodes_to_edges_nodes, unsigned int * src_nodes_to_edges_edges,
+                                          unsigned int num_vertices) {
+    unsigned int i, node_index;
+
+    for(i = blockIdx.x * blockDim.x + threadIdx.x + begin_index; i < end_index && i < *num_work_queue_items; i += blockDim.x * gridDim.x) {
+        node_index = work_queue[i];
+
+        send_message_for_node_cuda(&(message_buffers[node_index]), current_num_edges, joint_probabilities,
+                                   current_edge_messages, src_nodes_to_edges_nodes, src_nodes_to_edges_edges,
+        num_vertices, node_index);
+    }
+}
+
 /**
  * Marginalizes and normalizes the belief probabilities for a given node
  * @param node_num_vars The number of variables for a given node
@@ -300,6 +341,23 @@ void marginalize_node(struct belief *node_states, unsigned int idx,
     }
     for(i = 0; i < num_variables; ++i){
         node_states[idx].data[i] /= sum;
+    }
+}
+
+__global__
+void marginalize_node_cuda_streaming( unsigned int begin_index, unsigned int end_index,
+                                unsigned int *work_queue, unsigned int *num_work_queue_items,
+                                struct belief *node_states,
+                                struct belief *current_edges_messages,
+                                unsigned int * dest_nodes_to_edges_nodes, unsigned int * dest_nodes_to_edges_edges,
+                                unsigned int num_vertices, unsigned int num_edges) {
+    unsigned int i, node_index;
+
+    for(i = blockIdx.x * blockDim.x + threadIdx.x + begin_index; i < end_index && i < *num_work_queue_items; i += blockDim.x * gridDim.x) {
+        node_index = work_queue[i];
+
+        marginalize_node(node_states, node_index, current_edges_messages, dest_nodes_to_edges_nodes,
+                         dest_nodes_to_edges_edges, num_vertices, num_edges);
     }
 }
 
@@ -1185,6 +1243,282 @@ unsigned int loopy_propagate_until_cuda(Graph_t graph, float convergence, unsign
     return num_iter;
 }
 
+static void *launch_init_read_buffer_node_kernels(void *data) {
+    struct node_stream_data *stream_data;
+
+    stream_data = (struct node_stream_data *)data;
+
+    int blockCount = stream_data->streamNodeCount;
+
+    init_and_read_message_buffer_cuda_streaming<<<blockCount, BLOCK_SIZE_STREAMING>>>(stream_data->begin_index,
+                                                stream_data->end_index, stream_data->buffers, stream_data->node_messages,
+    stream_data->current_edge_messages, stream_data->dest_nodes_to_edges_nodes, stream_data->dest_nodes_to_edges_edges,
+            stream_data->num_edges, stream_data->num_vertices, stream_data->work_queue_nodes, stream_data->num_work_items);
+
+    cudaStreamSynchronize(0);
+
+    return NULL;
+}
+
+static void *launch_write_node_kernels(void *data) {
+    struct node_stream_data *stream_data;
+
+    stream_data = (struct node_stream_data *)data;
+
+    int blockCount = stream_data->streamNodeCount;
+
+    send_message_for_node_cuda_streaming<<<blockCount, BLOCK_SIZE_STREAMING>>>(stream_data->begin_index, stream_data->end_index,
+            stream_data->work_queue_nodes, stream_data->num_work_items, stream_data->buffers, stream_data->num_edges,
+    stream_data->joint_probabilities, stream_data->current_edge_messages, stream_data->src_nodes_to_edges_nodes,
+            stream_data->src_nodes_to_edges_edges, stream_data->num_vertices);
+
+    cudaStreamSynchronize(0);
+
+    return NULL;
+}
+
+static void *launch_marginalize_node_kernels(void *data) {
+    struct node_stream_data *stream_data;
+
+    stream_data = (struct node_stream_data *)data;
+
+    int blockCount = stream_data->streamNodeCount;
+
+    marginalize_node_cuda_streaming<<<blockCount, BLOCK_SIZE_STREAMING>>>(stream_data->begin_index, stream_data->end_index,
+    stream_data->work_queue_nodes, stream_data->num_work_items, stream_data->node_messages,
+            stream_data->current_edge_messages, stream_data->dest_nodes_to_edges_nodes,
+            stream_data->dest_nodes_to_edges_edges, stream_data->num_vertices, stream_data->num_edges);
+
+    cudaStreamSynchronize(0);
+
+    return NULL;
+}
+
+/**
+ * Runs loopy BP on the GPU
+ * @param graph The graph to run
+ * @param convergence The convergence threshold; when the delta falls below this threshold, execution will halt
+ * @param max_iterations The number of executions to stop at
+ * @return The actual number of iterations ran
+ */
+unsigned int loopy_propagate_until_cuda_streaming(Graph_t graph, float convergence, unsigned int max_iterations){
+    unsigned int i, j, k, num_iter, num_vertices, num_edges;
+    float * delta;
+    float * delta_array;
+    float previous_delta, host_delta;
+    char is_pow_2;
+
+    struct joint_probability * edges_joint_probabilities;
+
+    struct belief * current_messages;
+
+    struct belief * node_states;
+
+    struct belief * read_buffer;
+    int retval;
+
+    host_delta = 0.0;
+
+    init_work_queue_nodes(graph);
+
+    struct cudaChannelFormatDesc channel_desc_unsigned_int = cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindUnsigned);
+
+    pthread_t threads[NUM_THREAD_PARTITIONS];
+    cudaStream_t streams[NUM_THREAD_PARTITIONS];
+    struct node_stream_data thread_data[NUM_THREAD_PARTITIONS];
+    memset(thread_data, 0, sizeof(struct node_stream_data) * NUM_THREAD_PARTITIONS);
+
+    unsigned int * dest_node_to_edges_nodes;
+    unsigned int * dest_node_to_edges_edges;
+    unsigned int * src_node_to_edges_nodes;
+    unsigned int * src_node_to_edges_edges;
+    unsigned int * work_queue_nodes;
+    unsigned int * work_queue_scratch;
+    unsigned int * num_work_items;
+
+    num_vertices = graph->current_num_vertices;
+    num_edges = graph->current_num_edges;
+
+    /*printf("Before=====");
+    print_edges(graph);
+    print_nodes(graph);*/
+
+
+    is_pow_2 = num_vertices % 2 == 0;
+
+    // allocate data
+    CUDA_CHECK_RETURN(cudaMalloc((void **)&dest_node_to_edges_nodes, sizeof(unsigned int) * graph->current_num_vertices));
+    CUDA_CHECK_RETURN(cudaMalloc((void **)&dest_node_to_edges_edges, sizeof(unsigned int) * graph->current_num_edges));
+    CUDA_CHECK_RETURN(cudaMalloc((void **)&src_node_to_edges_nodes, sizeof(unsigned int) * graph->current_num_vertices));
+    CUDA_CHECK_RETURN(cudaMalloc((void **)&src_node_to_edges_edges, sizeof(unsigned int) * graph->current_num_edges));
+
+    CUDA_CHECK_RETURN(cudaMalloc((void **)&edges_joint_probabilities, sizeof(struct joint_probability) * graph->current_num_edges));
+
+    CUDA_CHECK_RETURN(cudaMalloc((void **)&current_messages, sizeof(struct belief) * graph->current_num_edges));
+    CUDA_CHECK_RETURN(cudaMalloc((void **)&node_states, sizeof(struct belief) * graph->current_num_vertices));
+
+    CUDA_CHECK_RETURN(cudaMalloc((void **)&work_queue_nodes, sizeof(unsigned int) * graph->current_num_vertices));
+    CUDA_CHECK_RETURN(cudaMalloc((void **)&work_queue_scratch, sizeof(unsigned int) * graph->current_num_vertices));
+    CUDA_CHECK_RETURN(cudaMalloc((void **)&num_work_items, sizeof(unsigned int)));
+
+    CUDA_CHECK_RETURN(cudaMalloc((void **)&delta, sizeof(float)));
+    CUDA_CHECK_RETURN(cudaMalloc((void **)&delta_array, sizeof(float) * num_edges));
+
+    CUDA_CHECK_RETURN(cudaMalloc((void **)&read_buffer, sizeof(struct belief) * graph->current_num_vertices));
+
+    // copy data
+    CUDA_CHECK_RETURN(cudaMemcpy(edges_joint_probabilities, graph->edges_joint_probabilities, sizeof(struct joint_probability) * graph->current_num_edges, cudaMemcpyHostToDevice ));
+
+    CUDA_CHECK_RETURN(cudaMemcpy(current_messages, graph->edges_messages, sizeof(struct belief) * graph->current_num_edges, cudaMemcpyHostToDevice));
+
+    CUDA_CHECK_RETURN(cudaMemcpy(node_states, graph->node_states, sizeof(struct belief) *  graph->current_num_vertices, cudaMemcpyHostToDevice));
+
+    CUDA_CHECK_RETURN(cudaMemcpy(dest_node_to_edges_nodes, graph->dest_nodes_to_edges_node_list, sizeof(unsigned int) * num_vertices, cudaMemcpyHostToDevice));
+    CUDA_CHECK_RETURN(cudaMemcpy(dest_node_to_edges_edges, graph->dest_nodes_to_edges_edge_list, sizeof(unsigned int) * num_edges, cudaMemcpyHostToDevice));
+    CUDA_CHECK_RETURN(cudaMemcpy(src_node_to_edges_nodes, graph->src_nodes_to_edges_node_list, sizeof(unsigned int) * num_vertices, cudaMemcpyHostToDevice));
+    CUDA_CHECK_RETURN(cudaMemcpy(src_node_to_edges_edges, graph->src_nodes_to_edges_edge_list, sizeof(unsigned int) * num_edges, cudaMemcpyHostToDevice));
+
+    CUDA_CHECK_RETURN(cudaMemcpy(work_queue_nodes, graph->work_queue_nodes, sizeof(unsigned int) * num_vertices, cudaMemcpyHostToDevice));
+    CUDA_CHECK_RETURN(cudaMemcpy(num_work_items, &graph->num_work_items_nodes, sizeof(unsigned int), cudaMemcpyHostToDevice));
+
+    const int edgeCount = (num_edges + BLOCK_SIZE_STREAMING - 1)/ BLOCK_SIZE_STREAMING;
+    //const int nodeCount = (num_vertices + BLOCK_SIZE_STREAMING - 1) / BLOCK_SIZE_STREAMING;''
+    const int partitionSize = (num_vertices + NUM_THREAD_PARTITIONS - 1) / NUM_THREAD_PARTITIONS;
+    const int partitionCount = (partitionSize + BLOCK_SIZE_STREAMING - 1) / BLOCK_SIZE_STREAMING;
+
+    num_iter = 0;
+
+    dim3 dimReduceBlock(BLOCK_SIZE_STREAMING, 1, 1);
+    dim3 dimReduceGrid(edgeCount, 1, 1);
+    int reduceSmemSize = (BLOCK_SIZE_STREAMING <= 32) ? 2 * BLOCK_SIZE_STREAMING * sizeof(float) : BLOCK_SIZE_STREAMING * sizeof(float);
+
+    unsigned int curr_index = 0;
+    //prepare streams and data
+    for(i = 0; i < NUM_THREAD_PARTITIONS; ++i) {
+        cudaStreamCreate(&streams[i]);
+
+        thread_data[i].begin_index = curr_index;
+        thread_data[i].end_index = curr_index + partitionSize;
+        if(thread_data[i].end_index > num_vertices) {
+            thread_data[i].end_index = num_vertices;
+        }
+        curr_index += partitionSize;
+        thread_data[i].streamNodeCount = partitionCount;
+
+        thread_data[i].buffers = read_buffer;
+        thread_data[i].num_vertices = num_vertices;
+        thread_data[i].num_edges = num_edges;
+        thread_data[i].node_messages = node_states;
+        thread_data[i].current_edge_messages = current_messages;
+        thread_data[i].work_queue_nodes = work_queue_nodes;
+        thread_data[i].num_work_items = num_work_items;
+        thread_data[i].joint_probabilities = edges_joint_probabilities;
+        thread_data[i].work_queue_scratch = work_queue_scratch;
+        thread_data[i].src_nodes_to_edges_nodes = src_node_to_edges_nodes;
+        thread_data[i].src_nodes_to_edges_edges = src_node_to_edges_edges;
+        thread_data[i].dest_nodes_to_edges_nodes = dest_node_to_edges_nodes;
+        thread_data[i].dest_nodes_to_edges_edges = dest_node_to_edges_edges;
+    }
+
+    for(i = 0; i < max_iterations; i+= BATCH_SIZE){
+        for(j = 0; j < BATCH_SIZE; ++j) {
+
+            //init + read data
+            for(k = 0; k < NUM_THREAD_PARTITIONS; ++k) {
+                retval = pthread_create(&threads[i], NULL, launch_init_read_buffer_node_kernels, &(thread_data[k]));
+                if(retval && retval != ESRCH) {
+                    fprintf(stderr, "Error creating read thread %d: %d\n", k, retval);
+                    return 1;
+                }
+            }
+
+            for(k = 0; k < NUM_THREAD_PARTITIONS; ++k) {
+                retval = pthread_join(threads[i], NULL);
+                if(retval && retval != ESRCH) {
+                    fprintf(stderr, "Error joining read thread %d: %d\n", k, retval);
+                    return 1;
+                }
+            }
+
+            //send data
+            for(k = 0; k < NUM_THREAD_PARTITIONS; ++k) {
+                retval = pthread_create(&threads[i], NULL, launch_write_node_kernels, &(thread_data[k]));
+                if(retval && retval != ESRCH) {
+                    fprintf(stderr, "Error creating send thread %d: %d\n", k, retval);
+                    return 1;
+                }
+            }
+            for(k = 0; k < NUM_THREAD_PARTITIONS; ++k) {
+                retval = pthread_join(threads[i], NULL);
+                if(retval && retval != ESRCH) {
+                    fprintf(stderr, "Error joining write thread %d: %d\n", k, retval);
+                    return 1;
+                }
+            }
+
+            //marginalize
+            for(k = 0; k < NUM_THREAD_PARTITIONS; ++k) {
+                retval = pthread_create(&threads[i], NULL, launch_marginalize_node_kernels, &(thread_data[k]));
+                if(retval && retval != ESRCH) {
+                    fprintf(stderr, "Error creating marginalize thread %d: %d\n", k, retval);
+                    return 1;
+                }
+            }
+            for(k = 0; k < NUM_THREAD_PARTITIONS; ++k) {
+                retval = pthread_join(threads[i], NULL);
+                if(retval && retval != ESRCH) {
+                    fprintf(stderr, "Error joining marginalize thread %d: %d\n", k, retval);
+                    return 1;
+                }
+            }
+
+            test_error();
+            num_iter++;
+        }
+        calculate_delta_6<<<dimReduceGrid, dimReduceBlock, reduceSmemSize>>>(current_messages, delta, delta_array, num_edges, is_pow_2, WARP_SIZE);
+        //calculate_delta<<<dimReduceGrid, dimReduceBlock, reduceSmemSize>>>(current_messages, delta, delta_array, num_edges);
+        //calculate_delta_simple<<<dimReduceGrid, dimReduceBlock, reduceSmemSize>>>(current_messages, delta, delta_array, num_edges);
+        test_error();
+        CUDA_CHECK_RETURN(cudaMemcpy(&host_delta, delta, sizeof(float), cudaMemcpyDeviceToHost));
+        //printf("Current delta: %f\n", host_delta);
+
+        if(host_delta < convergence || fabs(host_delta - previous_delta) < convergence){
+            break;
+        }
+        previous_delta = host_delta;
+    }
+
+    // copy data back
+    CUDA_CHECK_RETURN(cudaMemcpy(graph->node_states, node_states, sizeof(struct belief) * num_vertices, cudaMemcpyDeviceToHost));
+    CUDA_CHECK_RETURN(cudaMemcpy(graph->edges_messages, current_messages, sizeof(struct belief) * num_edges, cudaMemcpyDeviceToHost));
+
+    CUDA_CHECK_RETURN(cudaFree(dest_node_to_edges_nodes));
+    CUDA_CHECK_RETURN(cudaFree(dest_node_to_edges_edges));
+    CUDA_CHECK_RETURN(cudaFree(src_node_to_edges_nodes));
+    CUDA_CHECK_RETURN(cudaFree(src_node_to_edges_edges));
+
+    CUDA_CHECK_RETURN(cudaFree(edges_joint_probabilities));
+
+    CUDA_CHECK_RETURN(cudaFree(current_messages));
+
+    CUDA_CHECK_RETURN(cudaFree(node_states));
+
+    CUDA_CHECK_RETURN(cudaFree(delta));
+    CUDA_CHECK_RETURN(cudaFree(delta_array));
+
+    CUDA_CHECK_RETURN(cudaFree(read_buffer));
+
+    CUDA_CHECK_RETURN(cudaFree(work_queue_nodes));
+    CUDA_CHECK_RETURN(cudaFree(work_queue_scratch));
+    CUDA_CHECK_RETURN(cudaFree(num_work_items));
+
+    /*printf("After=====");
+    print_nodes(graph);
+    print_edges(graph);*/
+
+    return num_iter;
+}
+
 
 /**
  * Runs PageRank on the GPU
@@ -2007,6 +2341,35 @@ void run_test_loopy_belief_propagation_mtx_files_cuda(const char * edge_mtx, con
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
     //print_nodes(graph);
     fprintf(out, "%s-%s,loopy,%d,%d,%d,%d,%lf\n", edge_mtx, node_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
+    fflush(out);
+
+    graph_destroy(graph);
+}
+
+void run_test_loopy_belief_propagation_mtx_files_cuda_streaming(const char * edge_mtx, const char *node_mtx, FILE * out){
+    Graph_t graph;
+    clock_t start, end;
+    double time_elapsed;
+    unsigned int num_iterations;
+
+    graph = build_graph_from_mtx(edge_mtx, node_mtx);
+    assert(graph != NULL);
+    //print_nodes(graph);
+    //print_edges(graph);
+
+    set_up_src_nodes_to_edges(graph);
+    set_up_dest_nodes_to_edges(graph);
+    //calculate_diameter(graph);
+
+    start = clock();
+    init_previous_edge(graph);
+
+    num_iterations = loopy_propagate_until_cuda_streaming(graph, PRECISION, NUM_ITERATIONS);
+    end = clock();
+
+    time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
+    //print_nodes(graph);
+    fprintf(out, "%s-%s,loopy-streaming,%d,%d,%d,%d,%lf\n", edge_mtx, node_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
     fflush(out);
 
     graph_destroy(graph);
