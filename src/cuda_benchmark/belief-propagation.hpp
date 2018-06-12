@@ -24,6 +24,7 @@ struct node_stream_data {
     unsigned int begin_index;
     unsigned int end_index;
     int streamNodeCount;
+    cudaStream_t stream;
 
     unsigned int num_vertices;
     unsigned int num_edges;
@@ -132,7 +133,8 @@ __global__
 void loopy_propagate_init_read_buffer(struct belief *, unsigned int, unsigned int);
 
 __global__
-void send_message_for_node_cuda_streaming(unsigned int, unsigned int,
+void __launch_bounds__(BLOCK_SIZE_STREAMING, MIN_BLOCKS_PER_MP)
+send_message_for_node_cuda_streaming(unsigned int, unsigned int,
                                           unsigned int *, unsigned int *,
                                           struct belief *, unsigned int,
                                           struct joint_probability *,

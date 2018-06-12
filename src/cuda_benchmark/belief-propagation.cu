@@ -268,7 +268,9 @@ void send_message_for_node_cuda(struct belief *message_buffer, unsigned int curr
 }
 
 __global__
-void send_message_for_node_cuda_streaming(unsigned int begin_index, unsigned int end_index,
+void
+__launch_bounds__(BLOCK_SIZE_STREAMING, MIN_BLOCKS_PER_MP)
+send_message_for_node_cuda_streaming(unsigned int begin_index, unsigned int end_index,
                                           unsigned int *work_queue, unsigned int *num_work_queue_items,
                                           struct belief *message_buffers, unsigned int current_num_edges,
                                           struct joint_probability *joint_probabilities,
@@ -1250,12 +1252,13 @@ static void *launch_init_read_buffer_node_kernels(void *data) {
 
     int blockCount = stream_data->streamNodeCount;
 
-    init_and_read_message_buffer_cuda_streaming<<<blockCount, BLOCK_SIZE_STREAMING>>>(stream_data->begin_index,
+    init_and_read_message_buffer_cuda_streaming<<<blockCount, BLOCK_SIZE_STREAMING, 0, stream_data->stream>>>(stream_data->begin_index,
                                                 stream_data->end_index, stream_data->buffers, stream_data->node_messages,
     stream_data->current_edge_messages, stream_data->dest_nodes_to_edges_nodes, stream_data->dest_nodes_to_edges_edges,
             stream_data->num_edges, stream_data->num_vertices, stream_data->work_queue_nodes, stream_data->num_work_items);
 
-    cudaStreamSynchronize(0);
+    cudaStreamSynchronize(stream_data->stream);
+    test_error();
 
     return NULL;
 }
@@ -1267,12 +1270,13 @@ static void *launch_write_node_kernels(void *data) {
 
     int blockCount = stream_data->streamNodeCount;
 
-    send_message_for_node_cuda_streaming<<<blockCount, BLOCK_SIZE_STREAMING>>>(stream_data->begin_index, stream_data->end_index,
+    send_message_for_node_cuda_streaming<<<blockCount, BLOCK_SIZE_STREAMING, 0, stream_data->stream>>>(stream_data->begin_index, stream_data->end_index,
             stream_data->work_queue_nodes, stream_data->num_work_items, stream_data->buffers, stream_data->num_edges,
     stream_data->joint_probabilities, stream_data->current_edge_messages, stream_data->src_nodes_to_edges_nodes,
             stream_data->src_nodes_to_edges_edges, stream_data->num_vertices);
 
-    cudaStreamSynchronize(0);
+    cudaStreamSynchronize(stream_data->stream);
+    test_error();
 
     return NULL;
 }
@@ -1284,12 +1288,13 @@ static void *launch_marginalize_node_kernels(void *data) {
 
     int blockCount = stream_data->streamNodeCount;
 
-    marginalize_node_cuda_streaming<<<blockCount, BLOCK_SIZE_STREAMING>>>(stream_data->begin_index, stream_data->end_index,
+    marginalize_node_cuda_streaming<<<blockCount, BLOCK_SIZE_STREAMING, 0, stream_data->stream>>>(stream_data->begin_index, stream_data->end_index,
     stream_data->work_queue_nodes, stream_data->num_work_items, stream_data->node_messages,
             stream_data->current_edge_messages, stream_data->dest_nodes_to_edges_nodes,
             stream_data->dest_nodes_to_edges_edges, stream_data->num_vertices, stream_data->num_edges);
 
-    cudaStreamSynchronize(0);
+    cudaStreamSynchronize(stream_data->stream);
+    test_error();
 
     return NULL;
 }
@@ -1395,7 +1400,7 @@ unsigned int loopy_propagate_until_cuda_streaming(Graph_t graph, float convergen
     unsigned int curr_index = 0;
     //prepare streams and data
     for(i = 0; i < NUM_THREAD_PARTITIONS; ++i) {
-        cudaStreamCreate(&streams[i]);
+        cudaStreamCreateWithFlags(&streams[i], cudaStreamNonBlocking);
 
         thread_data[i].begin_index = curr_index;
         thread_data[i].end_index = curr_index + partitionSize;
@@ -1418,6 +1423,7 @@ unsigned int loopy_propagate_until_cuda_streaming(Graph_t graph, float convergen
         thread_data[i].src_nodes_to_edges_edges = src_node_to_edges_edges;
         thread_data[i].dest_nodes_to_edges_nodes = dest_node_to_edges_nodes;
         thread_data[i].dest_nodes_to_edges_edges = dest_node_to_edges_edges;
+        thread_data[i].stream = streams[i];
     }
 
     for(i = 0; i < max_iterations; i+= BATCH_SIZE){
@@ -1425,16 +1431,16 @@ unsigned int loopy_propagate_until_cuda_streaming(Graph_t graph, float convergen
 
             //init + read data
             for(k = 0; k < NUM_THREAD_PARTITIONS; ++k) {
-                retval = pthread_create(&threads[i], NULL, launch_init_read_buffer_node_kernels, &(thread_data[k]));
-                if(retval && retval != ESRCH) {
+                retval = pthread_create(&threads[k], NULL, launch_init_read_buffer_node_kernels, &(thread_data[k]));
+                if(retval) {
                     fprintf(stderr, "Error creating read thread %d: %d\n", k, retval);
                     return 1;
                 }
             }
 
             for(k = 0; k < NUM_THREAD_PARTITIONS; ++k) {
-                retval = pthread_join(threads[i], NULL);
-                if(retval && retval != ESRCH) {
+                retval = pthread_join(threads[k], NULL);
+                if(retval) {
                     fprintf(stderr, "Error joining read thread %d: %d\n", k, retval);
                     return 1;
                 }
@@ -1442,15 +1448,15 @@ unsigned int loopy_propagate_until_cuda_streaming(Graph_t graph, float convergen
 
             //send data
             for(k = 0; k < NUM_THREAD_PARTITIONS; ++k) {
-                retval = pthread_create(&threads[i], NULL, launch_write_node_kernels, &(thread_data[k]));
-                if(retval && retval != ESRCH) {
+                retval = pthread_create(&threads[k], NULL, launch_write_node_kernels, &(thread_data[k]));
+                if(retval) {
                     fprintf(stderr, "Error creating send thread %d: %d\n", k, retval);
                     return 1;
                 }
             }
             for(k = 0; k < NUM_THREAD_PARTITIONS; ++k) {
-                retval = pthread_join(threads[i], NULL);
-                if(retval && retval != ESRCH) {
+                retval = pthread_join(threads[k], NULL);
+                if(retval) {
                     fprintf(stderr, "Error joining write thread %d: %d\n", k, retval);
                     return 1;
                 }
@@ -1458,15 +1464,15 @@ unsigned int loopy_propagate_until_cuda_streaming(Graph_t graph, float convergen
 
             //marginalize
             for(k = 0; k < NUM_THREAD_PARTITIONS; ++k) {
-                retval = pthread_create(&threads[i], NULL, launch_marginalize_node_kernels, &(thread_data[k]));
-                if(retval && retval != ESRCH) {
+                retval = pthread_create(&threads[k], NULL, launch_marginalize_node_kernels, &(thread_data[k]));
+                if(retval) {
                     fprintf(stderr, "Error creating marginalize thread %d: %d\n", k, retval);
                     return 1;
                 }
             }
             for(k = 0; k < NUM_THREAD_PARTITIONS; ++k) {
-                retval = pthread_join(threads[i], NULL);
-                if(retval && retval != ESRCH) {
+                retval = pthread_join(threads[k], NULL);
+                if(retval) {
                     fprintf(stderr, "Error joining marginalize thread %d: %d\n", k, retval);
                     return 1;
                 }
