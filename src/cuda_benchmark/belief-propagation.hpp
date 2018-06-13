@@ -44,6 +44,23 @@ struct node_stream_data {
 struct edge_stream_data {
     unsigned int begin_index;
     unsigned int end_index;
+
+    int streamEdgeCount;
+    cudaStream_t stream;
+
+    unsigned int num_vertices;
+    unsigned int num_edges;
+
+    struct belief *node_states;
+    struct joint_probability *joint_probabilities;
+    struct belief *current_edge_messages;
+    unsigned int *work_queue_edges;
+    unsigned int *num_work_items;
+    unsigned int *work_queue_scratch;
+    unsigned int * dest_nodes_to_edges_nodes;
+    unsigned int * dest_nodes_to_edges_edges;
+    unsigned int * edges_src_index;
+    unsigned int * edges_dest_index;
 };
 
 void CheckCudaErrorAux (const char *, unsigned, const char *, cudaError_t);
@@ -110,6 +127,12 @@ void marginalize_nodes(struct belief *, struct belief *,
                        unsigned int, unsigned int);
 
 __global__
+void marginalize_nodes_streaming(unsigned int, unsigned int,
+                        struct belief *, struct belief *,
+                       unsigned int *, unsigned int *,
+                       unsigned int, unsigned int);
+
+__global__
 void marginalize_page_rank_nodes(struct belief *, struct belief *,
                        unsigned int *, unsigned int *,
                        unsigned int, unsigned int);
@@ -133,7 +156,7 @@ __global__
 void loopy_propagate_init_read_buffer(struct belief *, unsigned int, unsigned int);
 
 __global__
-void __launch_bounds__(BLOCK_SIZE_STREAMING, MIN_BLOCKS_PER_MP)
+void __launch_bounds__(BLOCK_SIZE_NODE_STREAMING, MIN_BLOCKS_PER_MP)
 send_message_for_node_cuda_streaming(unsigned int, unsigned int,
                                           unsigned int *, unsigned int *,
                                           struct belief *, unsigned int,
@@ -181,6 +204,15 @@ void send_message_for_edge_iteration_cuda_work_queue_kernel(unsigned int, unsign
                                                             struct belief *,
                                                             unsigned int *, unsigned int *);
 
+__global__
+void send_message_for_edge_iteration_cuda_work_queue_kernel_streaming(
+        unsigned int begin_index, unsigned int end_index,
+        unsigned int * edges_src_index,
+        struct belief *node_states,
+        struct joint_probability *joint_probabilities,
+        struct belief *current_edge_messages,
+        unsigned int * work_queue_edges, unsigned int * num_work_queue_items);
+
 __device__
 void combine_loopy_edge_cuda(unsigned int, struct belief *, unsigned int, struct belief *);
 
@@ -211,6 +243,10 @@ __global__
 void calculate_delta_simple(struct belief *, float *, float *,
                             unsigned int);
 
+__global__
+void update_work_queue_cuda_kernel(unsigned int *, unsigned int *, unsigned int*,
+                                   struct belief *, unsigned int);
+
 void test_error();
 
 unsigned int loopy_propagate_until_cuda_streaming(Graph_t, float, unsigned int);
@@ -234,7 +270,7 @@ void run_test_loopy_belief_propagation_snap_file_edge_cuda(const char *, const c
 void run_test_loopy_belief_propagation_mtx_files_cuda(const char *, const char *, FILE *);
 void run_test_loopy_belief_propagation_mtx_files_cuda_streaming(const char *, const char *, FILE *);
 void run_test_loopy_belief_propagation_mtx_files_edge_cuda(const char *, const char *, FILE *);
-//void run_test_loopy_belief_propagation_mtx_files_edge_cuda_streaming(const char *const char *, FILE *);
+void run_test_loopy_belief_propagation_mtx_files_edge_cuda_streaming(const char *, const char *, FILE *);
 
 
 #endif //BELIEF_PROPAGATION_HPP
