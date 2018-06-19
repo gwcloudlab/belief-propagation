@@ -131,6 +131,38 @@ void combine_message_cuda(struct belief * dest, struct belief * edge_messages, u
 }
 
 __device__
+void combine_message_cuda_node_streaming(struct belief * dest, struct belief * edge_messages, unsigned int length, unsigned int offset){
+    unsigned int i;
+    float message;
+    __shared__ float buffer[BLOCK_SIZE_NODE_STREAMING];
+
+    for(i = 0; i < length; ++i){
+        buffer[threadIdx.x] = dest->data[i];
+        message = edge_messages[offset].data[i];
+        if(message == message){
+            buffer[threadIdx.x] *= message;
+            dest->data[i] = buffer[threadIdx.x];
+        }
+    }
+}
+
+__device__
+void combine_message_cuda_edge_streaming(struct belief * dest, struct belief * edge_messages, unsigned int length, unsigned int offset){
+    unsigned int i;
+    float message;
+    __shared__ float buffer[BLOCK_SIZE_NODE_EDGE_STREAMING];
+
+    for(i = 0; i < length; ++i){
+        buffer[threadIdx.x] = dest->data[i];
+        message = edge_messages[offset].data[i];
+        if(message == message){
+            buffer[threadIdx.x] *= message;
+            dest->data[i] = buffer[threadIdx.x];
+        }
+    }
+}
+
+__device__
 void combine_page_rank_message_cuda(struct belief * dest, struct belief * edge_messages, unsigned int length, unsigned int offset){
     unsigned int i;
     float message;
@@ -234,6 +266,38 @@ void send_message_for_edge_cuda(struct belief * buffer, unsigned int edge_index,
     }
 }
 
+__device__
+void send_message_for_edge_cuda_streaming(struct belief * buffer, unsigned int edge_index,
+                                struct joint_probability * joint_probabilities,
+                                struct belief * edge_messages){
+    unsigned int i, j, num_src, num_dest;
+    float sum;
+    struct joint_probability joint_probability;
+    __shared__ float partial_sums[BLOCK_SIZE_NODE_STREAMING * MAX_STATES];
+
+    joint_probability = joint_probabilities[edge_index];
+
+    num_src = joint_probability.dim_x;
+    num_dest = joint_probability.dim_y;
+
+    sum = 0.0;
+    for(i = 0; i < num_src; ++i){
+        partial_sums[threadIdx.x * MAX_STATES + i] = 0.0;
+        for(j = 0; j < num_dest; ++j){
+            partial_sums[threadIdx.x * MAX_STATES + i] += joint_probability.data[i][j] * buffer->data[j];
+        }
+        sum += partial_sums[threadIdx.x * MAX_STATES + i];
+    }
+    if(sum <= 0.0){
+        sum = 1.0;
+    }
+    edge_messages[edge_index].previous = edge_messages[edge_index].current;
+    edge_messages[edge_index].current = sum;
+    for(i = 0; i < num_src; ++i){
+        edge_messages[edge_index].data[i] /= sum;
+    }
+}
+
 /**
  * Propagate the current beliefs to current node
  * @param message_buffer The current node
@@ -267,10 +331,32 @@ void send_message_for_node_cuda(struct belief *message_buffer, unsigned int curr
     }
 }
 
+__device__
+void send_message_for_node_cuda_streaming(struct belief *message_buffer, unsigned int current_num_edges,
+                                struct joint_probability *joint_probabilities,
+                                struct belief *current_edge_messages,
+                                unsigned int * src_nodes_to_edges_nodes, unsigned int * src_nodes_to_edges_edges,
+                                unsigned int num_vertices, unsigned int idx){
+    unsigned int start_index, end_index, j, edge_index;
+
+    start_index = src_nodes_to_edges_nodes[idx];
+    if(idx + 1 >= num_vertices){
+        end_index = current_num_edges;
+    }
+    else{
+        end_index = src_nodes_to_edges_nodes[idx + 1];
+    }
+
+    for(j = start_index; j < end_index; ++j){
+        edge_index = src_nodes_to_edges_edges[j];
+        send_message_for_edge_cuda_streaming(message_buffer, edge_index, joint_probabilities, current_edge_messages);
+    }
+}
+
 __global__
 void
 __launch_bounds__(BLOCK_SIZE_NODE_STREAMING, MIN_BLOCKS_PER_MP)
-send_message_for_node_cuda_streaming(unsigned int begin_index, unsigned int end_index,
+send_message_for_node_cuda_streaming_kernel(unsigned int begin_index, unsigned int end_index,
                                           unsigned int *work_queue, unsigned int *num_work_queue_items,
                                           struct belief *message_buffers, unsigned int current_num_edges,
                                           struct joint_probability *joint_probabilities,
@@ -282,7 +368,7 @@ send_message_for_node_cuda_streaming(unsigned int begin_index, unsigned int end_
     for(i = blockIdx.x * blockDim.x + threadIdx.x + begin_index; i < end_index && i < *num_work_queue_items; i += blockDim.x * gridDim.x) {
         node_index = work_queue[i];
 
-        send_message_for_node_cuda(&(message_buffers[node_index]), current_num_edges, joint_probabilities,
+        send_message_for_node_cuda_streaming(&(message_buffers[node_index]), current_num_edges, joint_probabilities,
                                    current_edge_messages, src_nodes_to_edges_nodes, src_nodes_to_edges_edges,
         num_vertices, node_index);
     }
@@ -346,6 +432,100 @@ void marginalize_node(struct belief *node_states, unsigned int idx,
     }
 }
 
+__device__
+void marginalize_node_node_streaming(struct belief *node_states, unsigned int idx,
+                      struct belief *current_edges_messages,
+                      unsigned int * dest_nodes_to_edges_nodes, unsigned int * dest_nodes_to_edges_edges,
+                      unsigned int num_vertices, unsigned int num_edges){
+    unsigned int i, num_variables, start_index, end_index, edge_index;
+    float sum;
+
+    num_variables = node_states[idx].size;
+
+    struct belief new_belief;
+
+    new_belief.size = num_variables;
+    for(i = 0; i < num_variables; ++i){
+        new_belief.data[i] = 1.0;
+    }
+
+    start_index = dest_nodes_to_edges_nodes[idx];
+    if(idx + 1 >= num_vertices){
+        end_index = num_edges;
+    }
+    else{
+        end_index = dest_nodes_to_edges_nodes[idx + 1];
+    }
+
+    for(i = start_index; i < end_index; ++i){
+        edge_index = dest_nodes_to_edges_edges[i];
+
+        combine_message_cuda_node_streaming(&new_belief, current_edges_messages, num_variables, edge_index);
+    }
+    if(start_index < end_index){
+        for(i = 0; i < num_variables; ++i){
+            new_belief.data[i] *= node_states[idx].data[i];
+        }
+    }
+    sum = 0.0;
+    for(i = 0; i < num_variables; ++i){
+        sum += new_belief.data[i];
+    }
+    if(sum <= 0.0){
+        sum = 1.0;
+    }
+    for(i = 0; i < num_variables; ++i){
+        node_states[idx].data[i] /= sum;
+    }
+}
+
+__device__
+void marginalize_node_edge_streaming(struct belief *node_states, unsigned int idx,
+                      struct belief *current_edges_messages,
+                      unsigned int * dest_nodes_to_edges_nodes, unsigned int * dest_nodes_to_edges_edges,
+                      unsigned int num_vertices, unsigned int num_edges){
+    unsigned int i, num_variables, start_index, end_index, edge_index;
+    float sum;
+
+    num_variables = node_states[idx].size;
+
+    struct belief new_belief;
+
+    new_belief.size = num_variables;
+    for(i = 0; i < num_variables; ++i){
+        new_belief.data[i] = 1.0;
+    }
+
+    start_index = dest_nodes_to_edges_nodes[idx];
+    if(idx + 1 >= num_vertices){
+        end_index = num_edges;
+    }
+    else{
+        end_index = dest_nodes_to_edges_nodes[idx + 1];
+    }
+
+    for(i = start_index; i < end_index; ++i){
+        edge_index = dest_nodes_to_edges_edges[i];
+
+        combine_message_cuda_edge_streaming(&new_belief, current_edges_messages, num_variables, edge_index);
+    }
+    if(start_index < end_index){
+        for(i = 0; i < num_variables; ++i){
+            new_belief.data[i] *= node_states[idx].data[i];
+        }
+    }
+    sum = 0.0;
+    for(i = 0; i < num_variables; ++i){
+        sum += new_belief.data[i];
+    }
+    if(sum <= 0.0){
+        sum = 1.0;
+    }
+    for(i = 0; i < num_variables; ++i){
+        node_states[idx].data[i] /= sum;
+    }
+}
+
 __global__
 void marginalize_node_cuda_streaming( unsigned int begin_index, unsigned int end_index,
                                 unsigned int *work_queue, unsigned int *num_work_queue_items,
@@ -358,7 +538,7 @@ void marginalize_node_cuda_streaming( unsigned int begin_index, unsigned int end
     for(i = blockIdx.x * blockDim.x + threadIdx.x + begin_index; i < end_index && i < *num_work_queue_items; i += blockDim.x * gridDim.x) {
         node_index = work_queue[i];
 
-        marginalize_node(node_states, node_index, current_edges_messages, dest_nodes_to_edges_nodes,
+        marginalize_node_node_streaming(node_states, node_index, current_edges_messages, dest_nodes_to_edges_nodes,
                          dest_nodes_to_edges_edges, num_vertices, num_edges);
     }
 }
@@ -486,7 +666,7 @@ void marginalize_nodes_streaming(unsigned int begin_index, unsigned int end_inde
                                  unsigned int num_vertices, unsigned int num_edges) {
     unsigned int idx;
     for (idx = blockIdx.x * blockDim.x + threadIdx.x + begin_index; idx < end_index; idx += blockDim.x * gridDim.x) {
-        marginalize_node(node_states, idx, current_edges_messages, dest_nodes_to_edges_nodes, dest_nodes_to_edges_edges,
+        marginalize_node_edge_streaming(node_states, idx, current_edges_messages, dest_nodes_to_edges_nodes, dest_nodes_to_edges_edges,
                          num_vertices, num_edges);
     }
 }
@@ -1317,7 +1497,7 @@ static void *launch_write_node_kernels(void *data) {
 
     int blockCount = stream_data->streamNodeCount;
 
-    send_message_for_node_cuda_streaming<<<blockCount, BLOCK_SIZE_NODE_STREAMING, 0, stream_data->stream>>>(stream_data->begin_index, stream_data->end_index,
+    send_message_for_node_cuda_streaming_kernel<<<blockCount, BLOCK_SIZE_NODE_STREAMING, 0, stream_data->stream>>>(stream_data->begin_index, stream_data->end_index,
             stream_data->work_queue_nodes, stream_data->num_work_items, stream_data->buffers, stream_data->num_edges,
     stream_data->joint_probabilities, stream_data->current_edge_messages, stream_data->src_nodes_to_edges_nodes,
             stream_data->src_nodes_to_edges_edges, stream_data->num_vertices);
@@ -1984,7 +2164,7 @@ static void* launch_marginalize_streaming_kernel(void * data) {
     stream_data = (struct node_stream_data *)data;
 
 
-    marginalize_nodes_streaming<<<stream_data->streamNodeCount, BLOCK_SIZE_EDGE_STREAMING, 0, stream_data->stream>>>(
+    marginalize_nodes_streaming<<<stream_data->streamNodeCount, BLOCK_SIZE_NODE_EDGE_STREAMING, 0, stream_data->stream>>>(
             stream_data->begin_index, stream_data->end_index,
             stream_data->node_messages, stream_data->current_edge_messages,
             stream_data->dest_nodes_to_edges_nodes, stream_data->dest_nodes_to_edges_edges, stream_data->num_vertices, stream_data->num_edges);
@@ -2092,7 +2272,7 @@ unsigned int loopy_propagate_until_cuda_edge_streaming(Graph_t graph, float conv
     const int edgePartitionSize = (num_edges + NUM_THREAD_PARTITIONS - 1) / NUM_THREAD_PARTITIONS;
     const int edgePartitionCount = (edgePartitionSize + BLOCK_SIZE_EDGE_STREAMING - 1) / BLOCK_SIZE_EDGE_STREAMING;
     const int nodePartitionSize = (num_vertices + NUM_THREAD_PARTITIONS - 1) / NUM_THREAD_PARTITIONS;
-    const int nodePartitionCount = (nodePartitionSize + BLOCK_SIZE_EDGE_STREAMING - 1) / BLOCK_SIZE_EDGE_STREAMING;
+    const int nodePartitionCount = (nodePartitionSize + BLOCK_SIZE_NODE_EDGE_STREAMING - 1) / BLOCK_SIZE_NODE_EDGE_STREAMING;
 
     num_iter = 0;
 
@@ -2136,6 +2316,7 @@ unsigned int loopy_propagate_until_cuda_edge_streaming(Graph_t graph, float conv
         }
         curr_node_index += nodePartitionSize;
         node_thread_data[i].streamNodeCount = nodePartitionCount;
+        node_thread_data[i].stream = streams[i];
 
         node_thread_data[i].node_messages = node_states;
         node_thread_data[i].current_edge_messages = current_messages;

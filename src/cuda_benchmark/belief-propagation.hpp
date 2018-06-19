@@ -86,6 +86,12 @@ __device__
 void combine_message_cuda(struct belief *, struct belief *, unsigned int, unsigned int);
 
 __device__
+void combine_message_cuda_node_streaming(struct belief *, struct belief *, unsigned int, unsigned int);
+
+__device__
+void combine_message_cuda_edge_streaming(struct belief *, struct belief *, unsigned int, unsigned int);
+
+__device__
 void combine_page_rank_message_cuda(struct belief *, struct belief *, unsigned int, unsigned int);
 
 __device__
@@ -99,13 +105,34 @@ void read_incoming_messages_cuda(struct belief *, struct belief *, unsigned int 
 __device__
 void send_message_for_edge_cuda(struct belief *, unsigned int, struct joint_probability *,
                                 struct belief *);
+
+__device__
+void send_message_for_edge_cuda_streaming(struct belief *, unsigned int, struct joint_probability *,
+                                struct belief *);
 __device__
 void send_message_for_node_cuda(struct belief *, unsigned int, struct joint_probability *,
                                 struct belief *, unsigned int *, unsigned int *,
                                 unsigned int, unsigned int);
 
 __device__
+void send_message_for_node_cuda_streaming(struct belief *, unsigned int, struct joint_probability *,
+                                struct belief *, unsigned int *, unsigned int *,
+                                unsigned int, unsigned int);
+
+__device__
 void marginalize_node(struct belief *, unsigned int,
+                      struct belief *,
+                      unsigned int *, unsigned int *,
+                      unsigned int, unsigned int);
+
+__device__
+void marginalize_node_node_streaming(struct belief *, unsigned int,
+                      struct belief *,
+                      unsigned int *, unsigned int *,
+                      unsigned int, unsigned int);
+
+__device__
+void marginalize_node_edge_streaming(struct belief *, unsigned int,
                       struct belief *,
                       unsigned int *, unsigned int *,
                       unsigned int, unsigned int);
@@ -157,7 +184,7 @@ void loopy_propagate_init_read_buffer(struct belief *, unsigned int, unsigned in
 
 __global__
 void __launch_bounds__(BLOCK_SIZE_NODE_STREAMING, MIN_BLOCKS_PER_MP)
-send_message_for_node_cuda_streaming(unsigned int, unsigned int,
+send_message_for_node_cuda_streaming_kernel(unsigned int, unsigned int,
                                           unsigned int *, unsigned int *,
                                           struct belief *, unsigned int,
                                           struct joint_probability *,
