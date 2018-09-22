@@ -7,6 +7,7 @@ import os
 from string import Template
 
 REGEX_NODE_DATA = re.compile('#\s+Nodes:\s+(?P<num_nodes>\d+)\s+Edges:\s+(?P<num_edges>\d+)')
+REGEX_NODE_DATA_2 = re.compile('\s*(?P<num_nodes>\d+)\s+(?P<num_nodes_2>\d+)\s+(?P<num_edges>\d+)')
 REGEX_EDGE = re.compile('(?P<src>\d+)\s+(?P<dest>\d+)')
 
 TEMPLATE_DATA = Template('# Nodes: $num_nodes Edges: $num_edges Beliefs: $num_beliefs Belief States: $num_belief_states')
@@ -20,8 +21,10 @@ def read_snap_file(read_path, write_edges_path, write_observed_nodes_path, num_b
     with open(read_path, 'r') as read_fp:
         with open(write_edges_path, 'w') as write_fp:
             for line in read_fp:
-                if num_nodes is None or line.startswith('#'):
+                if num_nodes is None or line.startswith('#') or line.startswith('%'):
                     match = REGEX_NODE_DATA.match(line)
+                    if match is None and num_nodes is None:
+                        match = REGEX_NODE_DATA_2.match(line)
                     if match is None:
                         write_fp.write(line)
                     else:
