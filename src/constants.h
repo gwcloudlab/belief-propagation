@@ -10,7 +10,7 @@
 
 #define AVG_STATES 2
 
-#define MAX_STATES 10
+#define MAX_STATES 2
 
 #define DEFAULT_STATE 1.0
 
@@ -50,7 +50,7 @@
 
 #define WARP_SIZE 32
 
-#define MAX_DEGREE 64
+#define MAX_DEGREE 4096
 
 #define CHARS_IN_KEY 20
 

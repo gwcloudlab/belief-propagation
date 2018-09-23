@@ -26,7 +26,7 @@ struct belief {
 	/**
 	 * The priori probabilities
 	 */
-    float data[MAX_DEGREE];
+    float data[MAX_STATES];
 	/**
 	 * The size of the probabilities
 	 */
@@ -48,7 +48,7 @@ struct joint_probability {
 	/**
 	 * The joint probability table
 	 */
-    float data[MAX_DEGREE][MAX_DEGREE];
+    float data[MAX_STATES][MAX_STATES];
 	/**
 	 * The first dimension of the table
 	 */

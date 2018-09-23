@@ -53,7 +53,7 @@ def read_snap_file(read_path, write_edges_path, write_observed_nodes_path, num_b
                         new_line_data = [src, dest] + joint_probabilities
                         write_fp.write('\t'.join(new_line_data) + '\n')
     num_observed_nodes = pct_of_observed * num_nodes
-    observed_nodes = random.sample(read_nodes, int(num_observed_nodes))
+    observed_nodes = set(random.sample(read_nodes, int(num_observed_nodes)))
     with open(write_observed_nodes_path, 'w') as write_node_fp:
         write_node_fp.write('% Belief network generated from mtx file: {}\n'.format(read_path))
         write_node_fp.write('{}\t{}\t{}\n'.format(num_nodes, num_nodes, num_edges))

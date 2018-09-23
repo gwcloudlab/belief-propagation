@@ -48,10 +48,11 @@ int main(void) {
 */
 
     run_test_loopy_belief_propagation_mtx_files_cuda("/home/mjt5v/Desktop/network_repo_graphs/bio-diseasome/bio-diseasome.edges.mtx", "/home/mjt5v/Desktop/network_repo_graphs/bio-diseasome/bio-diseasome.nodes.mtx", out);
-    /*run_test_loopy_belief_propagation_mtx_files_cuda("/home/mjt5v/Desktop/network_repo_graphs/socfb-Caltech36/socfb-Caltech36.edges.mtx", "/home/mjt5v/Desktop/network_repo_graphs/socfb-Caltech36/socfb-Caltech36.nodes.mtx", out);
+    run_test_loopy_belief_propagation_mtx_files_cuda("/home/mjt5v/Desktop/network_repo_graphs/socfb-Caltech36/socfb-Caltech36.edges.mtx", "/home/mjt5v/Desktop/network_repo_graphs/socfb-Caltech36/socfb-Caltech36.nodes.mtx", out);
     run_test_loopy_belief_propagation_mtx_files_cuda("/home/mjt5v/Desktop/network_repo_graphs/socfb-UVA16/socfb-UVA16.edges.mtx", "/home/mjt5v/Desktop/network_repo_graphs/socfb-UVA16/socfb-UVA16.nodes.mtx", out);
+  /*  run_test_loopy_belief_propagation_mtx_files_cuda("/home/mjt5v/Desktop/network_repo_graphs/socfb-OR/socfb-OR.edges.mtx", "/home/mjt5v/Desktop/network_repo_graphs/socfb-OR/socfb-OR.nodes.mtx", out);
     run_test_loopy_belief_propagation_mtx_files_cuda("/home/mjt5v/Desktop/network_repo_graphs/socfb-Wisconsin87/socfb-Wisconsin87.edges.mtx", "/home/mjt5v/Desktop/network_repo_graphs/socfb-Wisconsin87/socfb-Wisconsin87.nodes.mtx", out);
-    run_test_loopy_belief_propagation_mtx_files_cuda("/home/mjt5v/Desktop/network_repo_graphs/socfb-A-anon/socfb-A-anon.edges.mtx", "/home/mjt5v/Desktop/network_repo_graphs/socfb-A-anon/socfb-A-anon.nodes.mtx", out);
+   /* run_test_loopy_belief_propagation_mtx_files_cuda("/home/mjt5v/Desktop/network_repo_graphs/socfb-A-anon/socfb-A-anon.edges.mtx", "/home/mjt5v/Desktop/network_repo_graphs/socfb-A-anon/socfb-A-anon.nodes.mtx", out);
 */
     fclose(out);
     return 0;

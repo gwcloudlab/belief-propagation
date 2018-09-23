@@ -299,7 +299,7 @@ Graph_t build_graph_from_mtx(const char *edges_mtx, const char *nodes_mtx) {
     num_edges = parse_number_of_edges(edges_mtx, &regex_comment);
     num_joint_probabilities = parse_number_of_joint_probabilities(edges_mtx, &regex_comment);
     assert(num_joint_probabilities > 0);
-    assert(num_joint_probabilities <= MAX_DEGREE);
+    assert(num_joint_probabilities <= MAX_STATES * MAX_STATES);
 
     // not necessarily true but true for generated stuff
     assert(num_joint_probabilities == num_node_states * num_node_states);
