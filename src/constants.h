@@ -50,7 +50,7 @@
 
 #define WARP_SIZE 32
 
-#define MAX_DEGREE 32
+#define MAX_DEGREE 64
 
 #define CHARS_IN_KEY 20
 

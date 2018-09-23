@@ -2748,6 +2748,40 @@ void run_test_loopy_belief_propagation_xml_file_cuda(const char * file_name, FIL
 }
 
 /**
+ * Runs loopy BP on the XML file
+ * @param file_name The name of the XML file
+ * @param out The file handle for the CSV file to output to
+ */
+void run_test_loopy_belief_propagation_xml_file_cuda_streaming(const char * file_name, FILE * out){
+    Graph_t graph;
+    clock_t start, end;
+    double time_elapsed;
+    unsigned int num_iterations;
+
+    graph = parse_xml_file(file_name);
+    assert(graph != NULL);
+    //print_nodes(graph);
+    //print_edges(graph);
+
+    set_up_src_nodes_to_edges(graph);
+    set_up_dest_nodes_to_edges(graph);
+    //calculate_diameter(graph);
+
+    start = clock();
+    init_previous_edge(graph);
+
+    num_iterations = loopy_propagate_until_cuda_streaming(graph, PRECISION, NUM_ITERATIONS);
+    end = clock();
+
+    time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
+    //print_nodes(graph);
+    fprintf(out, "%s,loopy-streaming,%d,%d,%d,%d,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
+    fflush(out);
+
+    graph_destroy(graph);
+}
+
+/**
  * Runs the edge-optimized version of loopy BP
  * @param file_name The path of the file to read
  * @param out The file handle for the CSV output
@@ -2776,6 +2810,40 @@ void run_test_loopy_belief_propagation_xml_file_edge_cuda(const char * file_name
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
     //print_nodes(graph);
     fprintf(out, "%s,loopy-edge,%d,%d,%d,%d,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
+    fflush(out);
+
+    graph_destroy(graph);
+}
+
+/**
+ * Runs the edge-optimized version of loopy BP
+ * @param file_name The path of the file to read
+ * @param out The file handle for the CSV output
+ */
+void run_test_loopy_belief_propagation_xml_file_edge_cuda_streaming(const char * file_name, FILE * out){
+    Graph_t graph;
+    clock_t start, end;
+    double time_elapsed;
+    unsigned int num_iterations;
+
+    graph = parse_xml_file(file_name);
+    assert(graph != NULL);
+    //print_nodes(graph);
+    //print_edges(graph);
+
+    set_up_src_nodes_to_edges(graph);
+    set_up_dest_nodes_to_edges(graph);
+    //calculate_diameter(graph);
+
+    start = clock();
+    init_previous_edge(graph);
+
+    num_iterations = loopy_propagate_until_cuda_edge_streaming(graph, PRECISION, NUM_ITERATIONS);
+    end = clock();
+
+    time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
+    //print_nodes(graph);
+    fprintf(out, "%s,loopy-edge-streaming,%d,%d,%d,%d,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
     fflush(out);
 
     graph_destroy(graph);

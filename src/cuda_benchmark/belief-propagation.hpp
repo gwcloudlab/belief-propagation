@@ -289,7 +289,9 @@ unsigned int viterbi_until_cuda_edge(Graph_t, float, unsigned int);
 
 void run_test_loopy_belief_propagation_cuda(struct expression *, const char *, FILE *);
 void run_test_loopy_belief_propagation_xml_file_cuda(const char *, FILE *);
+void run_test_loopy_belief_propagation_xml_file_cuda_streaming(const char *, FILE *);
 void run_test_loopy_belief_propagation_xml_file_edge_cuda(const char *, FILE *);
+void run_test_loopy_belief_propagation_xml_file_edge_cuda_streaming(const char *, FILE *);
 
 void run_test_loopy_belief_propagation_snap_file_cuda(const char *, const char *, FILE *);
 void run_test_loopy_belief_propagation_snap_file_edge_cuda(const char *, const char *, FILE *);
