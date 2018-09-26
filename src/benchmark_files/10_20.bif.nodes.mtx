@@ -1,0 +1,13 @@
+% Belief network generated using Python
+% Arguments: Nodes: 10 Edges: 20 Seed: 1.000000 Observed Probability: 0.300000
+10	10
+1	1	1.0
+2	2	0.255069
+3	3	1.0
+4	4	1.0
+5	5	1.0
+6	6	1.0
+7	7	0.495435
+8	8	0.449491
+9	9	1.0
+10	10	1.0

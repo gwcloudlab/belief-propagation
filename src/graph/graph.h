@@ -26,7 +26,7 @@ struct belief {
 	/**
 	 * The priori probabilities
 	 */
-    float data[MAX_DEGREE];
+    float data[MAX_STATES];
 	/**
 	 * The size of the probabilities
 	 */
@@ -34,11 +34,11 @@ struct belief {
 	/**
 	 * The previous sum
 	 */
-	float previous_sum;
+	float previous;
 	/**
 	 * The current sum
 	 */
-	float current_sum;
+	float current;
 };
 
 /**
@@ -48,7 +48,7 @@ struct joint_probability {
 	/**
 	 * The joint probability table
 	 */
-    float data[MAX_DEGREE][MAX_DEGREE];
+    float data[MAX_STATES][MAX_STATES];
 	/**
 	 * The first dimension of the table
 	 */
@@ -140,6 +140,28 @@ struct graph {
 	unsigned int num_levels;
 
 	/**
+	 * Array of nodes left in the work queue
+	 */
+	unsigned int *work_queue_nodes;
+
+	/**
+	 * Array of edges left in the work queue
+	 */
+	unsigned int *work_queue_edges;
+
+	/**
+	 * Array for scratch space
+	 */
+	unsigned int *work_queue_scratch;
+
+	/**
+	 * Number of items in work queue
+	 */
+	unsigned int num_work_items_nodes;
+	unsigned int num_work_items_edges;
+
+
+	/**
 	 * The diameter of the graph
 	 */
     int diameter;
@@ -219,6 +241,7 @@ void set_up_src_nodes_to_edges(Graph_t);
 void set_up_dest_nodes_to_edges(Graph_t);
 void init_levels_to_nodes(Graph_t);
 void calculate_diameter(Graph_t);
+void prep_as_page_rank(Graph_t);
 
 void initialize_node(Graph_t, unsigned int, unsigned int);
 void node_set_state(Graph_t, unsigned int, unsigned int, struct belief *);
@@ -238,11 +261,26 @@ void reset_visited(Graph_t);
 
 void init_previous_edge(Graph_t);
 void loopy_propagate_one_iteration(Graph_t);
+void loopy_propagate_edge_one_iteration(Graph_t);
+void page_rank_one_iteration(Graph_t);
+void page_rank_edge_one_iteration(Graph_t);
+void viterbi_one_iteration(Graph_t);
+void viterbi_edge_one_iteration(Graph_t);
 
-unsigned int loopy_propagate_until(Graph_t, float convergence, unsigned int max_iterations);
+unsigned int loopy_propagate_until(Graph_t, float, unsigned int);
 unsigned int loopy_propagate_until_edge(Graph_t, float, unsigned int);
-unsigned int loopy_propagate_until_acc(Graph_t, float convergence, unsigned int max_iterations);
+unsigned int loopy_propagate_until_acc(Graph_t, float, unsigned int);
 unsigned int loopy_propagate_until_edge_acc(Graph_t, float, unsigned int);
+
+unsigned int page_rank_until(Graph_t, float, unsigned int);
+unsigned int page_rank_until_edge(Graph_t, float, unsigned int);
+unsigned int page_rank_until_acc(Graph_t, float, unsigned int);
+unsigned int page_rank_until_edge_acc(Graph_t, float, unsigned int);
+
+unsigned int viterbi_until(Graph_t, float, unsigned int);
+unsigned int viterbi_until_edge(Graph_t, float, unsigned int);
+unsigned int viterbi_until_acc(Graph_t, float, unsigned int);
+unsigned int viterbi_until_edge_acc(Graph_t, float, unsigned int);
 
 void marginalize(Graph_t);
 
@@ -253,6 +291,12 @@ void print_edges(Graph_t);
 void print_src_nodes_to_edges(Graph_t);
 void print_dest_nodes_to_edges(Graph_t);
 void print_levels_to_nodes(Graph_t);
+
+void init_work_queue_nodes(Graph_t);
+void init_work_queue_edges(Graph_t);
+
+void update_work_queue_nodes(Graph_t, float);
+void update_work_queue_edges(Graph_t, float);
 
 
 #endif /* GRAPH_H_ */

@@ -41,6 +41,7 @@ static void find_graph_info(const char * edge_file, struct graph_info * info){
                 if(groups[i].rm_so == (size_t) - 1){
                     break; // no more groups
                 }
+                memset(match_buffer, 0, READ_SNAP_BUFFER_SIZE);
                 strncpy(match_buffer, buffer + groups[i].rm_so, (size_t)(groups[i].rm_eo - groups[i].rm_so));
                 parsed_long = strtoul(match_buffer, &end_ptr, 10);
                 if(i == 1){
@@ -325,10 +326,10 @@ Graph_t parse_graph_from_snap_files(const char * edge_file, const char * observe
 
     assert(hcreate_r(info.num_nodes, node_hash) != 0);
     assert(hcreate_r(info.num_nodes, observed_node_hash) != 0);
-    assert(info.num_nodes == 5);
+/*    assert(info.num_nodes == 5);
     assert(info.num_edges == 5);
     assert(info.num_beliefs == 2);
-    assert(info.num_belief_states == 2);
+    assert(info.num_belief_states == 2);*/
     graph = create_graph(info.num_nodes, info.num_edges);
 
     create_nodes(graph, &info, edge_file, node_hash);
@@ -378,6 +379,96 @@ void test_sample_snap_dog_files(const char * root_dir){
     printf("SNAP File\n");
     print_nodes(graph);
     print_edges(graph);
+
+    graph_destroy(graph);
+}
+
+/**
+ * Tests parsing a simple page rank file
+ * @param root_dir The directory holding the file
+ */
+void test_page_rank_sample_file(const char * root_dir){
+    char edge_path[128], node_path[128];
+    char * node_name;
+    char highest_node[CHAR_BUFFER_SIZE];
+    unsigned int node_index;
+    float highest_belief, current_belief;
+    Graph_t graph;
+
+    build_full_file_path(root_dir, "small_page_rank.txt", edge_path, 128);
+    build_full_file_path(root_dir, "small_page_rank_node.txt", node_path, 128);
+
+    graph = parse_graph_from_snap_files(edge_path, node_path);
+    // set up parallel arrays
+    set_up_src_nodes_to_edges(graph);
+    set_up_dest_nodes_to_edges(graph);
+    // set up as page rank
+    prep_as_page_rank(graph);
+    init_previous_edge(graph);
+
+    page_rank_until(graph, PRECISION, NUM_ITERATIONS);
+
+    print_nodes(graph);
+
+    highest_belief = graph->node_states[0].data[0];
+    // node 8709207 should be the highest
+    for(node_index = 0; node_index < graph->current_num_vertices; ++node_index){
+        node_name = &graph->node_names[node_index];
+        current_belief = graph->node_states[node_index].data[0];
+        if(current_belief > highest_belief){
+            highest_belief = current_belief;
+            strncpy(highest_node, node_name, CHAR_BUFFER_SIZE);
+        }
+    }
+
+    assert(highest_belief < 19.6);
+    assert(highest_belief > 19.5);
+    assert(strcmp("8709207", highest_node));
+
+    graph_destroy(graph);
+}
+
+/**
+ * Tests parsing a simple page rank file
+ * @param root_dir The directory holding the file
+ */
+void test_page_rank_sample_edge_file(const char * root_dir){
+    char edge_path[128], node_path[128];
+    char * node_name;
+    char highest_node[CHAR_BUFFER_SIZE];
+    unsigned int node_index;
+    float highest_belief, current_belief;
+    Graph_t graph;
+
+    build_full_file_path(root_dir, "small_page_rank.txt", edge_path, 128);
+    build_full_file_path(root_dir, "small_page_rank_node.txt", node_path, 128);
+
+    graph = parse_graph_from_snap_files(edge_path, node_path);
+    // set up parallel arrays
+    set_up_src_nodes_to_edges(graph);
+    set_up_dest_nodes_to_edges(graph);
+    // set up as page rank
+    prep_as_page_rank(graph);
+    init_previous_edge(graph);
+
+    page_rank_until_edge(graph, PRECISION, NUM_ITERATIONS);
+
+    print_nodes(graph);
+
+    highest_belief = graph->node_states[0].data[0];
+    // node 8709207 should be the highest
+    for(node_index = 0; node_index < graph->current_num_vertices; ++node_index){
+        node_name = &graph->node_names[node_index];
+        current_belief = graph->node_states[node_index].data[0];
+        if(current_belief > highest_belief){
+            highest_belief = current_belief;
+            strncpy(highest_node, node_name, CHAR_BUFFER_SIZE);
+        }
+    }
+
+    assert(highest_belief < 19.6);
+    assert(highest_belief > 19.5);
+    assert(strcmp("8709207", highest_node));
 
     graph_destroy(graph);
 }

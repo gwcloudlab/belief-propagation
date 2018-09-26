@@ -7,9 +7,12 @@ import os
 from string import Template
 
 REGEX_NODE_DATA = re.compile('#\s+Nodes:\s+(?P<num_nodes>\d+)\s+Edges:\s+(?P<num_edges>\d+)')
+REGEX_NODE_DATA_2 = re.compile('\s*(?P<num_nodes>\d+)\s+(?P<num_nodes_2>\d+)\s+(?P<num_edges>\d+)')
 REGEX_EDGE = re.compile('(?P<src>\d+)\s+(?P<dest>\d+)')
 
-TEMPLATE_DATA = Template('# Nodes: $num_nodes Edges: $num_edges Beliefs: $num_beliefs Belief States: $num_belief_states')
+DEFAULT_STATE = 1.0
+
+TEMPLATE_DATA = Template('% Nodes: $num_nodes Edges: $num_edges Beliefs: $num_beliefs Belief States: $num_belief_states')
 
 def read_snap_file(read_path, write_edges_path, write_observed_nodes_path, num_beliefs, num_belief_states, seed, pct_of_observed):
     random.seed(seed)
@@ -20,8 +23,10 @@ def read_snap_file(read_path, write_edges_path, write_observed_nodes_path, num_b
     with open(read_path, 'r') as read_fp:
         with open(write_edges_path, 'w') as write_fp:
             for line in read_fp:
-                if num_nodes is None or line.startswith('#'):
+                if num_nodes is None or line.startswith('#') or line.startswith('%'):
                     match = REGEX_NODE_DATA.match(line)
+                    if match is None and num_nodes is None:
+                        match = REGEX_NODE_DATA_2.match(line)
                     if match is None:
                         write_fp.write(line)
                     else:
@@ -30,6 +35,7 @@ def read_snap_file(read_path, write_edges_path, write_observed_nodes_path, num_b
                         print "Num nodes: %d; Num edges: %d" % (num_nodes, num_edges)
                         replacement_line = TEMPLATE_DATA.substitute(num_nodes=num_nodes, num_edges=num_edges, num_beliefs=num_beliefs, num_belief_states=num_belief_states)
                         write_fp.write(replacement_line + '\n')
+                        write_fp.write('{}\t{}\t{}'.format(num_nodes, num_nodes, num_edges))
                 else:
                     edge_match = REGEX_EDGE.match(line)
                     if edge_match is None:
@@ -47,11 +53,16 @@ def read_snap_file(read_path, write_edges_path, write_observed_nodes_path, num_b
                         new_line_data = [src, dest] + joint_probabilities
                         write_fp.write('\t'.join(new_line_data) + '\n')
     num_observed_nodes = pct_of_observed * num_nodes
-    observed_nodes = random.sample(read_nodes, int(num_observed_nodes))
+    observed_nodes = set(random.sample(read_nodes, int(num_observed_nodes)))
     with open(write_observed_nodes_path, 'w') as write_node_fp:
-        for node in observed_nodes:
-            prob_list = generate_prob_list(num_belief_states)
-            new_node_line_data = [str(node)] + prob_list
+        write_node_fp.write('% Belief network generated from mtx file: {}\n'.format(read_path))
+        write_node_fp.write('{}\t{}\t{}\n'.format(num_nodes, num_nodes, num_edges))
+        for node in read_nodes:
+            if node in observed_nodes:
+                prob_list = generate_prob_list(num_belief_states)
+            else:
+                prob_list = [str(DEFAULT_STATE) for _ in range(num_belief_states)]
+            new_node_line_data = [str(node), str(node)] + prob_list
             write_node_fp.write('\t'.join(new_node_line_data) + '\n')
 
 

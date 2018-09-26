@@ -38,4 +38,7 @@ void run_test_loopy_belief_propagation_edge_snap_file(const char *, const char *
 void run_test_loopy_belief_propagation_snap_file_acc(const char *, const char *, FILE *);
 void run_test_loopy_belief_propagation_edge_snap_file_acc(const char *, const char *, FILE *);
 
+void test_page_rank_sample_file(const char *);
+void test_page_rank_sample_edge_file(const char *);
+
 #endif //PROJECT_SNAP_PARSER_H

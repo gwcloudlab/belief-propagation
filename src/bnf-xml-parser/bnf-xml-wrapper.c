@@ -304,3 +304,37 @@ void run_test_loopy_belief_propagation_edge_xml_file_acc(const char * file_name,
     // cleanup
     graph_destroy(graph);
 }
+
+/**
+ * Runs the Viterbi HMM from the Wikipedia example
+ * @see https://en.wikipedia.org/wiki/Viterbi_algorithm#Example
+ * @param file_name
+ * @param out
+ */
+void run_test_viterbi_xml_file(const char * root_dir){
+    Graph_t graph;
+    char file_name_buffer[128];
+
+    // read the data
+    graph = parse_xml_file(build_full_file_path(root_dir, "viterbi.xml", file_name_buffer, 128));
+    assert(graph != NULL);
+    print_nodes(graph);
+    print_edges(graph);
+
+    set_up_dest_nodes_to_edges(graph);
+    set_up_src_nodes_to_edges(graph);
+    init_previous_edge(graph);
+    viterbi_until(graph, PRECISION, NUM_ITERATIONS);
+
+    print_nodes(graph);
+    print_edges(graph);
+
+    assert(graph->node_states[0].data[0] < 0.55f);
+    assert(graph->node_states[0].data[0] > 0.54f);
+
+    assert(graph->node_states[0].data[1] > 0.45f);
+    assert(graph->node_states[0].data[1] < 0.46f);
+
+    // clean up
+    graph_destroy(graph);
+}

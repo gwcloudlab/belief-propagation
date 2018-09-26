@@ -123,6 +123,7 @@ void forward_backward_belief_propagation() {
 
 	set_up_src_nodes_to_edges(graph);
 	set_up_dest_nodes_to_edges(graph);
+
 	init_levels_to_nodes(graph);
 
 	print_levels_to_nodes(graph);
