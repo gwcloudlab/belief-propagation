@@ -11,6 +11,7 @@
 #define AVG_STATES 2
 
 #define MAX_STATES 2
+// #define MAX_STATES 10
 
 #define DEFAULT_STATE 1.0
 
@@ -24,7 +25,7 @@
 
 #define PRECISION_ITERATION 1E-3f
 
-#define NUM_THREAD_PARTITIONS 32
+#define NUM_THREAD_PARTITIONS 4
 
 #define BLOCK_SIZE 1024
 
