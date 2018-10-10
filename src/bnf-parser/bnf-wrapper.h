@@ -18,7 +18,7 @@ void test_loopy_belief_propagation(char *);
 struct expression * parse_file(const char *);
 void run_test_belief_propagation(struct expression *, const char *);
 void run_test_loopy_belief_propagation(struct expression *, const char *);
-void run_tests_with_file(const char *, unsigned int);
+void run_tests_with_file(const char *, int);
 
 void basic_test_suite(const char *);
 void small_test_suite(const char *);

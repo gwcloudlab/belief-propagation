@@ -16,7 +16,7 @@ void assert_value(float diff){
 }
 
 void add_nodes(Graph_t graph){
-    unsigned int node_index;
+    int node_index;
 	struct belief y2;
 
 	y2.size = NUM_VARIABLES;
@@ -76,7 +76,7 @@ void add_edges(Graph_t graph){
 }
 
 void validate_nodes(Graph_t graph){
-	unsigned int node_index;
+	int node_index;
 	float value;
 
 	node_index = 0;
@@ -114,7 +114,7 @@ void validate_nodes(Graph_t graph){
 
 void forward_backward_belief_propagation() {
 	Graph_t graph;
-	unsigned int i;
+	int i;
 
 	graph = create_graph(NUM_NODES, NUM_EDGES);
 

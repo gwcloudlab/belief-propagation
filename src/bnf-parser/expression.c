@@ -304,7 +304,7 @@ static int count_edges(struct expression * expr){
  * @param graph The graph
  * @param state_index The current node states (also used for indexing)
  */
-static void add_variable_discrete(struct expression * expr, Graph_t graph, unsigned int * state_index){
+static void add_variable_discrete(struct expression * expr, Graph_t graph, int * state_index){
 	struct expression * next;
 	char * node_name;
 	int num_vertices, char_index;
@@ -343,7 +343,7 @@ static void add_variable_discrete(struct expression * expr, Graph_t graph, unsig
  * @param graph The graph to add the nodes to
  * @param state_index The current number of states (also used for indexing)
  */
-static void add_property_or_variable_discrete(struct expression * expr, Graph_t graph, unsigned int * state_index)
+static void add_property_or_variable_discrete(struct expression * expr, Graph_t graph, int * state_index)
 {
 	struct expression * next;
 	int num_states;
@@ -384,7 +384,7 @@ static void add_property_or_variable_discrete(struct expression * expr, Graph_t 
  * @param graph The graph to add the node data
  * @param state_index The current index of the next state for the node (also the state count)
  */
-static void add_variable_content_to_graph(struct expression * expr, Graph_t graph, unsigned int * state_index){
+static void add_variable_content_to_graph(struct expression * expr, Graph_t graph, int * state_index){
 	// nothing to add
 	if(expr == NULL){
 		return;
@@ -401,7 +401,7 @@ static void add_variable_content_to_graph(struct expression * expr, Graph_t grap
  */
 static void add_node_to_graph(struct expression * expr, Graph_t graph){
 	char variable_name[CHAR_BUFFER_SIZE];
-	unsigned int state_index;
+	int state_index;
 
 	state_index = 0;
 
@@ -469,7 +469,7 @@ static void add_nodes_to_graph(struct expression * expr, Graph_t graph){
  * @param expr The expression in the AST to look at
  * @param count The current count
  */
-static void count_number_of_node_names(struct expression *expr, unsigned int * count){
+static void count_number_of_node_names(struct expression *expr, int * count){
 	struct expression * next;
 
 	// nothing more to add
@@ -501,7 +501,7 @@ static void count_number_of_node_names(struct expression *expr, unsigned int * c
  * @param buffer The char buffer holding all of the node names
  * @param curr_index The current index in the buffer
  */
-static void fill_in_node_names(struct expression *expr, char *buffer, unsigned int *curr_index){
+static void fill_in_node_names(struct expression *expr, char *buffer, int *curr_index){
 	struct expression * next;
 
 	// no more data
@@ -608,9 +608,9 @@ static void fill_in_probability_table_table(struct expression * expr, float * pr
  * @param num_states The number of states for the current node
  * @param current_index The current index in the buffer
  */
-static void fill_in_probability_table_entry(struct expression * expr, float * probability_buffer, unsigned int num_probabilities,
-											unsigned int pos, unsigned int jump, unsigned int num_states, unsigned int * current_index){
-    unsigned int index;
+static void fill_in_probability_table_entry(struct expression * expr, float * probability_buffer, int num_probabilities,
+											int pos, int jump, int num_states, int * current_index){
+    int index;
 
 	// nothing more to read
 	if(expr == NULL){
@@ -696,7 +696,7 @@ static void fill_in_probability_buffer_table(struct expression * expr, float * p
  * @param expr The current expression in the AST
  * @param count The state count
  */
-static void count_num_state_names(struct expression * expr, unsigned int * count){
+static void count_num_state_names(struct expression * expr, int * count){
 	// nothing more to add
 	if(expr == NULL){
 		return;
@@ -725,7 +725,7 @@ static void count_num_state_names(struct expression * expr, unsigned int * count
  * @param current_index The current available index in the buffer
  * @param buffer The buffer for the names
  */
-static void fill_in_state_names(struct expression * expr, unsigned int count, unsigned int * current_index, char * buffer){
+static void fill_in_state_names(struct expression * expr, int count, int * current_index, char * buffer){
 	// nothing more to add
 	if(expr == NULL){
 		return;
@@ -759,9 +759,9 @@ static void fill_in_state_names(struct expression * expr, unsigned int count, un
  * @param graph The graph object
  * @return The index offset for the state
  */
-static unsigned int calculate_entry_offset(char * state_names, unsigned int num_states, char * variable_names, int num_variables,
+static int calculate_entry_offset(char * state_names, int num_states, char * variable_names, int num_variables,
 								  Graph_t graph){
-    unsigned int i, j, k, pos, step, var_name_index, node_index, num_vars;
+    int i, j, k, pos, step, var_name_index, node_index, num_vars;
     char * state;
     char * node_state_name;
 
@@ -812,11 +812,11 @@ static unsigned int calculate_entry_offset(char * state_names, unsigned int num_
  * @param graph The graph being built
  */
 static void fill_in_probability_buffer_entry(struct expression * expr, float * probability_buffer,
-											 unsigned int num_probabilities,
-											 char * variables, unsigned int num_variables,
-											 unsigned int first_num_states,
+											 int num_probabilities,
+											 char * variables, int num_variables,
+											 int first_num_states,
                                              Graph_t graph){
-	unsigned int count, index, pos, jump;
+	int count, index, pos, jump;
 	char * state_names;
 
 	// nothing more to add
@@ -861,8 +861,9 @@ static void fill_in_probability_buffer_entry(struct expression * expr, float * p
  * @param graph The graph being built
  * @return The space needed for the buffer
  */
-static unsigned int calculate_num_probabilities(char *node_name_buffer, unsigned int num_nodes, Graph_t graph){
-	unsigned int i, node_index, num_probabilities;
+static int calculate_num_probabilities(char *node_name_buffer, int num_nodes, Graph_t graph){
+	int i, num_probabilities;
+	long node_index;
 	char * curr_name;
     ENTRY e, *ep;
 
@@ -877,7 +878,7 @@ static unsigned int calculate_num_probabilities(char *node_name_buffer, unsigned
 		e.data = NULL;
         assert(hsearch_r(e, FIND, &ep, graph->node_hash_table));
         assert(ep != NULL);
-		node_index = (unsigned int)ep->data;
+		node_index = (long)ep->data;
 
 		num_probabilities *= graph->node_states[node_index].size;
 	}
@@ -893,7 +894,7 @@ static unsigned int calculate_num_probabilities(char *node_name_buffer, unsigned
 static void update_node_in_graph(struct expression * expr, Graph_t graph){
 	char * buffer;
 	float * probability_buffer;
-	unsigned int index, num_node_names, num_probabilities;
+	int index, num_node_names, num_probabilities;
     int node_index;
 	struct belief node_belief;
 
@@ -946,7 +947,7 @@ static void update_node_in_graph(struct expression * expr, Graph_t graph){
 		node_belief.data[index] = probability_buffer[index];
 	}
 
-    graph_set_node_state(graph, (unsigned int)node_index, num_probabilities, &node_belief);
+    graph_set_node_state(graph, (int)node_index, num_probabilities, &node_belief);
 
 	free(buffer);
 	free(probability_buffer);
@@ -960,8 +961,8 @@ static void update_node_in_graph(struct expression * expr, Graph_t graph){
  * @param num_probabilities The size of the array of probabilities
  * @param graph The graph being built
  */
-static void insert_edges_into_graph(char * variable_buffer, unsigned int num_node_names, float * probability_buffer, unsigned int num_probabilities, Graph_t graph){
-	unsigned int i, j, k, offset, slice, index, delta, next, diff, dest_index, src_index;
+static void insert_edges_into_graph(char * variable_buffer, int num_node_names, float * probability_buffer, int num_probabilities, Graph_t graph){
+	int i, j, k, offset, slice, index, delta, next, diff, dest_index, src_index;
 	struct joint_probability sub_graph, transpose;
 
 	assert(num_node_names > 1);
@@ -1039,7 +1040,7 @@ static void insert_edges_into_graph(char * variable_buffer, unsigned int num_nod
 static void add_edge_to_graph(struct expression * expr, Graph_t graph){
     char * buffer;
     float * probability_buffer;
-    unsigned int index, num_node_names, num_probabilities, first_num_states;
+    int index, num_node_names, num_probabilities, first_num_states;
 
 	// nothing more to add
     if(expr == NULL){
@@ -1200,7 +1201,7 @@ static void add_edges_to_graph(struct expression * expr, Graph_t graph){
  * @param graph The graph to update
  */
 static void reverse_node_names(Graph_t graph){
-	unsigned int i, j, index_1, index_2;
+	int i, j, index_1, index_2;
 	char temp[CHAR_BUFFER_SIZE];
 	char *ptr;
 
@@ -1243,7 +1244,7 @@ Graph_t build_graph(struct expression * root){
 	assert(num_edges > 0);
 	assert(num_nodes > 0);
 
-	graph = create_graph((unsigned int)num_nodes, (unsigned int)2 * num_edges);
+	graph = create_graph((int)num_nodes, (int)2 * num_edges);
 	add_nodes_to_graph(root, graph);
 	reverse_node_names(graph);
 

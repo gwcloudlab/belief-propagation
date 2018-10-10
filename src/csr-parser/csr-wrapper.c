@@ -29,7 +29,7 @@ void run_test_belief_propagation_mtx_files(const char *edges_mtx, const char *no
     Graph_t graph;
     clock_t start, end;
     double time_elapsed;
-    unsigned int i;
+    int i;
 
     // parse files
     graph = build_graph_from_mtx(edges_mtx, nodes_mtx);
@@ -71,7 +71,7 @@ void run_test_loopy_belief_propagation_mtx_files(const char * edges_mtx, const c
     Graph_t graph;
     clock_t start, end;
     double time_elapsed;
-    unsigned int num_iterations;
+    int num_iterations;
 
     // read data
     graph = build_graph_from_mtx(edges_mtx, nodes_mtx);
@@ -107,7 +107,7 @@ void run_test_loopy_belief_propagation_edge_mtx_files(const char * edges_mtx, co
     Graph_t graph;
     clock_t start, end;
     double time_elapsed;
-    unsigned int num_iterations;
+    int num_iterations;
 
     graph = build_graph_from_mtx(edges_mtx, nodes_mtx);
 
@@ -141,7 +141,7 @@ void run_test_loopy_belief_propagation_mtx_files_acc(const char *edges_mtx, cons
     Graph_t graph;
     clock_t start, end;
     double time_elapsed;
-    unsigned int num_iterations;
+    int num_iterations;
 
     graph = build_graph_from_mtx(edges_mtx, nodes_mtx);
 
@@ -175,7 +175,7 @@ void run_test_loopy_belief_propagation_edge_mtx_files_acc(const char *edges_mtx,
     Graph_t graph;
     clock_t start, end;
     double time_elapsed;
-    unsigned int num_iterations;
+    int num_iterations;
 
     graph = build_graph_from_mtx(edges_mtx, nodes_mtx);
     assert(graph != NULL);

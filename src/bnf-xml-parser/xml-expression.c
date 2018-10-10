@@ -123,11 +123,11 @@ static xmlXPathObjectPtr get_subnode_set(xmlDocPtr doc, xmlChar * sub_xpath, xml
  * @param doc The XML document
  * @return The count of graph nodes
  */
-static unsigned int count_number_of_nodes(xmlDocPtr doc){
+static int count_number_of_nodes(xmlDocPtr doc){
     xmlXPathObjectPtr result;
     xmlNodeSetPtr node_set;
 
-    unsigned int num_nodes;
+    int num_nodes;
 
     result = get_node_set(doc, (xmlChar *)"//NETWORK/VARIABLE");
     assert(result);
@@ -135,7 +135,7 @@ static unsigned int count_number_of_nodes(xmlDocPtr doc){
     node_set = result->nodesetval;
 
     assert(node_set->nodeNr >= 0);
-    num_nodes = (unsigned int)node_set->nodeNr;
+    num_nodes = (int)node_set->nodeNr;
 
     xmlXPathFreeObject(result);
     return num_nodes;
@@ -146,10 +146,10 @@ static unsigned int count_number_of_nodes(xmlDocPtr doc){
  * @param doc The XML document being analyzed
  * @return The count of the edges
  */
-static unsigned int count_number_of_edges(xmlDocPtr doc){
+static int count_number_of_edges(xmlDocPtr doc){
     xmlXPathObjectPtr result;
     xmlNodeSetPtr node_set;
-    unsigned int num_edges;
+    int num_edges;
 
     result = get_node_set(doc, (xmlChar *)"//NETWORK/DEFINITION/GIVEN");
     assert(result);
@@ -157,7 +157,7 @@ static unsigned int count_number_of_edges(xmlDocPtr doc){
     node_set = result->nodesetval;
 
     assert(node_set->nodeNr >= 0);
-    num_edges = (unsigned int)node_set->nodeNr;
+    num_edges = (int)node_set->nodeNr;
 
     xmlXPathFreeObject(result);
     return num_edges;
@@ -170,10 +170,10 @@ static unsigned int count_number_of_edges(xmlDocPtr doc){
  * @param graph The graph to add the belief
  * @return 
  */
-static unsigned int add_variables_to_graph(xmlDocPtr doc, xmlNodePtr node, Graph_t graph){
+static int add_variables_to_graph(xmlDocPtr doc, xmlNodePtr node, Graph_t graph){
     xmlXPathObjectPtr result;
     xmlNodeSetPtr node_set;
-    unsigned int num_variables, char_index, num_vertices;
+    int num_variables, char_index, num_vertices;
     int i;
     xmlChar * variable_name;
     char * node_name;
@@ -211,7 +211,7 @@ static unsigned int add_variables_to_graph(xmlDocPtr doc, xmlNodePtr node, Graph
 static void add_node_to_graph(xmlDocPtr doc, xmlNodePtr node, Graph_t graph){
     xmlXPathObjectPtr result;
     xmlNodeSetPtr node_set;
-    unsigned int num_variables;
+    int num_variables;
     char buffer[CHAR_BUFFER_SIZE];
     xmlChar *value;
 
@@ -267,10 +267,10 @@ static void add_nodes_to_graph(xmlDocPtr doc, Graph_t graph){
  * @param definition The XML node being looked at
  * @return The count of the probabilities
  */
-static unsigned int count_probabilities(xmlDocPtr doc, xmlNodePtr definition){
+static int count_probabilities(xmlDocPtr doc, xmlNodePtr definition){
     xmlXPathObjectPtr result;
     xmlNodeSetPtr node_set;
-    unsigned int count;
+    int count;
     xmlChar * value;
     char * split;
 
@@ -302,12 +302,12 @@ static unsigned int count_probabilities(xmlDocPtr doc, xmlNodePtr definition){
  * @param belief The beliefs being updated
  * @param length The size of the belief
  */
-static void build_probabilities(xmlDocPtr doc, xmlNodePtr definition, struct belief *belief, unsigned int length){
+static void build_probabilities(xmlDocPtr doc, xmlNodePtr definition, struct belief *belief, int length){
     xmlXPathObjectPtr result;
     xmlNodeSetPtr node_set;
     xmlChar * value;
     char * split;
-    unsigned int i;
+    int i;
 
     i = 0;
 
@@ -367,9 +367,9 @@ static void add_observed_node_to_graph(xmlDocPtr doc, xmlNodePtr definition, Gra
     xmlXPathObjectPtr result;
     char dest_node_name[CHAR_BUFFER_SIZE];
     struct belief belief;
-    unsigned int num_probabilities;
-    unsigned int dest_node_index;
-    unsigned int i;
+    int num_probabilities;
+    int dest_node_index;
+    int i;
 
     // check if edge or observed node
     result = get_subnode_set(doc, (xmlChar *)".//GIVEN/text()", definition);
@@ -424,8 +424,8 @@ static void add_edges_to_graph(xmlDocPtr doc, xmlNodePtr definition, Graph_t gra
     char dest_node_name[CHAR_BUFFER_SIZE];
     char src_node_name[CHAR_BUFFER_SIZE];
     struct belief *new_belief;
-    unsigned int num_probabilities;
-    unsigned int j, k, offset, slice, index, delta, next, diff, dest_index, src_index;
+    int num_probabilities;
+    int j, k, offset, slice, index, delta, next, diff, dest_index, src_index;
     int i;
     xmlChar * value;
 
@@ -548,7 +548,7 @@ Graph_t parse_xml_file(const char * file_name){
     xmlDocPtr  doc;
     xmlParserCtxtPtr context;
     int file_access;
-    unsigned int num_nodes, num_edges;
+    int num_nodes, num_edges;
     Graph_t graph;
 
     // ensure file path exists

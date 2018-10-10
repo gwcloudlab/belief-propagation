@@ -45,16 +45,16 @@ static void find_graph_info(const char * edge_file, struct graph_info * info){
                 strncpy(match_buffer, buffer + groups[i].rm_so, (size_t)(groups[i].rm_eo - groups[i].rm_so));
                 parsed_long = strtoul(match_buffer, &end_ptr, 10);
                 if(i == 1){
-                    info->num_nodes = (unsigned int)parsed_long;
+                    info->num_nodes = (int)parsed_long;
                 }
                 else if(i == 2){
-                    info->num_edges = (unsigned int)parsed_long;
+                    info->num_edges = (int)parsed_long;
                 }
                 else if(i == 3){
-                    info->num_beliefs = (unsigned int)parsed_long;
+                    info->num_beliefs = (int)parsed_long;
                 }
                 else {
-                    info->num_belief_states = (unsigned int)parsed_long;
+                    info->num_belief_states = (int)parsed_long;
                 }
             }
             break;
@@ -79,7 +79,7 @@ static void create_nodes(Graph_t graph, struct graph_info * info, const char * e
     regmatch_t *groups;
     int reti, i;
     size_t num_groups;
-    unsigned int node_index;
+    int node_index;
 
     node_index = 0;
 
@@ -156,7 +156,7 @@ static void add_observed_nodes(Graph_t graph, struct graph_info *info, const cha
     int reti, i, j;
     size_t num_groups;
     struct belief belief;
-    unsigned int node_index;
+    int node_index;
 
     node_index = 0;
 
@@ -189,7 +189,7 @@ static void add_observed_nodes(Graph_t graph, struct graph_info *info, const cha
                     data.key = match_buffer;
                     data.data = NULL;
                     assert(hsearch_r(data, FIND, &result, node_hash) != 0);
-                    node_index = (unsigned int)result->data;
+                    node_index = (int)result->data;
                     // insert into observed node hash
                     assert(hsearch_r(data, ENTER, &observed_result, observed_node_hash) != 0);
                 }
@@ -228,7 +228,7 @@ static void add_edge(Graph_t graph, struct graph_info *info, const char * edge_f
     regmatch_t *groups;
     int reti, i, j, k;
     size_t num_groups;
-    unsigned int src_index, dest_index;
+    int src_index, dest_index;
     struct joint_probability joint_probability, inverted_joint_probability;
     char src_to_dest_valid, dest_to_src_valid;
 
@@ -271,12 +271,12 @@ static void add_edge(Graph_t graph, struct graph_info *info, const char * edge_f
                     assert(hsearch_r(item, FIND, &result, node_hash) != 0);
                     hsearch_r(item, FIND, &observed_result, observed_node_hash);
                     if (i == 1) {
-                        src_index = (unsigned int) result->data;
+                        src_index = (int) result->data;
                         if(observed_result == NULL){
                             dest_to_src_valid = 1;
                         }
                     } else {
-                        dest_index = (unsigned int) result->data;
+                        dest_index = (int) result->data;
                         if(observed_result == NULL){
                             src_to_dest_valid = 1;
                         }
@@ -391,7 +391,7 @@ void test_page_rank_sample_file(const char * root_dir){
     char edge_path[128], node_path[128];
     char * node_name;
     char highest_node[CHAR_BUFFER_SIZE];
-    unsigned int node_index;
+    int node_index;
     float highest_belief, current_belief;
     Graph_t graph;
 
@@ -436,7 +436,7 @@ void test_page_rank_sample_edge_file(const char * root_dir){
     char edge_path[128], node_path[128];
     char * node_name;
     char highest_node[CHAR_BUFFER_SIZE];
-    unsigned int node_index;
+    int node_index;
     float highest_belief, current_belief;
     Graph_t graph;
 
@@ -483,7 +483,7 @@ void run_test_belief_propagation_snap_file(const char * edge_file, const char * 
     Graph_t graph;
     clock_t start, end;
     double time_elapsed;
-    unsigned int i;
+    int i;
 
     // parse the file
     graph = parse_graph_from_snap_files(edge_file, node_file);
@@ -535,7 +535,7 @@ void run_test_loopy_belief_propagation_snap_file(const char * edge_file_name, co
     Graph_t graph;
     clock_t start, end;
     double time_elapsed;
-    unsigned int num_iterations;
+    int num_iterations;
 
     // read the data
     graph = parse_graph_from_snap_files(edge_file_name, node_file_name);
@@ -576,7 +576,7 @@ void run_test_loopy_belief_propagation_edge_snap_file(const char * edge_file_nam
     Graph_t graph;
     clock_t start, end;
     double time_elapsed;
-    unsigned int num_iterations;
+    int num_iterations;
 
     // read the XML file
     graph = parse_graph_from_snap_files(edge_file_name, node_file_name);
@@ -616,7 +616,7 @@ void run_test_loopy_belief_propagation_snap_file_acc(const char * edge_file_name
     Graph_t graph;
     clock_t start, end;
     double time_elapsed;
-    unsigned int num_iterations;
+    int num_iterations;
 
     // read the data
     graph = parse_graph_from_snap_files(edge_file_name, node_file_name);
@@ -656,7 +656,7 @@ void run_test_loopy_belief_propagation_edge_snap_file_acc(const char * edge_file
     Graph_t graph;
     clock_t start, end;
     double time_elapsed;
-    unsigned int num_iterations;
+    int num_iterations;
 
     // read the data
     graph = parse_graph_from_snap_files(edge_file_name, node_file_name);

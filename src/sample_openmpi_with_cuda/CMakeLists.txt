@@ -1,0 +1,21 @@
+cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
+project(sample_openmpi_with_cuda)
+
+FIND_PACKAGE(MPI REQUIRED)
+find_package(CUDA REQUIRED)
+
+include_directories(SYSTEM ${MPI_INCLUDE_PATH} ${CUDA_INCLUDE_DIRS})
+
+cuda_add_library(jacobi_device Device.cu)
+
+add_executable(jacobi_cuda_normal_mpi Jacobi.cpp Input.cpp Host.cpp CUDA_Normal_MPI.cpp)
+add_executable(jacobi_cuda_aware_mpi Jacobi.cpp Input.cpp Host.cpp CUDA_Aware_MPI.cpp)
+cuda_add_executable(nccl_single_process_single_thread_many_devices nccl_single_process_single_thread_many_devices.cu)
+cuda_add_executable(nccl_multiple_processes_one_device_per nccl_multiple_processes_one_device_per.cu)
+cuda_add_executable(nccl_multiple_processes_multiple_devices nccl_multiple_processes_multiple_devices.cu)
+
+target_link_libraries(jacobi_cuda_normal_mpi jacobi_device ${MPI_CXX_LIBRARIES} ${CUDA_LIBRARIES} m)
+target_link_libraries(jacobi_cuda_aware_mpi jacobi_device ${MPI_CXX_LIBRARIES} ${CUDA_LIBRARIES} m)
+target_link_libraries(nccl_single_process_single_thread_many_devices nccl)
+target_link_libraries(nccl_multiple_processes_one_device_per nccl ${MPI_CXX_LIBRARIES})
+target_link_libraries(nccl_multiple_processes_multiple_devices nccl ${MPI_CXX_LIBRARIES})

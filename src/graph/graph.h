@@ -30,7 +30,7 @@ struct belief {
 	/**
 	 * The size of the probabilities
 	 */
-    unsigned int size;
+    int size;
 	/**
 	 * The previous sum
 	 */
@@ -52,11 +52,11 @@ struct joint_probability {
 	/**
 	 * The first dimension of the table
 	 */
-    unsigned int dim_x;
+    int dim_x;
 	/**
 	 * The second dimension of the table
 	 */
-    unsigned int dim_y;
+    int dim_y;
 };
 
 /**
@@ -66,33 +66,33 @@ struct graph {
 	/**
 	 * The number of nodes in the graph allocated
 	 */
-	unsigned int total_num_vertices;
+	int total_num_vertices;
 	/**
 	 * The number of edges in the graph allocated
 	 */
-	unsigned int total_num_edges;
+	int total_num_edges;
 
 	/**
 	 * The number of nodes currently added to the graph
 	 */
-	unsigned int current_num_vertices;
+	int current_num_vertices;
 	/**
 	 * The number of edges currently added to the graph
 	 */
-	unsigned int current_num_edges;
+	int current_num_edges;
 	/**
 	 * The maximum degree of any node in the graph
 	 */
-	unsigned int max_degree;
+	int max_degree;
 
 	/**
 	 * Array of edges to the index of their source nodes
 	 */
-	unsigned int * edges_src_index;
+	int * edges_src_index;
 	/**
 	 * Array of edges to the index of the destination nodes
 	 */
-	unsigned int * edges_dest_index;
+	int * edges_dest_index;
 	/**
 	 * Array of edges by their first dimension of the joint probability
 	 */
@@ -115,50 +115,50 @@ struct graph {
 	/**
 	 * Array of indices in src_nodes_to_edges_edge_list indexed by their source node
 	 */
-	unsigned int * src_nodes_to_edges_node_list;
+	int * src_nodes_to_edges_node_list;
 	/**
 	 * Array of edges indexed by their source node
 	 */
-	unsigned int * src_nodes_to_edges_edge_list;
+	int * src_nodes_to_edges_edge_list;
 
 	/**
 	 * Array of indices in dest_nodes_to_edges_edge_list indexed by their destination node
 	 */
-	unsigned int * dest_nodes_to_edges_node_list;
+	int * dest_nodes_to_edges_node_list;
 	/**
 	 * Array of edges index by their destination node
 	 */
-	unsigned int * dest_nodes_to_edges_edge_list;
+	int * dest_nodes_to_edges_edge_list;
 
 	/**
 	 * Levels in the tree to the nodes there
 	 */
-	unsigned int * levels_to_nodes;
+	int * levels_to_nodes;
 	/**
 	 * The size of the level array
 	 */
-	unsigned int num_levels;
+	int num_levels;
 
 	/**
 	 * Array of nodes left in the work queue
 	 */
-	unsigned int *work_queue_nodes;
+	int *work_queue_nodes;
 
 	/**
 	 * Array of edges left in the work queue
 	 */
-	unsigned int *work_queue_edges;
+	int *work_queue_edges;
 
 	/**
 	 * Array for scratch space
 	 */
-	unsigned int *work_queue_scratch;
+	int *work_queue_scratch;
 
 	/**
 	 * Number of items in work queue
 	 */
-	unsigned int num_work_items_nodes;
-	unsigned int num_work_items_edges;
+	int num_work_items_nodes;
+	int num_work_items_edges;
 
 
 	/**
@@ -194,7 +194,7 @@ struct graph {
 	/**
 	 * Flag if the node name to node index hash has been created
 	 */
-    char node_hash_table_created;
+    unsigned char node_hash_table_created;
 	/**
 	 * Hash table of node name to node index
 	 */
@@ -222,20 +222,20 @@ struct htable_entry {
 	/**
 	 * The array of indices
 	 */
-    unsigned int indices[MAX_DEGREE];
+    int indices[MAX_DEGREE];
 	/**
 	 * The acutal size of the array
 	 */
-    unsigned int count;
+    int count;
 };
 
-Graph_t create_graph(unsigned int, unsigned int);
+Graph_t create_graph(int, int);
 
-void graph_add_node(Graph_t, unsigned int, const char *);
-void graph_add_and_set_node_state(Graph_t, unsigned int, const char *, struct belief *);
-void graph_set_node_state(Graph_t, unsigned int, unsigned int, struct belief *);
+void graph_add_node(Graph_t, int, const char *);
+void graph_add_and_set_node_state(Graph_t, int, const char *, struct belief *);
+void graph_set_node_state(Graph_t, int, int, struct belief *);
 
-void graph_add_edge(Graph_t, unsigned int, unsigned int, unsigned int, unsigned int, struct joint_probability *);
+void graph_add_edge(Graph_t, int, int, int, int, struct joint_probability *);
 
 void set_up_src_nodes_to_edges(Graph_t);
 void set_up_dest_nodes_to_edges(Graph_t);
@@ -243,19 +243,19 @@ void init_levels_to_nodes(Graph_t);
 void calculate_diameter(Graph_t);
 void prep_as_page_rank(Graph_t);
 
-void initialize_node(Graph_t, unsigned int, unsigned int);
-void node_set_state(Graph_t, unsigned int, unsigned int, struct belief *);
+void initialize_node(Graph_t, int, int);
+void node_set_state(Graph_t, int, int, struct belief *);
 
-void init_edge(Graph_t, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, struct joint_probability *);
-void send_message(struct belief *, unsigned int, struct joint_probability *, struct belief *);
+void init_edge(Graph_t, int, int, int, int, int, struct joint_probability *);
+void send_message(struct belief *, int, struct joint_probability *, struct belief *);
 
 void fill_in_node_hash_table(Graph_t);
-unsigned int find_node_by_name(char *, Graph_t);
+long find_node_by_name(char *, Graph_t);
 
 void graph_destroy(Graph_t);
 
 void propagate_using_levels_start(Graph_t);
-void propagate_using_levels(Graph_t, unsigned int);
+void propagate_using_levels(Graph_t, int);
 
 void reset_visited(Graph_t);
 
@@ -267,25 +267,25 @@ void page_rank_edge_one_iteration(Graph_t);
 void viterbi_one_iteration(Graph_t);
 void viterbi_edge_one_iteration(Graph_t);
 
-unsigned int loopy_propagate_until(Graph_t, float, unsigned int);
-unsigned int loopy_propagate_until_edge(Graph_t, float, unsigned int);
-unsigned int loopy_propagate_until_acc(Graph_t, float, unsigned int);
-unsigned int loopy_propagate_until_edge_acc(Graph_t, float, unsigned int);
+int loopy_propagate_until(Graph_t, float, int);
+int loopy_propagate_until_edge(Graph_t, float, int);
+int loopy_propagate_until_acc(Graph_t, float, int);
+int loopy_propagate_until_edge_acc(Graph_t, float, int);
 
-unsigned int page_rank_until(Graph_t, float, unsigned int);
-unsigned int page_rank_until_edge(Graph_t, float, unsigned int);
-unsigned int page_rank_until_acc(Graph_t, float, unsigned int);
-unsigned int page_rank_until_edge_acc(Graph_t, float, unsigned int);
+int page_rank_until(Graph_t, float, int);
+int page_rank_until_edge(Graph_t, float, int);
+int page_rank_until_acc(Graph_t, float, int);
+int page_rank_until_edge_acc(Graph_t, float, int);
 
-unsigned int viterbi_until(Graph_t, float, unsigned int);
-unsigned int viterbi_until_edge(Graph_t, float, unsigned int);
-unsigned int viterbi_until_acc(Graph_t, float, unsigned int);
-unsigned int viterbi_until_edge_acc(Graph_t, float, unsigned int);
+int viterbi_until(Graph_t, float, int);
+int viterbi_until_edge(Graph_t, float, int);
+int viterbi_until_acc(Graph_t, float, int);
+int viterbi_until_edge_acc(Graph_t, float, int);
 
 void marginalize(Graph_t);
 
-void print_node(Graph_t, unsigned int);
-void print_edge(Graph_t, unsigned int);
+void print_node(Graph_t, int);
+void print_edge(Graph_t, int);
 void print_nodes(Graph_t);
 void print_edges(Graph_t);
 void print_src_nodes_to_edges(Graph_t);
@@ -293,6 +293,7 @@ void print_dest_nodes_to_edges(Graph_t);
 void print_levels_to_nodes(Graph_t);
 
 void init_work_queue_nodes(Graph_t);
+void init_work_queue_subset_edges(Graph_t, int, int);
 void init_work_queue_edges(Graph_t);
 
 void update_work_queue_nodes(Graph_t, float);

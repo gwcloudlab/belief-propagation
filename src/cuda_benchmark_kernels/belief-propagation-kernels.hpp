@@ -21,88 +21,88 @@ void CheckCudaErrorAux (const char *, unsigned, const char *, cudaError_t);
 #define CUDA_CHECK_RETURN(value) CheckCudaErrorAux(__FILE__,__LINE__, #value, value)
 
 __global__
-void init_message_buffer_kernel(struct belief *, struct belief *, unsigned int);
+void init_message_buffer_kernel(struct belief *, struct belief *, int);
 
 __device__
-void combine_message_cuda(struct belief *, struct belief *, unsigned int, unsigned int,
-                          unsigned int, unsigned int, char, unsigned int);
+void combine_message_cuda(struct belief *, struct belief *, int, int,
+                          int, int, char, int);
 
 __device__
-void combine_page_rank_message_cuda(struct belief *, struct belief *, unsigned int, unsigned int,
-                          unsigned int, unsigned int, char, unsigned int);
+void combine_page_rank_message_cuda(struct belief *, struct belief *, int, int,
+                          int, int, char, int);
 
 __device__
-void combine_viterbi_message_cuda(struct belief *, struct belief *, unsigned int, unsigned int,
-                                  unsigned int, unsigned int, char, unsigned int);
+void combine_viterbi_message_cuda(struct belief *, struct belief *, int, int,
+                                  int, int, char, int);
 
 __global__
-void read_incoming_messages_kernel(struct belief *, struct belief *, unsigned int *,
-                                   unsigned int *, unsigned int,
-                                   unsigned int,
-                                   char, unsigned int);
+void read_incoming_messages_kernel(struct belief *, struct belief *, int *,
+                                   int *, int,
+                                   int,
+                                   char, int);
 
 __device__
-void send_message_for_edge_cuda(struct belief * message_buffer, unsigned int edge_index, unsigned int node_index,
+void send_message_for_edge_cuda(struct belief * message_buffer, int edge_index, int node_index,
                                 struct joint_probability * joint_probabilities,
                                 struct belief * edge_messages);
 
 __global__
-void send_message_for_node_kernel(struct belief *, unsigned int,
+void send_message_for_node_kernel(struct belief *, int,
                                   struct joint_probability *, struct belief *,
-                                  unsigned int *, unsigned int *, unsigned int);
+                                  int *, int *, int);
 
 __global__
 void marginalize_node_combine_kernel(struct belief *, struct belief *,
-                                     struct belief *, unsigned int *, unsigned int *, unsigned int,
-                                     unsigned int, char, unsigned int);
+                                     struct belief *, int *, int *, int,
+                                     int, char, int);
 
 __global__
 void marginalize_page_rank_node_combine_kernel(struct belief *, struct belief *,
-                                     struct belief *, unsigned int *, unsigned int *, unsigned int,
-                                     unsigned int, char, unsigned int);
+                                     struct belief *, int *, int *, int,
+                                     int, char, int);
 
 __global__
 void argmax_node_combine_kernel(struct belief *, struct belief *,
-                           struct belief *, unsigned int *, unsigned int *, unsigned int,
-                           unsigned int, char, unsigned int);
+                           struct belief *, int *, int *, int,
+                           int, char, int);
 
 __global__
 void marginalize_sum_node_kernel(struct belief *, struct belief *,
-                                 struct belief *, unsigned int *,
-                                 unsigned int *, unsigned int,
-                                 unsigned int, char, unsigned int);
+                                 struct belief *, int *,
+                                 int *, int,
+                                 int, char, int);
 
 __global__
 void marginalize_dampening_factor_kernel(struct belief *, struct belief *,
-                                         struct belief *, unsigned int *,
-                                         unsigned int *, unsigned int,
-                                         unsigned int, char, unsigned int);
+                                         struct belief *, int *,
+                                         int *, int,
+                                         int, char, int);
 
 __global__
-void marginalize_viterbi_beliefs(struct belief *, unsigned int);
+void marginalize_viterbi_beliefs(struct belief *, int);
 
 __global__
 void argmax_kernel(struct belief *, struct belief *,
-                   struct belief *, unsigned int *,
-                   unsigned int *, unsigned int,
-                   unsigned int, char, unsigned int);
+                   struct belief *, int *,
+                   int *, int,
+                   int, char, int);
 
 __device__
-float calculate_local_delta(unsigned int, struct belief *);
+float calculate_local_delta(int, struct belief *);
 
 __global__
 void calculate_delta_6(struct belief *, float *, float *,
-                       unsigned int, char, unsigned int);
+                       int, char, int);
 
 __global__
 void calculate_delta_simple(struct belief *, float *, float *,
-                            unsigned int);
+                            int);
 
 void check_cuda_kernel_return_code();
 
-unsigned int loopy_propagate_until_cuda_kernels(Graph_t, float, unsigned int);
-unsigned int page_rank_until_cuda_kernels(Graph_t, float, unsigned int);
-unsigned int viterbi_until_cuda_kernels(Graph_t, float, unsigned int);
+int loopy_propagate_until_cuda_kernels(Graph_t, float, int);
+int page_rank_until_cuda_kernels(Graph_t, float, int);
+int viterbi_until_cuda_kernels(Graph_t, float, int);
 
 
 void test_loopy_belief_propagation_kernels(char *);
@@ -114,6 +114,6 @@ void run_test_loopy_belief_propagation_mtx_files_kernels(const char *, const cha
 
 
 __global__
-void calculate_delta(struct belief * previous_messages, struct belief * current_messages, float * delta, float * delta_array, unsigned int * edges_x_dim, unsigned int num_edges);
+void calculate_delta(struct belief * previous_messages, struct belief * current_messages, float * delta, float * delta_array, int * edges_x_dim, int num_edges);
 
 #endif

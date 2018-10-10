@@ -5,7 +5,7 @@
 #include "csr-parser.h"
 
 
-static unsigned int parse_number_of_nodes(const char *nodes_mtx, regex_t *regex_comment) {
+static int parse_number_of_nodes(const char *nodes_mtx, regex_t *regex_comment) {
     FILE *fp;
     char buff[255];
     int reti;
@@ -32,10 +32,10 @@ static unsigned int parse_number_of_nodes(const char *nodes_mtx, regex_t *regex_
     }
 
     fclose(fp);
-    return (unsigned int)num_nodes_1;
+    return (int)num_nodes_1;
 }
 
-static unsigned int parse_number_of_node_states(const char *nodes_mtx, regex_t *regex_comment) {
+static int parse_number_of_node_states(const char *nodes_mtx, regex_t *regex_comment) {
     FILE *fp;
     char buff[255];
     int reti;
@@ -73,10 +73,10 @@ static unsigned int parse_number_of_node_states(const char *nodes_mtx, regex_t *
 
     fclose(fp);
     assert(num_beliefs <= MAX_STATES);
-    return (unsigned int)num_beliefs;
+    return (int)num_beliefs;
 }
 
-static unsigned int parse_number_of_edges(const char *edges_mtx, regex_t *regex_comment) {
+static int parse_number_of_edges(const char *edges_mtx, regex_t *regex_comment) {
     FILE *fp;
     char buff[255];
     int reti;
@@ -105,10 +105,10 @@ static unsigned int parse_number_of_edges(const char *edges_mtx, regex_t *regex_
     }
 
     fclose(fp);
-    return (unsigned int)num_non_zeroes;
+    return (int)num_non_zeroes;
 }
 
-static unsigned int parse_number_of_joint_probabilities(const char *edges_mtx, regex_t *regex_comment) {
+static int parse_number_of_joint_probabilities(const char *edges_mtx, regex_t *regex_comment) {
     FILE *fp;
     char buff[255];
     int reti;
@@ -144,10 +144,10 @@ static unsigned int parse_number_of_joint_probabilities(const char *edges_mtx, r
     }
 
     fclose(fp);
-    return (unsigned int)num_joint_probs;
+    return (int)num_joint_probs;
 }
 
-static void add_nodes(Graph_t graph, const char *nodes_mtx, regex_t *comment_regex, unsigned int num_states) {
+static void add_nodes(Graph_t graph, const char *nodes_mtx, regex_t *comment_regex, int num_states) {
     FILE *fp;
     char buff[255];
     char name[255];
@@ -157,7 +157,7 @@ static void add_nodes(Graph_t graph, const char *nodes_mtx, regex_t *comment_reg
     long node_id_1, node_id_2;
     float prob;
     struct belief curr_belief;
-    unsigned int curr_belief_index;
+    int curr_belief_index;
 
     found_header = 0;
 
@@ -213,15 +213,15 @@ static void add_nodes(Graph_t graph, const char *nodes_mtx, regex_t *comment_reg
     fclose(fp);
 }
 
-static void add_edges(Graph_t graph, const char *edges_mtx, regex_t *comment_regex, unsigned int num_states,
-        unsigned int num_probabilities) {
+static void add_edges(Graph_t graph, const char *edges_mtx, regex_t *comment_regex, int num_states,
+        int num_probabilities) {
     FILE *fp;
     char buff[255];
     int reti;
     char found_header;
     char *p_end, *prev;
     long src_id, dest_id;
-    unsigned int src_index, dest_index, x, y;
+    int src_index, dest_index, x, y;
     float prob;
     struct joint_probability joint_probability;
 
@@ -251,8 +251,8 @@ static void add_edges(Graph_t graph, const char *edges_mtx, regex_t *comment_reg
                 assert(src_id > 0);
                 assert(dest_id > 0);
 
-                src_index = (unsigned int)(src_id - 1);
-                dest_index = (unsigned int)(dest_id - 1);
+                src_index = (int)(src_id - 1);
+                dest_index = (int)(dest_id - 1);
 
                 prev = p_end;
                 prob = strtof(p_end, &p_end);
@@ -282,7 +282,7 @@ static void add_edges(Graph_t graph, const char *edges_mtx, regex_t *comment_reg
 Graph_t build_graph_from_mtx(const char *edges_mtx, const char *nodes_mtx) {
     regex_t regex_comment;
     int reti;
-    unsigned int num_nodes, num_edges, num_node_states, num_joint_probabilities;
+    int num_nodes, num_edges, num_node_states, num_joint_probabilities;
     Graph_t graph;
 
     // compile comment regex
