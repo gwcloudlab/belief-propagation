@@ -423,40 +423,54 @@ void set_up_dest_nodes_to_edges(Graph_t graph){
 						  graph->dest_nodes_to_edges_edge_list, graph);
 }
 
+void graph_destroy_htables(Graph_t g) {
+    int i;
+    ENTRY src_e, dest_e, *src_ep, *dest_ep;
+    src_ep = NULL;
+    dest_ep = NULL;
+    if(g->node_hash_table_created != 0){
+        hdestroy_r(g->node_hash_table);
+        free(g->node_hash_table);
+    }
+    if(g->edge_tables_created != 0){
+        for(i = 0; i < g->current_num_vertices; ++i){
+            sprintf(src_key, "%d", i);
+            src_e.key = src_key;
+            src_e.data = NULL;
+            if(hsearch_r(src_e, FIND, &src_ep, g->src_node_to_edge_table) != 0) {
+                if (src_ep != NULL) {
+                    free(src_ep->data);
+                    src_ep->data = NULL;
+                }
+            }
+            src_ep = NULL;
+
+            sprintf(dest_key, "%d", i);
+            dest_e.key = dest_key;
+            dest_e.data = NULL;
+            if(hsearch_r(dest_e, FIND, &dest_ep, g->dest_node_to_edge_table) != 0) {
+                if(dest_ep != NULL){
+                    free(dest_ep->data);
+                }
+            }
+            dest_ep = NULL;
+        }
+        hdestroy_r(g->src_node_to_edge_table);
+        hdestroy_r(g->dest_node_to_edge_table);
+        free(g->src_node_to_edge_table);
+        free(g->dest_node_to_edge_table);
+    }
+
+    g->node_hash_table_created = 0;
+}
+
 /**
  * Frees all allocated memory for the graph and its associated members
  * @param g The graph
  */
 void graph_destroy(Graph_t g) {
-	int i;
-	ENTRY src_e, dest_e, *src_ep, *dest_ep;
-	if(g->node_hash_table_created != 0){
-		hdestroy_r(g->node_hash_table);
-		free(g->node_hash_table);
-	}
-	if(g->edge_tables_created != 0){
-		for(i = 0; i < g->current_num_vertices; ++i){
-			sprintf(src_key, "%d", i);
-			src_e.key = src_key;
-			src_e.data = NULL;
-			hsearch_r(src_e, FIND, &src_ep, g->src_node_to_edge_table);
-			if(src_ep != NULL){
-				free(src_ep->data);
-			}
+	graph_destroy_htables(g);
 
-			sprintf(dest_key, "%d", i);
-			dest_e.key = dest_key;
-			dest_e.data = NULL;
-			hsearch_r(dest_e, FIND, &dest_ep, g->dest_node_to_edge_table);
-			if(dest_ep != NULL){
-				free(dest_ep->data);
-			}
-		}
-		hdestroy_r(g->src_node_to_edge_table);
-		hdestroy_r(g->dest_node_to_edge_table);
-		free(g->src_node_to_edge_table);
-		free(g->dest_node_to_edge_table);
-	}
 	free(g->edges_src_index);
 	free(g->edges_dest_index);
 	free(g->edges_joint_probabilities);

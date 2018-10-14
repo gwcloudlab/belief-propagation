@@ -285,10 +285,13 @@ void calculate_delta_simple(struct belief *, float *, float *,
 __global__
 void update_work_queue_cuda_kernel(int *, int *, int*,
                                    struct belief *, int);
+__global__
+void update_work_queue_edges_cuda_kernel(int *, int *, int *, struct belief *, int);
 
 void test_error();
 
 int loopy_propagate_until_cuda_streaming(Graph_t, float, int);
+int loopy_propagate_until_cuda_openmpi(Graph_t, float, int, int, int, int);
 int loopy_propagate_until_cuda(Graph_t, float, int);
 int loopy_propagate_until_cuda_edge(Graph_t, float, int);
 int loopy_propagate_until_cuda_edge_streaming(Graph_t, float, int);
@@ -312,6 +315,8 @@ void run_test_loopy_belief_propagation_snap_file_edge_cuda(const char *, const c
 
 void run_test_loopy_belief_propagation_mtx_files_cuda(const char *, const char *, FILE *);
 void run_test_loopy_belief_propagation_mtx_files_cuda_streaming(const char *, const char *, FILE *);
+void run_test_loopy_belief_propagation_mtx_files_cuda_openmpi(const char *, const char *, FILE *,
+        int, int, int);
 void run_test_loopy_belief_propagation_mtx_files_edge_cuda(const char *, const char *, FILE *);
 void run_test_loopy_belief_propagation_mtx_files_edge_cuda_streaming(const char *, const char *, FILE *);
 void run_test_loopy_belief_propagagtion_mtx_file_edge_openmpi_cuda(const char *, const char *,

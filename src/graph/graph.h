@@ -252,6 +252,7 @@ void send_message(struct belief *, int, struct joint_probability *, struct belie
 void fill_in_node_hash_table(Graph_t);
 long find_node_by_name(char *, Graph_t);
 
+void graph_destroy_htables(Graph_t);
 void graph_destroy(Graph_t);
 
 void propagate_using_levels_start(Graph_t);
