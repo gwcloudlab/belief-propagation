@@ -2920,6 +2920,14 @@ int loopy_propagate_until_cuda_edge_streaming(Graph_t graph, float convergence, 
 }
 
 
+static float difference(struct belief *a, struct belief *b) {
+    float diff = 0.0f;
+    for(int i = 0; i < a->size && i < b->size; ++i) {
+        diff += fabsf(a->data[i] - b->data[i]);
+    }
+    return diff;
+}
+
 /**
  * Runs the edge-optimized loopy BP code
  * @param graph The graph to use
@@ -2934,6 +2942,7 @@ int loopy_propagate_until_cuda_edge_openmpi(Graph_t graph, float convergence, in
     float *delta_array;
     float previous_delta, host_delta;
     char is_pow_2;
+    float node_difference;
 
     struct joint_probability ** edges_joint_probabilities;
     struct belief ** current_messages;
@@ -3291,16 +3300,12 @@ int loopy_propagate_until_cuda_edge_openmpi(Graph_t graph, float convergence, in
             // send it to others
             MPICHECK(MPI_Allgather(graph->node_states, graph->current_num_vertices, belief_struct, recv_node_states, graph->current_num_vertices, belief_struct, MPI_COMM_WORLD));
             // rebuild
-            for(k = 0; k < num_ranks; ++k) {
-                end_index = edgeRankPartitionSize * (k + 1);
-                if(end_index > graph->current_num_edges) {
-                    end_index = graph->current_num_vertices;
-                }
-                for(l = edgeRankPartitionSize * k; l < end_index; ++l) {
-                    curr_node_index = graph->edges_dest_index[l];
-                    if(curr_index >= 0 && curr_index < graph->current_num_vertices) {
-                        memcpy(&(graph->node_states[curr_node_index]), &(recv_node_states[k * graph->current_num_vertices + curr_node_index]),
-                               sizeof(struct belief));
+            node_difference = 0.0f;
+            for(l = 0; l < graph->current_num_vertices; ++l) {
+                for(k = 0; k < num_ranks && node_difference < NODE_DIFFERENCE_THRESHOLD; ++k) {
+                    node_difference = difference(&(graph->node_states[l]), &(recv_node_states[k * graph->current_num_vertices + l]));
+                    if(node_difference >= NODE_DIFFERENCE_THRESHOLD) {
+                        memcpy(&(graph->node_states[l]), &(recv_node_states[k * graph->current_num_vertices + l]), sizeof(struct belief));
                     }
                 }
             }

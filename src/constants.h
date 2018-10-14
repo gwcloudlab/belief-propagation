@@ -10,6 +10,8 @@
 
 #define AVG_STATES 2
 
+#define NODE_DIFFERENCE_THRESHOLD 0.001f
+
 //#define MAX_STATES 2
 #define MAX_STATES 10
 

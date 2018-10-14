@@ -54,4 +54,7 @@ int main(int argc, char *argv[]) {
     fflush(out);
 
     run_test_loopy_belief_propagagtion_mtx_file_edge_openmpi_cuda("/home/mjt5v/Desktop/gunrock_benchmark_files/10_20.bif.edges.mtx", "/home/mjt5v/Desktop/gunrock_benchmark_files/10_20.bif.nodes.mtx", out, my_rank, n_ranks, num_devices);
+
+    MPI_Finalize();
+    return EXIT_SUCCESS;
 }
