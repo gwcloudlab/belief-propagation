@@ -300,5 +300,6 @@ void init_work_queue_edges(Graph_t);
 void update_work_queue_nodes(Graph_t, float);
 void update_work_queue_edges(Graph_t, float);
 
+float difference(struct belief *, struct belief *);
 
 #endif /* GRAPH_H_ */

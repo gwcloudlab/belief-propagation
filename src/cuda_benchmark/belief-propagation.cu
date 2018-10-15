@@ -1785,7 +1785,7 @@ int loopy_propagate_until_cuda_streaming(Graph_t graph, float convergence, int m
  */
 int loopy_propagate_until_cuda_openmpi(Graph_t graph, float convergence, int max_iterations,
         int my_rank, int num_ranks, int num_devices){
-    int i, j, k, l, num_iter, num_vertices, num_edges, start_index, end_index, curr_node_index;
+    int i, j, k, l, m, num_iter, num_vertices, num_edges, start_index, end_index, curr_node_index;
     float * delta;
     float * delta_array;
     float previous_delta, host_delta;
@@ -1794,18 +1794,20 @@ int loopy_propagate_until_cuda_openmpi(Graph_t graph, float convergence, int max
     struct joint_probability ** edges_joint_probabilities;
 
     struct belief ** current_messages;
-    struct belief ** recv_current_messages;
+    struct belief * recv_current_messages;
+    struct belief ** h_current_messages;
 
     struct belief ** node_states;
 
 
     struct belief ** read_buffer;
-    struct belief ** recv_read_buffer;
+    struct belief * recv_read_buffer;
     struct belief ** h_read_buffer;
 
     struct belief * my_buffer;
 
     int retval;
+    float node_difference;
 
     host_delta = 0.0;
     previous_delta = INFINITY;
@@ -1817,8 +1819,11 @@ int loopy_propagate_until_cuda_openmpi(Graph_t graph, float convergence, int max
     struct cudaChannelFormatDesc channel_desc_unsigned_int = cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindUnsigned);
 
     pthread_t *threads = (pthread_t *)malloc(sizeof(pthread_t) * num_devices);
+    assert(threads);
     cudaStream_t *streams = (cudaStream_t *)malloc(sizeof(cudaStream_t) * num_devices);
+    assert(streams);
     struct node_stream_data *thread_data = (struct node_stream_data *)malloc(sizeof(struct node_stream_data) * num_devices);
+    assert(thread_data);
 
     int ** dest_node_to_edges_nodes;
     int ** dest_node_to_edges_edges;
@@ -1839,37 +1844,49 @@ int loopy_propagate_until_cuda_openmpi(Graph_t graph, float convergence, int max
     is_pow_2 = num_vertices % 2 == 0;
 
     // init buffers
-    recv_current_messages = (struct belief **)malloc(sizeof(struct belief *) * num_ranks);
-    recv_read_buffer = (struct belief **)malloc(sizeof(struct belief *) * num_ranks);
+    recv_current_messages = (struct belief *)malloc(sizeof(struct belief) * num_ranks * graph->current_num_edges);
+    assert(recv_current_messages);
+    recv_read_buffer = (struct belief *)malloc(sizeof(struct belief) * num_ranks * graph->current_num_vertices);
+    assert(recv_read_buffer);
 
-
-    for(i = 0; i < num_ranks; ++i) {
-        recv_current_messages[i] = (struct belief *)malloc(sizeof(struct belief) * graph->current_num_edges);
-        recv_read_buffer[i] = (struct belief *)malloc(sizeof(struct belief) * graph->current_num_vertices);
-    }
 
     h_read_buffer = (struct belief **)malloc(sizeof(struct belief *) * num_devices);
+    assert(h_read_buffer);
+    h_current_messages = (struct belief **)malloc(sizeof(struct belief *) * num_devices);
+    assert(h_current_messages);
 
     edges_joint_probabilities = (struct joint_probability **)malloc(sizeof(struct joint_probability *) * num_devices);
+    assert(edges_joint_probabilities);
 
     current_messages = (struct belief **)malloc(sizeof(struct belief *) * num_devices);
+    assert(current_messages);
     read_buffer = (struct belief **)malloc(sizeof(struct belief *) * num_devices);
+    assert(read_buffer);
 
     node_states = (struct belief **)malloc(sizeof(struct belief *) * num_devices);
+    assert(node_states);
 
     dest_node_to_edges_nodes = (int **)malloc(sizeof(int) * num_devices);
+    assert(dest_node_to_edges_nodes);
     dest_node_to_edges_edges = (int **)malloc(sizeof(int) * num_devices);
+    assert(dest_node_to_edges_edges);
     src_node_to_edges_nodes = (int **)malloc(sizeof(int) * num_devices);
+    assert(src_node_to_edges_nodes);
     src_node_to_edges_edges = (int **)malloc(sizeof(int) * num_devices);
+    assert(src_node_to_edges_edges);
     work_queue_nodes = (int **)malloc(sizeof(int) * num_devices);
+    assert(work_queue_nodes);
     work_queue_scratch = (int **)malloc(sizeof(int) * num_devices);
+    assert(work_queue_scratch);
     num_work_items = (int **)malloc(sizeof(int) * num_devices);
+    assert(num_work_items);
 
     my_buffer = (struct belief *)malloc(sizeof(struct belief) * graph->current_num_vertices);
+    assert(my_buffer);
 
     // pin host memory
-    CUDA_CHECK_RETURN(cudaHostRegister(graph->edges_messages, sizeof(struct belief) * graph->current_num_edges, 0));
-    CUDA_CHECK_RETURN(cudaHostRegister(graph->node_states, sizeof(struct belief) * graph->current_num_vertices, 0));
+    CUDA_CHECK_RETURN(cudaHostRegister(graph->edges_messages, sizeof(struct belief) * graph->current_num_edges, cudaHostRegisterDefault));
+    CUDA_CHECK_RETURN(cudaHostRegister(graph->node_states, sizeof(struct belief) * graph->current_num_vertices, cudaHostRegisterDefault));
 
 
     for(k = 0; k < num_devices; ++k) {
@@ -1893,6 +1910,7 @@ int loopy_propagate_until_cuda_openmpi(Graph_t graph, float convergence, int max
 
         CUDA_CHECK_RETURN(cudaMalloc((void **) &(read_buffer[k]), sizeof(struct belief) * graph->current_num_vertices));
         CUDA_CHECK_RETURN(cudaHostAlloc((void **) &(h_read_buffer[k]), sizeof(struct belief) * graph->current_num_vertices, cudaHostAllocDefault));
+        CUDA_CHECK_RETURN(cudaHostAlloc((void **) &(h_current_messages[k]), sizeof(struct belief) * graph->current_num_edges, cudaHostAllocDefault));
     }
 
     if(my_rank == 0) {
@@ -1951,8 +1969,8 @@ int loopy_propagate_until_cuda_openmpi(Graph_t graph, float convergence, int max
     int curr_index = my_rank * partitionRankSize;
     //prepare streams and data
     for(i = 0; i < num_devices; ++i) {
-        cudaSetDevice(i);
-        cudaStreamCreateWithFlags(&streams[i], cudaStreamNonBlocking);
+        CUDA_CHECK_RETURN(cudaSetDevice(i));
+        CUDA_CHECK_RETURN(cudaStreamCreateWithFlags(&streams[i], cudaStreamNonBlocking));
 
         thread_data[i].begin_index = curr_index;
         thread_data[i].end_index = curr_index + partitionSize;
@@ -2017,16 +2035,15 @@ int loopy_propagate_until_cuda_openmpi(Graph_t graph, float convergence, int max
                 }
             }
             // send it to others
-            MPICHECK(MPI_Allgather(&(my_buffer), graph->current_num_vertices, belief_struct, recv_read_buffer, graph->current_num_vertices, belief_struct, MPI_COMM_WORLD));
+            MPICHECK(MPI_Allgather(my_buffer, graph->current_num_vertices, belief_struct, recv_read_buffer, graph->current_num_vertices, belief_struct, MPI_COMM_WORLD));
             // rebuild
-            for(k = 0; k < num_ranks; ++k) {
-                end_index = partitionRankSize * (k + 1);
-                if(end_index > graph->current_num_edges) {
-                    end_index = graph->current_num_vertices;
-                }
-                for(l = partitionRankSize * k; l < end_index; ++l) {
-                    curr_node_index = graph->edges_dest_index[l];
-                    memcpy(&(my_buffer[curr_node_index]), &(recv_read_buffer[k][curr_node_index]), sizeof(struct belief));
+            for(l = 0; l < graph->current_num_vertices; ++l) {
+                node_difference = 0.0f;
+                for(k = 0; k < num_ranks && node_difference < NODE_DIFFERENCE_THRESHOLD; k++) {
+                    node_difference = difference(&(my_buffer[l]), &(recv_read_buffer[k * graph->current_num_vertices + l]));
+                    if(node_difference >= NODE_DIFFERENCE_THRESHOLD) {
+                        memcpy(&(my_buffer), &(read_buffer[k * graph->current_num_vertices + l]), sizeof(struct belief));
+                    }
                 }
             }
             // send it gpu
@@ -2036,14 +2053,16 @@ int loopy_propagate_until_cuda_openmpi(Graph_t graph, float convergence, int max
             }
 
             //send data
-            for(k = 0; k < NUM_THREAD_PARTITIONS; ++k) {
+            for(k = 0; k < num_devices; ++k) {
+                CUDA_CHECK_RETURN(cudaSetDevice(k));
                 retval = pthread_create(&threads[k], NULL, launch_write_node_kernels, &(thread_data[k]));
                 if(retval) {
                     fprintf(stderr, "Error creating send thread %d: %d\n", k, retval);
                     return 1;
                 }
             }
-            for(k = 0; k < NUM_THREAD_PARTITIONS; ++k) {
+            for(k = 0; k < num_devices; ++k) {
+                CUDA_CHECK_RETURN(cudaSetDevice(k));
                 retval = pthread_join(threads[k], NULL);
                 if(retval) {
                     fprintf(stderr, "Error joining write thread %d: %d\n", k, retval);
@@ -2054,33 +2073,33 @@ int loopy_propagate_until_cuda_openmpi(Graph_t graph, float convergence, int max
             // send data back
             for(k = 0; k < num_devices; ++k) {
                 CUDA_CHECK_RETURN(cudaSetDevice(k));
-                CUDA_CHECK_RETURN(cudaMemcpy(recv_current_messages[k], current_messages[k], sizeof(struct belief) * graph->current_num_edges, cudaMemcpyDeviceToHost));
-                for(l = thread_data[k].begin_index; l < thread_data[k].end_index && l < graph->num_work_items_nodes; ++l) {
-                    start_index = graph->src_nodes_to_edges_node_list[l];
-                    if(start_index < graph->current_num_vertices - 1) {
-                        end_index = graph->src_nodes_to_edges_node_list[l+1];
+                CUDA_CHECK_RETURN(cudaMemcpy(h_current_messages[k], current_messages[k], sizeof(struct belief) * graph->current_num_edges, cudaMemcpyDeviceToHost));
+            }
+            for(l = 0; l < graph->current_num_edges; ++l) {
+                node_difference = 0.0f;
+                for(k = 0; k < num_devices && node_difference < NODE_DIFFERENCE_THRESHOLD; ++k) {
+                    node_difference = difference(&(h_current_messages[k][l]), &(graph->edges_messages[l]));
+                    if(node_difference >= NODE_DIFFERENCE_THRESHOLD) {
+                        memcpy(&(graph->edges_messages[l]), &(h_current_messages[k][l]), sizeof(struct belief));
                     }
-                    else {
-                        end_index = graph->current_num_edges;
-                    }
-                    memcpy(graph->edges_messages + start_index, recv_current_messages[k] + start_index, sizeof(struct belief) * (end_index - start_index + 1));
                 }
             }
+
             // send to others
-            MPI_Allgather(&(graph->edges_messages), graph->current_num_edges, belief_struct, recv_current_messages, graph->current_num_edges, belief_struct, MPI_COMM_WORLD);
+            MPI_Allgather(graph->edges_messages, graph->current_num_edges, belief_struct, recv_current_messages, graph->current_num_edges, belief_struct, MPI_COMM_WORLD);
+
+
             // combine
-            for(k = 0; k < num_ranks; ++k) {
-                for(l = partitionSize * k; l < (partitionSize + 1) && l < graph->current_num_vertices; ++l) {
-                    start_index = graph->src_nodes_to_edges_node_list[l];
-                    if(start_index < graph->current_num_vertices - 1) {
-                        end_index = graph->src_nodes_to_edges_edge_list[l + 1];
+            for(l = 0; l < graph->current_num_edges; ++l) {
+                node_difference = 0.0f;
+                for(k = 0; k < num_ranks && node_difference < NODE_DIFFERENCE_THRESHOLD; ++k) {
+                    node_difference = difference(&(graph->edges_messages[l]), &(recv_current_messages[k * graph->current_num_edges + l]));
+                    if(node_difference >= NODE_DIFFERENCE_THRESHOLD) {
+                        memcpy(&(graph->edges_messages[l]), &(recv_current_messages[k * graph->current_num_edges + l]), sizeof(struct belief));
                     }
-                    else {
-                        end_index = graph->current_num_edges;
-                    }
-                    memcpy(graph->edges_messages + start_index, recv_current_messages[k] + start_index, sizeof(struct belief) * (end_index - start_index + 1));
                 }
             }
+
             // send to gpu
             for(k = 0; k < num_devices; ++k) {
                 CUDA_CHECK_RETURN(cudaSetDevice(k));
@@ -2088,14 +2107,16 @@ int loopy_propagate_until_cuda_openmpi(Graph_t graph, float convergence, int max
             }
 
             //marginalize
-            for(k = 0; k < NUM_THREAD_PARTITIONS; ++k) {
+            for(k = 0; k < num_devices; ++k) {
+                CUDA_CHECK_RETURN(cudaSetDevice(k));
                 retval = pthread_create(&threads[k], NULL, launch_marginalize_node_kernels, &(thread_data[k]));
                 if(retval) {
                     fprintf(stderr, "Error creating marginalize thread %d: %d\n", k, retval);
                     return 1;
                 }
             }
-            for(k = 0; k < NUM_THREAD_PARTITIONS; ++k) {
+            for(k = 0; k < num_devices; ++k) {
+                CUDA_CHECK_RETURN(cudaSetDevice(k));
                 retval = pthread_join(threads[k], NULL);
                 if(retval) {
                     fprintf(stderr, "Error joining marginalize thread %d: %d\n", k, retval);
@@ -2116,7 +2137,7 @@ int loopy_propagate_until_cuda_openmpi(Graph_t graph, float convergence, int max
             // rebuild
             for(k = 0; k < num_ranks; ++k) {
                 for(l = my_rank * partitionRankSize; l < (my_rank + 1) * partitionRankSize && l < graph->current_num_vertices; ++l) {
-                    memcpy(&(graph->node_states[l]), &(recv_read_buffer[k][l]), sizeof(struct belief));
+                    memcpy(&(graph->node_states[l]), &(recv_read_buffer[k * graph->current_num_vertices + l]), sizeof(struct belief));
                 }
             }
             // send to gpu
@@ -2132,9 +2153,10 @@ int loopy_propagate_until_cuda_openmpi(Graph_t graph, float convergence, int max
             }
             //copy back
             CUDA_CHECK_RETURN(cudaSetDevice(0));
-            CUDA_CHECK_RETURN(cudaMemcpy(work_queue_nodes[0], graph->work_queue_nodes, sizeof(int) * graph->current_num_vertices, cudaMemcpyDeviceToHost));
-            CUDA_CHECK_RETURN(cudaMemcpy(num_work_items[0], &(graph->num_work_items_nodes), sizeof(int), cudaMemcpyDeviceToHost));
+            CUDA_CHECK_RETURN(cudaMemcpy(graph->work_queue_nodes, work_queue_nodes[0], sizeof(int) * graph->current_num_vertices, cudaMemcpyDeviceToHost));
+            CUDA_CHECK_RETURN(cudaMemcpy(&(graph->num_work_items_nodes), num_work_items[0], sizeof(int), cudaMemcpyDeviceToHost));
         }
+
         if(my_rank == 0) {
             CUDA_CHECK_RETURN(cudaSetDevice(0));
             calculate_delta_6 << < dimReduceGrid, dimReduceBlock, reduceSmemSize >> >
@@ -2153,18 +2175,21 @@ int loopy_propagate_until_cuda_openmpi(Graph_t graph, float convergence, int max
         previous_delta = host_delta;
     }
 
-    for(i = 0; i < NUM_THREAD_PARTITIONS; ++i) {
+    for(i = 0; i < num_devices; ++i) {
+        CUDA_CHECK_RETURN(cudaSetDevice(i));
         cudaStreamDestroy(streams[i]);
     }
 
+    CUDA_CHECK_RETURN(cudaSetDevice(0));
     // copy data back
-    CUDA_CHECK_RETURN(cudaMemcpy(graph->node_states, node_states, sizeof(struct belief) * num_vertices, cudaMemcpyDeviceToHost));
-    CUDA_CHECK_RETURN(cudaMemcpy(graph->edges_messages, current_messages, sizeof(struct belief) * num_edges, cudaMemcpyDeviceToHost));
+    CUDA_CHECK_RETURN(cudaMemcpy(graph->node_states, node_states[0], sizeof(struct belief) * num_vertices, cudaMemcpyDeviceToHost));
+    CUDA_CHECK_RETURN(cudaMemcpy(graph->edges_messages, current_messages[0], sizeof(struct belief) * num_edges, cudaMemcpyDeviceToHost));
 
     for(i = 0; i < num_devices; ++i) {
         CUDA_CHECK_RETURN(cudaSetDevice(i));
 
         CUDA_CHECK_RETURN(cudaFreeHost(h_read_buffer[i]));
+        CUDA_CHECK_RETURN(cudaFreeHost(h_current_messages[i]));
 
         CUDA_CHECK_RETURN(cudaFree(dest_node_to_edges_nodes[i]));
         CUDA_CHECK_RETURN(cudaFree(dest_node_to_edges_edges[i]));
@@ -2194,6 +2219,7 @@ int loopy_propagate_until_cuda_openmpi(Graph_t graph, float convergence, int max
 
     free(node_states);
     free(h_read_buffer);
+    free(h_current_messages);
 
     free(dest_node_to_edges_edges);
     free(dest_node_to_edges_nodes);
@@ -2214,10 +2240,6 @@ int loopy_propagate_until_cuda_openmpi(Graph_t graph, float convergence, int max
     free(streams);
     free(thread_data);
 
-    for(i = 0; i < num_ranks; ++i) {
-        free(recv_current_messages[i]);
-        free(recv_read_buffer[i]);
-    }
     free(recv_current_messages);
     free(recv_read_buffer);
 
@@ -2919,15 +2941,6 @@ int loopy_propagate_until_cuda_edge_streaming(Graph_t graph, float convergence, 
     return num_iter;
 }
 
-
-static float difference(struct belief *a, struct belief *b) {
-    float diff = 0.0f;
-    for(int i = 0; i < a->size && i < b->size; ++i) {
-        diff += fabsf(a->data[i] - b->data[i]);
-    }
-    return diff;
-}
-
 /**
  * Runs the edge-optimized loopy BP code
  * @param graph The graph to use
@@ -3116,8 +3129,10 @@ int loopy_propagate_until_cuda_edge_openmpi(Graph_t graph, float convergence, in
         curr_index += edgePartitionSize;
 
         thread_data[i].joint_probabilities = edges_joint_probabilities[i];
+
         thread_data[i].num_vertices = num_vertices;
         thread_data[i].num_edges = num_edges;
+
         thread_data[i].dest_nodes_to_edges_edges = dest_nodes_to_edges_edges[i];
         thread_data[i].dest_nodes_to_edges_nodes = dest_nodes_to_edges_nodes[i];
         thread_data[i].edges_src_index = edges_src_index[i];
@@ -3300,8 +3315,8 @@ int loopy_propagate_until_cuda_edge_openmpi(Graph_t graph, float convergence, in
             // send it to others
             MPICHECK(MPI_Allgather(graph->node_states, graph->current_num_vertices, belief_struct, recv_node_states, graph->current_num_vertices, belief_struct, MPI_COMM_WORLD));
             // rebuild
-            node_difference = 0.0f;
             for(l = 0; l < graph->current_num_vertices; ++l) {
+                node_difference = 0.0f;
                 for(k = 0; k < num_ranks && node_difference < NODE_DIFFERENCE_THRESHOLD; ++k) {
                     node_difference = difference(&(graph->node_states[l]), &(recv_node_states[k * graph->current_num_vertices + l]));
                     if(node_difference >= NODE_DIFFERENCE_THRESHOLD) {

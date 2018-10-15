@@ -3302,3 +3302,11 @@ void update_work_queue_edges(Graph_t graph, float convergence) {
 	memcpy(work_queue_edges, work_queue_scratch, (size_t)num_edges);
 	graph->num_work_items_edges = current_index;
 }
+
+float difference(struct belief *a, struct belief *b) {
+    float diff = 0.0f;
+    for(int i = 0; i < a->size && i < b->size; ++i) {
+        diff += fabsf(a->data[i] - b->data[i]);
+    }
+    return diff;
+}
