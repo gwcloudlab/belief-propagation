@@ -7,7 +7,7 @@
  * @return A BNF AST
  */
 struct expression * test_parse_xml_file(char * file_name) {
-    unsigned int i;
+    int i;
     struct expression *expression;
     yyscan_t scanner;
     YY_BUFFER_STATE state;
@@ -107,7 +107,7 @@ void run_test_belief_propagation_xml_file(const char * file_name, FILE * out){
     Graph_t graph;
     clock_t start, end;
     double time_elapsed;
-    unsigned int i;
+    int i;
 
     // parse the file
     graph = parse_xml_file(file_name);
@@ -158,7 +158,7 @@ void run_test_loopy_belief_propagation_xml_file(const char * file_name, FILE * o
     Graph_t graph;
     clock_t start, end;
     double time_elapsed;
-    unsigned int num_iterations;
+    int num_iterations;
 
     // read the data
     graph = parse_xml_file(file_name);
@@ -197,7 +197,7 @@ void run_test_loopy_belief_propagation_edge_xml_file(const char * file_name, FIL
     Graph_t graph;
     clock_t start, end;
     double time_elapsed;
-    unsigned int num_iterations;
+    int num_iterations;
 
     // read the XML file
     graph = parse_xml_file(file_name);
@@ -236,7 +236,7 @@ void run_test_loopy_belief_propagation_xml_file_acc(const char * file_name, FILE
     Graph_t graph;
     clock_t start, end;
     double time_elapsed;
-    unsigned int num_iterations;
+    int num_iterations;
 
     // read the data
     graph = parse_xml_file(file_name);
@@ -275,7 +275,7 @@ void run_test_loopy_belief_propagation_edge_xml_file_acc(const char * file_name,
     Graph_t graph;
     clock_t start, end;
     double time_elapsed;
-    unsigned int num_iterations;
+    int num_iterations;
 
     // read the data
     graph = parse_xml_file(file_name);

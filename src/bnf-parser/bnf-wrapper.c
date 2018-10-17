@@ -83,7 +83,7 @@ void test_parse_file(char * file_name){
     Graph_t graph;
     clock_t start, end;
     double time_elapsed;
-    unsigned int i;
+    int i;
 
     assert(yylex_init(&scanner) == 0);
 
@@ -236,7 +236,7 @@ void run_test_belief_propagation(struct expression * expression, const char * fi
     Graph_t graph;
     clock_t start, end;
     double time_elapsed;
-    unsigned int i;
+    int i;
 
     // set up data
 
@@ -286,7 +286,7 @@ void run_test_loopy_belief_propagation(struct expression * expression, const cha
     Graph_t graph;
     clock_t start, end;
     double time_elapsed;
-    unsigned int num_iterations;
+    int num_iterations;
 
     // set up data
 
@@ -320,8 +320,8 @@ void run_test_loopy_belief_propagation(struct expression * expression, const cha
  * @param file_name The path to the file to parse
  * @param num_iterations The number of iterations to run BP for; set > 1 for analytical purposes
  */
-void run_tests_with_file(const char * file_name, unsigned int num_iterations){
-    unsigned int i;
+void run_tests_with_file(const char * file_name, int num_iterations){
+    int i;
     struct expression * expr;
 
     expr = parse_file(file_name);
