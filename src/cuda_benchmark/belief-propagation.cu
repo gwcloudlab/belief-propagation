@@ -961,7 +961,7 @@ void combine_loopy_edge_cuda(int edge_index, struct belief *current_messages, in
 
     address_as_uint = (int *)current_messages;
     num_variables = current_messages[edge_index].size;
-    if(num_variables > MAX_STATES) {
+    if(num_variables > MAX_STATES || threadIdx.x >= BLOCK_SIZE) {
         return;
     }
 

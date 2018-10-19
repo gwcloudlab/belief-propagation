@@ -1,7 +1,7 @@
 #include "belief-propagation.hpp"
 
 int main(void) {
-    FILE * out = fopen("cuda_benchmark_loopy_node_facebook.csv", "w");
+    FILE * out = fopen("cuda_benchmark_loopy_node.csv", "w");
     fprintf(out, "File Name,Propagation Type,Number of Nodes,Number of Edges,Diameter,Number of Iterations,BP Run Time(s)\n");
     fflush(out);
 
