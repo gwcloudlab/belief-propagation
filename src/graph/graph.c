@@ -3305,6 +3305,9 @@ void update_work_queue_edges(Graph_t graph, float convergence) {
 
 float difference(struct belief *a, struct belief *b) {
     float diff = 0.0f;
+    if(a->size > MAX_STATES || b->size > MAX_STATES) {
+        return diff;
+    }
     for(int i = 0; i < a->size && i < b->size; ++i) {
         diff += fabsf(a->data[i] - b->data[i]);
     }
