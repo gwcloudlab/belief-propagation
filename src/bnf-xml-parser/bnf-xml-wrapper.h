@@ -6,8 +6,7 @@
 #include "../bnf-parser/expression.h"
 #include <stdlib.h>
 #include <assert.h>
-#include "../bnf-parser/Lexer.h"
-#include "../bnf-parser/Parser.h"
+#include "../bnf-parser/bnf-wrapper.h"
 
 struct expression * test_parse_xml_file(char *);
 void test_dog_files(const char *);
