@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8)
 
-
+set(CMAKE_C_FLAGS "-std=gnu99 ${CMAKE_C_FLAGS}")
 enable_testing()
 
 add_subdirectory(src/bnf-parser)
@@ -11,9 +11,9 @@ add_subdirectory(src/benchmark_files)
 add_subdirectory(src/c_benchmark)
 add_subdirectory(src/openmp_benchmark)
 add_subdirectory(src/cuda_benchmark)
-add_subdirectory(src/cuda_benchmark_kernels)
+#add_subdirectory(src/cuda_benchmark_kernels)
 #add_subdirectory(src/openacc_benchmark EXCLUDE_FROM_ALL)
-add_subdirectory(src/sample_openmpi_with_cuda)
+#add_subdirectory(src/sample_openmpi_with_cuda)
 
 add_subdirectory(test)
 

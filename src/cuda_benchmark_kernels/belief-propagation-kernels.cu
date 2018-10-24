@@ -1396,9 +1396,9 @@ void run_test_loopy_belief_propagation_mtx_files_kernels(const char * edges_mtx,
 
 
 /**
- * Function for printing errors with kernel execution
+ * Checks that the CUDA kernel completed
  * @param file The source code file
- * @param line The line within file
+ * @param line The line within the source code file that executes the kernel
  * @param statement The name of the kernel
  * @param err The error message
  */

@@ -53,14 +53,14 @@ int main(int argc, char *argv[]) {
     fprintf(out, "File Name,Propagation Type,Number of Nodes,Number of Edges,Diameter,Number of Iterations,BP Run Time(s)\n");
     fflush(out);
 
-    run_test_loopy_belief_propagagtion_mtx_file_edge_openmpi_cuda("/home/mjt5v/Desktop/gunrock_benchmark_files/10_20.bif.edges.mtx", "/home/mjt5v/Desktop/gunrock_benchmark_files/10_20.bif.nodes.mtx", out, my_rank, n_ranks, num_devices);
-    run_test_loopy_belief_propagagtion_mtx_file_edge_openmpi_cuda("/home/mjt5v/Desktop/gunrock_benchmark_files/100_200.bif.edges.mtx", "/home/mjt5v/Desktop/gunrock_benchmark_files/100_200.bif.nodes.mtx", out, my_rank, n_ranks, num_devices);
-    run_test_loopy_belief_propagagtion_mtx_file_edge_openmpi_cuda("/home/mjt5v/Desktop/gunrock_benchmark_files/1000_2000.bif.edges.mtx", "/home/mjt5v/Desktop/gunrock_benchmark_files/1000_2000.bif.nodes.mtx", out, my_rank, n_ranks, num_devices);
-    run_test_loopy_belief_propagagtion_mtx_file_edge_openmpi_cuda("/home/mjt5v/Desktop/gunrock_benchmark_files/10000_20000.bif.edges.mtx", "/home/mjt5v/Desktop/gunrock_benchmark_files/10000_20000.bif.nodes.mtx", out, my_rank, n_ranks, num_devices);
-    run_test_loopy_belief_propagagtion_mtx_file_edge_openmpi_cuda("/home/mjt5v/Desktop/gunrock_benchmark_files/100000_200000.bif.edges.mtx", "/home/mjt5v/Desktop/gunrock_benchmark_files/100000_200000.bif.nodes.mtx", out, my_rank, n_ranks, num_devices);
-    run_test_loopy_belief_propagagtion_mtx_file_edge_openmpi_cuda("/home/mjt5v/Desktop/gunrock_benchmark_files/200000_400000.bif.edges.mtx", "/home/mjt5v/Desktop/gunrock_benchmark_files/200000_400000.bif.nodes.mtx", out, my_rank, n_ranks, num_devices);
-    run_test_loopy_belief_propagagtion_mtx_file_edge_openmpi_cuda("/home/mjt5v/Desktop/gunrock_benchmark_files/400000_800000.bif.edges.mtx", "/home/mjt5v/Desktop/gunrock_benchmark_files/400000_800000.bif.nodes.mtx", out, my_rank, n_ranks, num_devices);
-    run_test_loopy_belief_propagagtion_mtx_file_edge_openmpi_cuda("/home/mjt5v/Desktop/gunrock_benchmark_files/800000_1600000.bif.edges.mtx", "/home/mjt5v/Desktop/gunrock_benchmark_files/800000_1600000.bif.nodes.mtx", out, my_rank, n_ranks, num_devices);
+    run_test_loopy_belief_propagagtion_mtx_file_edge_openmpi_cuda("/mnt/raid0_huge/micheal/gunrock_benchmark_files_copy/10_20.bif.edges.mtx", "/mnt/raid0_huge/micheal/gunrock_benchmark_files_copy/10_20.bif.nodes.mtx", out, my_rank, n_ranks, num_devices);
+    run_test_loopy_belief_propagagtion_mtx_file_edge_openmpi_cuda("/mnt/raid0_huge/micheal/gunrock_benchmark_files_copy/100_200.bif.edges.mtx", "/mnt/raid0_huge/micheal/gunrock_benchmark_files_copy/100_200.bif.nodes.mtx", out, my_rank, n_ranks, num_devices);
+    run_test_loopy_belief_propagagtion_mtx_file_edge_openmpi_cuda("/mnt/raid0_huge/micheal/gunrock_benchmark_files_copy/1000_2000.bif.edges.mtx", "/mnt/raid0_huge/micheal/gunrock_benchmark_files_copy/1000_2000.bif.nodes.mtx", out, my_rank, n_ranks, num_devices);
+    run_test_loopy_belief_propagagtion_mtx_file_edge_openmpi_cuda("/mnt/raid0_huge/micheal/gunrock_benchmark_files_copy/10000_20000.bif.edges.mtx", "/mnt/raid0_huge/micheal/gunrock_benchmark_files_copy/10000_20000.bif.nodes.mtx", out, my_rank, n_ranks, num_devices);
+    run_test_loopy_belief_propagagtion_mtx_file_edge_openmpi_cuda("/mnt/raid0_huge/micheal/gunrock_benchmark_files_copy/100000_200000.bif.edges.mtx", "/mnt/raid0_huge/micheal/gunrock_benchmark_files_copy/100000_200000.bif.nodes.mtx", out, my_rank, n_ranks, num_devices);
+    run_test_loopy_belief_propagagtion_mtx_file_edge_openmpi_cuda("/mnt/raid0_huge/micheal/gunrock_benchmark_files_copy/200000_400000.bif.edges.mtx", "/mnt/raid0_huge/micheal/gunrock_benchmark_files_copy/200000_400000.bif.nodes.mtx", out, my_rank, n_ranks, num_devices);
+    run_test_loopy_belief_propagagtion_mtx_file_edge_openmpi_cuda("/mnt/raid0_huge/micheal/gunrock_benchmark_files_copy/400000_800000.bif.edges.mtx", "/mnt/raid0_huge/micheal/gunrock_benchmark_files_copy/400000_800000.bif.nodes.mtx", out, my_rank, n_ranks, num_devices);
+    run_test_loopy_belief_propagagtion_mtx_file_edge_openmpi_cuda("/mnt/raid0_huge/micheal/gunrock_benchmark_files_copy/800000_1600000.bif.edges.mtx", "/mnt/raid0_huge/micheal/gunrock_benchmark_files_copy/800000_1600000.bif.nodes.mtx", out, my_rank, n_ranks, num_devices);
     
     MPI_Finalize();
     return EXIT_SUCCESS;
