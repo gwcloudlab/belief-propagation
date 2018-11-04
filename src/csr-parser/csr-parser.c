@@ -110,7 +110,7 @@ static int parse_number_of_edges(const char *edges_mtx, regex_t *regex_comment) 
 
 static int parse_number_of_joint_probabilities(const char *edges_mtx, regex_t *regex_comment) {
     FILE *fp;
-    char buff[255];
+    char buff[1024];
     int reti;
     long src_id, dest_id, num_joint_probs;
     char *p_end, *prev;
@@ -124,7 +124,7 @@ static int parse_number_of_joint_probabilities(const char *edges_mtx, regex_t *r
         exit(EXIT_FAILURE);
     }
 
-    while ( fgets(buff, 255, fp) != NULL ) {
+    while ( fgets(buff, 1024, fp) != NULL ) {
         reti = regexec(regex_comment, buff, 0, NULL, 0);
         if(reti == REG_NOMATCH && no_skip == 0) {
             no_skip = 1;
@@ -149,8 +149,8 @@ static int parse_number_of_joint_probabilities(const char *edges_mtx, regex_t *r
 
 static void add_nodes(Graph_t graph, const char *nodes_mtx, regex_t *comment_regex, int num_states) {
     FILE *fp;
-    char buff[255];
-    char name[255];
+    char buff[1024];
+    char name[1024];
     char *p_end, *prev;
     int reti;
     char found_header;
@@ -170,7 +170,7 @@ static void add_nodes(Graph_t graph, const char *nodes_mtx, regex_t *comment_reg
         exit(EXIT_FAILURE);
     }
 
-    while ( fgets(buff, 255, fp) != NULL ) {
+    while ( fgets(buff, 1024, fp) != NULL ) {
         curr_belief_index = 0;
 
         reti = regexec(comment_regex, buff, 0, NULL, 0);
@@ -201,10 +201,10 @@ static void add_nodes(Graph_t graph, const char *nodes_mtx, regex_t *comment_reg
 
                 // check if observed node
                 if(curr_belief.data[0] < DEFAULT_STATE) {
-                    graph_add_and_set_node_state(graph, 1, name, &curr_belief);
+                    graph_add_and_set_node_state(graph, num_states, name, &curr_belief);
                 }
                 else {
-                    graph_add_node(graph, 1, name);
+                    graph_add_node(graph, num_states, name);
                 }
             }
         }
@@ -216,7 +216,7 @@ static void add_nodes(Graph_t graph, const char *nodes_mtx, regex_t *comment_reg
 static void add_edges(Graph_t graph, const char *edges_mtx, regex_t *comment_regex, int num_states,
         int num_probabilities) {
     FILE *fp;
-    char buff[255];
+    char buff[1024];
     int reti;
     char found_header;
     char *p_end, *prev;
@@ -235,7 +235,7 @@ static void add_edges(Graph_t graph, const char *edges_mtx, regex_t *comment_reg
         exit(EXIT_FAILURE);
     }
 
-    while ( fgets(buff, 255, fp) != NULL ) {
+    while ( fgets(buff, 1024, fp) != NULL ) {
         x = 0;
         y = 0;
 
@@ -271,7 +271,7 @@ static void add_edges(Graph_t graph, const char *edges_mtx, regex_t *comment_reg
                 assert(y == num_states);
                 assert(x+1 == num_states);
 
-                graph_add_edge(graph, src_index, dest_index, 1, 1, &joint_probability);
+                graph_add_edge(graph, src_index, dest_index, num_states, num_states, &joint_probability);
             }
         }
     }
