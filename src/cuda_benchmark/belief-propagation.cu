@@ -122,14 +122,14 @@ void init_and_read_message_buffer_cuda_streaming(
 __device__
 void combine_message_cuda(struct belief * dest, struct belief * edge_messages, int length, int offset){
     int i;
-    float message;
+    __shared__ float messages[BLOCK_SIZE];
     __shared__ float buffer[BLOCK_SIZE];
 
     for(i = 0; i < length; ++i){
         buffer[threadIdx.x] = dest->data[i];
-        message = edge_messages[offset].data[i];
-        if(message == message){
-            buffer[threadIdx.x] *= message;
+        messages[threadIdx.x] = edge_messages[offset].data[i];
+        if(messages[threadIdx.x] == messages[threadIdx.x]){
+            buffer[threadIdx.x] *= messages[threadIdx.x];
             dest->data[i] = buffer[threadIdx.x];
         }
     }
@@ -138,14 +138,14 @@ void combine_message_cuda(struct belief * dest, struct belief * edge_messages, i
 __device__
 void combine_message_cuda_node_streaming(struct belief * dest, struct belief * edge_messages, int length, int offset){
     int i;
-    float message;
+    __shared__ float messages[BLOCK_SIZE_NODE_STREAMING];
     __shared__ float buffer[BLOCK_SIZE_NODE_STREAMING];
 
     for(i = 0; i < length; ++i){
         buffer[threadIdx.x] = dest->data[i];
-        message = edge_messages[offset].data[i];
-        if(message == message){
-            buffer[threadIdx.x] *= message;
+        messages[threadIdx.x] = edge_messages[offset].data[i];
+        if(messages[threadIdx.x] == messages[threadIdx.x]){
+            buffer[threadIdx.x] *= messages[threadIdx.x];
             dest->data[i] = buffer[threadIdx.x];
         }
     }
@@ -154,14 +154,14 @@ void combine_message_cuda_node_streaming(struct belief * dest, struct belief * e
 __device__
 void combine_message_cuda_edge_streaming(struct belief * dest, struct belief * edge_messages, int length, int offset){
     int i;
-    float message;
+    __shared__ float messages[BLOCK_SIZE_NODE_EDGE_STREAMING];
     __shared__ float buffer[BLOCK_SIZE_NODE_EDGE_STREAMING];
 
     for(i = 0; i < length; ++i){
         buffer[threadIdx.x] = dest->data[i];
-        message = edge_messages[offset].data[i];
-        if(message == message){
-            buffer[threadIdx.x] *= message;
+        messages[threadIdx.x] = edge_messages[offset].data[i];
+        if(messages[threadIdx.x] == messages[threadIdx.x]){
+            buffer[threadIdx.x] *= messages[threadIdx.x];
             dest->data[i] = buffer[threadIdx.x];
         }
     }
@@ -170,14 +170,14 @@ void combine_message_cuda_edge_streaming(struct belief * dest, struct belief * e
 __device__
 void combine_page_rank_message_cuda(struct belief * dest, struct belief * edge_messages, int length, int offset){
     int i;
-    float message;
+    __shared__ float messages[BLOCK_SIZE];
     __shared__ float buffer[BLOCK_SIZE];
 
     for(i = 0; i < length; ++i){
         buffer[threadIdx.x] = dest->data[i];
-        message = edge_messages[offset].data[i];
-        if(message == message){
-            buffer[threadIdx.x] += message;
+        messages[threadIdx.x] = edge_messages[offset].data[i];
+        if(messages[threadIdx.x] == messages[threadIdx.x]){
+            buffer[threadIdx.x] += messages[threadIdx.x];
             dest->data[i] = buffer[threadIdx.x];
         }
     }
@@ -186,14 +186,14 @@ void combine_page_rank_message_cuda(struct belief * dest, struct belief * edge_m
 __device__
 void combine_viterbi_message_cuda(struct belief * dest, struct belief * edge_messages, int length, int offset){
     int i;
-    float message;
+    __shared__ float messages[BLOCK_SIZE];
     __shared__ float buffer[BLOCK_SIZE];
 
     for(i = 0; i < length; ++i){
         buffer[threadIdx.x] = dest->data[i];
-        message = edge_messages[offset].data[i];
-        if(message == message){
-            buffer[threadIdx.x] = fmaxf(buffer[threadIdx.x], message);
+        messages[threadIdx.x] = edge_messages[offset].data[i];
+        if(messages[threadIdx.x] == messages[threadIdx.x]){
+            buffer[threadIdx.x] = fmaxf(buffer[threadIdx.x], messages[threadIdx.x]);
             dest->data[i] = buffer[threadIdx.x];
         }
     }
@@ -244,30 +244,37 @@ void send_message_for_edge_cuda(struct belief * buffer, int edge_index,
                                 struct joint_probability * joint_probabilities,
                                 struct belief * edge_messages){
     int i, j, num_src, num_dest;
-    float sum;
     struct joint_probability joint_probability;
-    __shared__ float partial_sums[BLOCK_SIZE * MAX_STATES];
+    __shared__ float partial_sums[BLOCK_SIZE];
+    __shared__ float sums[BLOCK_SIZE];
+    __shared__ float s_joint_probability[BLOCK_SIZE];
+    __shared__ float s_belief[BLOCK_SIZE];
 
     joint_probability = joint_probabilities[edge_index];
 
     num_src = joint_probability.dim_x;
     num_dest = joint_probability.dim_y;
 
-    sum = 0.0;
+    sums[threadIdx.x] = 0.0;
     for(i = 0; i < num_src; ++i){
-        partial_sums[threadIdx.x * MAX_STATES + i] = 0.0;
+        partial_sums[threadIdx.x] = 0.0;
         for(j = 0; j < num_dest; ++j){
-            partial_sums[threadIdx.x * MAX_STATES + i] += joint_probability.data[i][j] * buffer->data[j];
+            s_joint_probability[threadIdx.x] = joint_probability.data[i][j];
+            s_belief[threadIdx.x] = buffer->data[j];
+            partial_sums[threadIdx.x] += s_joint_probability[threadIdx.x] * s_belief[threadIdx.x];
         }
-        sum += partial_sums[threadIdx.x * MAX_STATES + i];
+        edge_messages[edge_index].data[i] = partial_sums[threadIdx.x];
+        sums[threadIdx.x] += partial_sums[threadIdx.x];
     }
-    if(sum <= 0.0){
-        sum = 1.0;
+    if(sums[threadIdx.x] <= 0.0){
+        sums[threadIdx.x] = 1.0;
     }
     edge_messages[edge_index].previous = edge_messages[edge_index].current;
-    edge_messages[edge_index].current = sum;
+    edge_messages[edge_index].current = sums[threadIdx.x];
     for(i = 0; i < num_src; ++i){
-        edge_messages[edge_index].data[i] /= sum;
+        partial_sums[threadIdx.x] = edge_messages[edge_index].data[i];
+        partial_sums[threadIdx.x] /= sums[threadIdx.x];
+        edge_messages[edge_index].data[i] = partial_sums[threadIdx.x];
     }
 }
 
@@ -276,30 +283,37 @@ void send_message_for_edge_cuda_streaming(struct belief * buffer, int edge_index
                                 struct joint_probability * joint_probabilities,
                                 struct belief * edge_messages){
     int i, j, num_src, num_dest;
-    float sum;
     struct joint_probability joint_probability;
-    __shared__ float partial_sums[BLOCK_SIZE_NODE_STREAMING * MAX_STATES];
+    __shared__ float partial_sums[BLOCK_SIZE_NODE_STREAMING];
+    __shared__ float sums[BLOCK_SIZE_NODE_STREAMING];
+    __shared__ float s_joint_probability[BLOCK_SIZE_NODE_STREAMING];
+    __shared__ float s_buffer[BLOCK_SIZE_NODE_STREAMING];
 
     joint_probability = joint_probabilities[edge_index];
 
     num_src = joint_probability.dim_x;
     num_dest = joint_probability.dim_y;
 
-    sum = 0.0;
+    sums[threadIdx.x] = 0.0;
     for(i = 0; i < num_src; ++i){
-        partial_sums[threadIdx.x * MAX_STATES + i] = 0.0;
+        partial_sums[threadIdx.x] = 0.0;
         for(j = 0; j < num_dest; ++j){
-            partial_sums[threadIdx.x * MAX_STATES + i] += joint_probability.data[i][j] * buffer->data[j];
+            s_joint_probability[threadIdx.x] = joint_probability.data[i][j];
+            s_buffer[threadIdx.x] = buffer->data[j];
+            partial_sums[threadIdx.x] += s_joint_probability[threadIdx.x] * s_buffer[threadIdx.x];
         }
-        sum += partial_sums[threadIdx.x * MAX_STATES + i];
+        edge_messages[edge_index].data[i] = partial_sums[threadIdx.x];
+        sums[threadIdx.x] += partial_sums[threadIdx.x];
     }
-    if(sum <= 0.0){
-        sum = 1.0;
+    if(sums[threadIdx.x] <= 0.0){
+        sums[threadIdx.x] = 1.0;
     }
     edge_messages[edge_index].previous = edge_messages[edge_index].current;
-    edge_messages[edge_index].current = sum;
+    edge_messages[edge_index].current = sums[threadIdx.x];
     for(i = 0; i < num_src; ++i){
-        edge_messages[edge_index].data[i] /= sum;
+        partial_sums[threadIdx.x] = edge_messages[edge_index].data[i];
+        partial_sums[threadIdx.x] /= sums[threadIdx.x];
+        edge_messages[edge_index].data[i] = partial_sums[threadIdx.x];
     }
 }
 
@@ -863,27 +877,34 @@ __device__
 static void send_message_for_edge_iteration_cuda(struct belief *belief, int src_index, int edge_index,
                                                  struct joint_probability *joint_probabilities, struct belief *edge_messages){
     int i, j, num_src, num_dest;
-    float sum;
-    __shared__ float partial_sums[MAX_STATES * BLOCK_SIZE];
+    __shared__ float partial_sums[BLOCK_SIZE];
+    __shared__ float sums[BLOCK_SIZE];
+    __shared__ float s_joint_probability[BLOCK_SIZE];
+    __shared__ float s_belief[BLOCK_SIZE];
 
     num_src = joint_probabilities[edge_index].dim_x;
     num_dest = joint_probabilities[edge_index].dim_y;
 
-    sum = 0.0;
-    for(i = 0; i < num_src && threadIdx.x + i < BLOCK_SIZE; ++i){
-        partial_sums[MAX_STATES * threadIdx.x + i] = 0.0;
+    sums[threadIdx.x] = 0.0;
+    for(i = 0; i < num_src; ++i){
+        partial_sums[threadIdx.x] = 0.0;
         for(j = 0; j < num_dest; ++j){
-            partial_sums[MAX_STATES * threadIdx.x + i] += joint_probabilities[edge_index].data[i][j] * belief[src_index].data[j];
+            s_joint_probability[threadIdx.x] = joint_probabilities[edge_index].data[i][j];
+            s_belief[threadIdx.x] = belief[src_index].data[j];
+            partial_sums[threadIdx.x] += s_joint_probability[threadIdx.x] * s_belief[threadIdx.x];
         }
-        sum += partial_sums[MAX_STATES * threadIdx.x + i];
+        edge_messages[edge_index].data[i] = partial_sums[threadIdx.x];
+        sums[threadIdx.x] += partial_sums[threadIdx.x];
     }
-    if(sum <= 0.0){
-        sum = 1.0;
+    if(sums[threadIdx.x] <= 0.0){
+        sums[threadIdx.x] = 1.0;
     }
     edge_messages[edge_index].previous = edge_messages[edge_index].current;
-    edge_messages[edge_index].current = sum;
+    edge_messages[edge_index].current = sums[threadIdx.x];
     for (i = 0; i < num_src; ++i) {
-        edge_messages[edge_index].data[i] /= sum;
+        partial_sums[threadIdx.x] = edge_messages[edge_index].data[i];
+        partial_sums[threadIdx.x] /= sums[threadIdx.x];
+        edge_messages[edge_index].data[i] = partial_sums[threadIdx.x];
     }
 }
 

@@ -156,30 +156,37 @@ void send_message_for_edge_cuda(struct belief * message_buffer, int edge_index, 
                                 struct joint_probability * joint_probabilities,
                                 struct belief * edge_messages){
     int i, j, num_src, num_dest;
-    float sum;
     struct joint_probability joint_probability;
-    __shared__ float partial_sums[BLOCK_SIZE * MAX_STATES];
+    __shared__ float partial_sums[BLOCK_SIZE];
+    __shared__ float sums[BLOCK_SIZE];
+    __shared__ float s_joint_probability[BLOCK_SIZE];
+    __shared__ float s_belief[BLOCK_SIZE];
 
     joint_probability = joint_probabilities[edge_index];
 
     num_src = joint_probability.dim_x;
     num_dest = joint_probability.dim_y;
 
-    sum = 0.0;
+    sums[threadIdx.x] = 0.0;
     for(i = 0; i < num_src; ++i){
-        partial_sums[threadIdx.x * MAX_STATES + i] = 0.0;
+        partial_sums[threadIdx.x] = 0.0;
         for(j = 0; j < num_dest; ++j){
-            partial_sums[threadIdx.x * MAX_STATES + i] += joint_probability.data[i][j] * message_buffer[node_index].data[j];
+            s_joint_probability[threadIdx.x] = joint_probability.data[i][j];
+            s_belief[threadIdx.x] = message_buffer[node_index].data[j];
+            partial_sums[threadIdx.x] += s_joint_probability[threadIdx.x] * s_belief[threadIdx.x];
         }
-        sum += partial_sums[threadIdx.x * MAX_STATES + i];
+        edge_messages[edge_index].data[i] = partial_sums[threadIdx.x];
+        sum += partial_sums[threadIdx.x];
     }
     if(sum <= 0.0){
-        sum = 1.0;
+        sums[threadIdx.x] = 1.0;
     }
     edge_messages[edge_index].previous = edge_messages[edge_index].current;
     edge_messages[edge_index].current = sum;
     for(i = 0; i < num_src; ++i){
-        edge_messages[edge_index].data[i] = partial_sums[threadIdx.x * MAX_STATES + i] / sum;
+        partial_sums[threadIdx.x] = edge_messages[edge_index].data[i];
+        partial_sums[threadIdx.x] =/ sums[threadIdx.x];
+        edge_messages[edge_index].data[i] = partial_sums[threadIdx.x];
     }
 }
 
