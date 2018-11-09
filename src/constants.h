@@ -13,7 +13,7 @@
 #define NODE_DIFFERENCE_THRESHOLD 0.001f
 
 //#define MAX_STATES 2
-#define MAX_STATES 10
+#define MAX_STATES 100
 
 #define DEFAULT_STATE 1.0f
 

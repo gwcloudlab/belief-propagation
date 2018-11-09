@@ -4,10 +4,12 @@
 #include <assert.h>
 #include "csr-parser.h"
 
+#define CHAR_BUFFER_SIZE 102400
+
 
 static int parse_number_of_nodes(const char *nodes_mtx, regex_t *regex_comment) {
     FILE *fp;
-    char buff[255];
+    char buff[CHAR_BUFFER_SIZE];
     int reti;
     long num_nodes_1, num_nodes_2;
     char *p_end;
@@ -20,7 +22,7 @@ static int parse_number_of_nodes(const char *nodes_mtx, regex_t *regex_comment) 
         exit(EXIT_FAILURE);
     }
 
-    while ( fgets(buff, 255, fp) != NULL ) {
+    while ( fgets(buff, CHAR_BUFFER_SIZE, fp) != NULL ) {
         reti = regexec(regex_comment, buff, 0, NULL, 0);
         if(reti == REG_NOMATCH) {
             num_nodes_1 = strtol(buff, &p_end, 10);
@@ -37,7 +39,7 @@ static int parse_number_of_nodes(const char *nodes_mtx, regex_t *regex_comment) 
 
 static int parse_number_of_node_states(const char *nodes_mtx, regex_t *regex_comment) {
     FILE *fp;
-    char buff[255];
+    char buff[CHAR_BUFFER_SIZE];
     int reti;
     long node_1, node_2, num_beliefs;
     char *p_end, *prev;
@@ -51,7 +53,7 @@ static int parse_number_of_node_states(const char *nodes_mtx, regex_t *regex_com
         exit(EXIT_FAILURE);
     }
 
-    while ( fgets(buff, 255, fp) != NULL ) {
+    while ( fgets(buff, CHAR_BUFFER_SIZE, fp) != NULL ) {
         reti = regexec(regex_comment, buff, 0, NULL, 0);
         if(reti == REG_NOMATCH && no_skip == 0) {
             no_skip = 1;
@@ -78,7 +80,7 @@ static int parse_number_of_node_states(const char *nodes_mtx, regex_t *regex_com
 
 static int parse_number_of_edges(const char *edges_mtx, regex_t *regex_comment) {
     FILE *fp;
-    char buff[255];
+    char buff[CHAR_BUFFER_SIZE];
     int reti;
     long num_cols, num_rows, num_non_zeroes;
     char *p_end;
@@ -91,7 +93,7 @@ static int parse_number_of_edges(const char *edges_mtx, regex_t *regex_comment) 
 
     num_non_zeroes = 0;
 
-    while ( fgets(buff, 255, fp) != NULL ) {
+    while ( fgets(buff, CHAR_BUFFER_SIZE, fp) != NULL ) {
         reti = regexec(regex_comment, buff, 0, NULL, 0);
         if(reti == REG_NOMATCH) {
             num_cols = strtol(buff, &p_end, 10);
@@ -110,7 +112,7 @@ static int parse_number_of_edges(const char *edges_mtx, regex_t *regex_comment) 
 
 static int parse_number_of_joint_probabilities(const char *edges_mtx, regex_t *regex_comment) {
     FILE *fp;
-    char buff[1024];
+    char buff[CHAR_BUFFER_SIZE];
     int reti;
     long src_id, dest_id, num_joint_probs;
     char *p_end, *prev;
@@ -124,7 +126,7 @@ static int parse_number_of_joint_probabilities(const char *edges_mtx, regex_t *r
         exit(EXIT_FAILURE);
     }
 
-    while ( fgets(buff, 1024, fp) != NULL ) {
+    while ( fgets(buff, CHAR_BUFFER_SIZE, fp) != NULL ) {
         reti = regexec(regex_comment, buff, 0, NULL, 0);
         if(reti == REG_NOMATCH && no_skip == 0) {
             no_skip = 1;
@@ -149,8 +151,8 @@ static int parse_number_of_joint_probabilities(const char *edges_mtx, regex_t *r
 
 static void add_nodes(Graph_t graph, const char *nodes_mtx, regex_t *comment_regex, int num_states) {
     FILE *fp;
-    char buff[1024];
-    char name[1024];
+    char buff[CHAR_BUFFER_SIZE];
+    char name[CHAR_BUFFER_SIZE];
     char *p_end, *prev;
     int reti;
     char found_header;
@@ -170,7 +172,7 @@ static void add_nodes(Graph_t graph, const char *nodes_mtx, regex_t *comment_reg
         exit(EXIT_FAILURE);
     }
 
-    while ( fgets(buff, 1024, fp) != NULL ) {
+    while ( fgets(buff, CHAR_BUFFER_SIZE, fp) != NULL ) {
         curr_belief_index = 0;
 
         reti = regexec(comment_regex, buff, 0, NULL, 0);
@@ -216,7 +218,7 @@ static void add_nodes(Graph_t graph, const char *nodes_mtx, regex_t *comment_reg
 static void add_edges(Graph_t graph, const char *edges_mtx, regex_t *comment_regex, int num_states,
         int num_probabilities) {
     FILE *fp;
-    char buff[1024];
+    char buff[CHAR_BUFFER_SIZE];
     int reti;
     char found_header;
     char *p_end, *prev;
@@ -235,7 +237,7 @@ static void add_edges(Graph_t graph, const char *edges_mtx, regex_t *comment_reg
         exit(EXIT_FAILURE);
     }
 
-    while ( fgets(buff, 1024, fp) != NULL ) {
+    while ( fgets(buff, CHAR_BUFFER_SIZE, fp) != NULL ) {
         x = 0;
         y = 0;
 
