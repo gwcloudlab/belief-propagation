@@ -247,7 +247,7 @@ void initialize_node(Graph_t, int, int);
 void node_set_state(Graph_t, int, int, struct belief *);
 
 void init_edge(Graph_t, int, int, int, int, int, struct joint_probability *);
-void send_message(struct belief *, int, struct joint_probability *, struct belief *);
+void send_message(const struct belief * __restrict__, int, const struct joint_probability * __restrict__, struct belief *);
 
 void fill_in_node_hash_table(Graph_t);
 long find_node_by_name(char *, Graph_t);

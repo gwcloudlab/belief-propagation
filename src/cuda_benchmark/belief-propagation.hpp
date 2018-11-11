@@ -82,114 +82,115 @@ __device__
 int atomic_add_inc(int *);
 
 __device__
-void update_work_queue_nodes_cuda(int *, int *, int *, struct belief *, int, float);
+void update_work_queue_nodes_cuda(int *, int *, int *, const struct belief *, int, float);
 
 __device__
-void update_work_queue_edges_cuda(int *, int *, int *, struct belief *, int, float);
+void update_work_queue_edges_cuda(int *, int *, int *, const struct belief *, int, float);
 
 __device__
-void init_message_buffer_cuda(struct belief *, struct belief *, int, int);
+void init_message_buffer_cuda(struct belief *, const struct belief *, int, int);
 
 __global__
-void init_and_read_message_buffer_cuda_streaming(int, int, struct belief *, struct belief *,
-        struct belief *, int *, int *, int, int, int *, int*);
+void init_and_read_message_buffer_cuda_streaming(int, int, struct belief *, const struct belief *,
+        const struct belief *, const int *, const int *, int, int, const int *, const int*);
 
 __device__
-void combine_message_cuda(struct belief *, struct belief *, int, int);
+void combine_message_cuda(struct belief *, const struct belief *, int, int);
 
 __device__
-void combine_message_cuda_node_streaming(struct belief *, struct belief *, int, int);
+void combine_message_cuda_node_streaming(struct belief *, const struct belief *, int, int);
 
 __device__
-void combine_message_cuda_edge_streaming(struct belief *, struct belief *, int, int);
+void combine_message_cuda_edge_streaming(struct belief *, const struct belief *, int, int);
 
 __device__
-void combine_page_rank_message_cuda(struct belief *, struct belief *, int, int);
+void combine_page_rank_message_cuda(struct belief *, const struct belief *, int, int);
 
 __device__
-void combine_viterbi_message_cuda(struct belief *, struct belief *, int, int);
+void combine_viterbi_message_cuda(struct belief *, const struct belief *, int, int);
 
 __device__
-void read_incoming_messages_cuda(struct belief *, struct belief *, int *,
-                                 int *, int, int,
+void read_incoming_messages_cuda(struct belief *, const struct belief *,
+                                 const int *, const int *, int, int,
                                  int, int);
 
 __device__
-void send_message_for_edge_cuda(struct belief *, int, struct joint_probability *,
+void send_message_for_edge_cuda(const struct belief *, int, const struct joint_probability *,
                                 struct belief *);
 
 __device__
-void send_message_for_edge_cuda_streaming(struct belief *, int, struct joint_probability *,
+void send_message_for_edge_cuda_streaming(const struct belief *, int, const struct joint_probability *,
                                 struct belief *);
 __device__
-void send_message_for_node_cuda(struct belief *, int, struct joint_probability *,
-                                struct belief *, int *, int *,
+void send_message_for_node_cuda(const struct belief *, int, const struct joint_probability *,
+                                struct belief *, const int *, const int *,
                                 int, int);
 
 __device__
-void send_message_for_node_cuda_streaming(struct belief *, int, struct joint_probability *,
-                                struct belief *, int *, int *,
+void send_message_for_node_cuda_streaming(const struct belief *, int, const struct joint_probability *,
+                                struct belief *, const int *, const int *,
                                 int, int);
 
 __device__
 void marginalize_node(struct belief *, int,
-                      struct belief *,
-                      int *, int *,
+                      const struct belief *,
+                      const int *, const int *,
                       int, int);
 
 __device__
 void marginalize_node_node_streaming(struct belief *, int,
-                      struct belief *,
-                      int *, int *,
+                      const struct belief *,
+                      const int *, const int *,
                       int, int);
 
 __device__
 void marginalize_node_edge_streaming(struct belief *, int,
-                      struct belief *,
-                      int *, int *,
+                      const struct belief *,
+                      const int *, const int *,
                       int, int);
 
 __device__
 void marginalize_page_rank_node(struct belief *, int,
-                      struct belief *,
-                      int *, int *,
+                      const struct belief *,
+                      const int *, const int *,
                       int, int);
 
+__device__
 void argmax_node(struct belief *, int,
-                 struct belief *,
-                 int *, int *,
+                 const struct belief *,
+                 const int *, const int *,
                  int, int);
 
 __global__
-void marginalize_nodes(struct belief *, struct belief *,
-                       int *, int *,
+void marginalize_nodes(struct belief *, const struct belief *,
+                       const int *, const int *,
                        int, int);
 
 __global__
 void marginalize_nodes_streaming(int, int,
-                        struct belief *, struct belief *,
-                       int *, int *,
+                        struct belief *, const struct belief *,
+                       const int *, const int *,
                        int, int);
 
 __global__
-void marginalize_page_rank_nodes(struct belief *, struct belief *,
-                       int *, int *,
+void marginalize_page_rank_nodes(struct belief *, const struct belief *,
+                       const int *, const int *,
                        int, int);
 
 __global__
-void argmax_nodes(struct belief *, struct belief *,
-                                 int *, int *,
+void argmax_nodes(struct belief *, const struct belief *,
+                                 const int *, const int *,
                                  int, int);
 
 __global__
 void loopy_propagate_main_loop(int, int,
                                struct belief *,
-                               struct joint_probability *,
+                               const struct joint_probability *,
                                struct belief *,
                                int *, int *,
                                int *,
-                               int *, int *,
-                               int *, int *);
+                               const int *, const int *,
+                               const int *, const int *);
 
 __global__
 void loopy_propagate_init_read_buffer(struct belief *, int, int);
@@ -197,70 +198,74 @@ void loopy_propagate_init_read_buffer(struct belief *, int, int);
 __global__
 void __launch_bounds__(BLOCK_SIZE_NODE_STREAMING, MIN_BLOCKS_PER_MP)
 send_message_for_node_cuda_streaming_kernel(int, int,
-                                          int *, int *,
-                                          struct belief *, int,
-                                          struct joint_probability *,
+                                          const int *, const int *,
+                                          const struct belief *, int,
+                                          const struct joint_probability *,
                                           struct belief *,
-                                          int *, int *,
+                                          const int *, const int *,
                                           int);
 
 __global__
 void marginalize_node_cuda_streaming( int, int,
-                                      int *, int *,
+                                      const int *, const int *,
                                       struct belief *,
-                                      struct belief *,
-                                      int *, int *,
+                                      const struct belief *,
+                                      const int *, const int *,
                                       int, int);
 
 __global__
 void page_rank_main_loop(int, int,
                                struct belief *,
-                               struct joint_probability *,
+                               const struct joint_probability *,
                                struct belief *,
-                               int *, int *,
-                               int *, int *);
+                               const int *, const int *,
+                               const int *, const int *);
 
 __global__
 void viterbi_main_loop(int, int,
                          struct belief *,
-                         struct joint_probability *,
+                         const struct joint_probability *,
                          struct belief *,
-                         int *, int *,
-                         int *, int *);
+                         const int *, const int *,
+                         const int *, const int *);
 
 __device__
-static void send_message_for_edge_iteration_cuda(struct belief *, int, int,
-                                                 struct joint_probability *, struct belief *);
+static void send_message_for_edge_iteration_cuda(const struct belief *, int, int,
+                                                 const struct joint_probability *, struct belief *);
 
 __global__
-void send_message_for_edge_iteration_cuda_kernel(int, int *,
-                                                 struct belief *, struct joint_probability *,
+void send_message_for_edge_iteration_cuda_kernel(int, const int *,
+                                                 const struct belief *, const struct joint_probability *,
                                                  struct belief *);
 
 __global__
-void send_message_for_edge_iteration_cuda_work_queue_kernel(int, int *,
-                                                            struct belief *, struct joint_probability *,
+void send_message_for_edge_iteration_cuda_work_queue_kernel(int, const int *,
+                                                            const struct belief *, const struct joint_probability *,
                                                             struct belief *,
                                                             int *, int *);
 
 __global__
 void send_message_for_edge_iteration_cuda_work_queue_kernel_streaming(
-        int begin_index, int end_index,
-        int * edges_src_index,
-        struct belief *node_states,
-        struct joint_probability *joint_probabilities,
-        struct belief *current_edge_messages,
-        int * work_queue_edges, int * num_work_queue_items);
+        int, int,
+        const int *,
+        const struct belief *,
+        const struct joint_probability *,
+        struct belief *,
+        const int *, const int *);
 
 __device__
-void combine_loopy_edge_cuda(int, struct belief *, int, struct belief *);
+void combine_loopy_edge_cuda(int, const struct belief *, int, struct belief *);
 
 __global__
-void combine_loopy_edge_cuda_kernel(int, int *, struct belief *, struct belief *);
+void combine_loopy_edge_cuda_kernel(int, const int *, const struct belief *, struct belief *);
 
 __global__
-void combine_loopy_edge_cuda_work_queue_kernel(int, int *, struct belief *, struct belief *,
+void combine_loopy_edge_cuda_work_queue_kernel(int, const int *, const struct belief *, struct belief *,
                                                int *, int *, int *);
+
+__global__
+void combine_loopy_edge_cuda_work_queue_kernel_streaming(int, int, const int *, const struct belief *, struct belief *,
+                                               const int *, const int *, const int *);
 
 __global__
 void marginalize_loop_node_edge_kernel(struct belief *, int);
@@ -269,24 +274,24 @@ __global__
 void marginalize_viterbi_beliefs(struct belief *, int);
 
 __device__
-float calculate_local_delta(int, struct belief *);
+float calculate_local_delta(int, const struct belief *);
 
 __global__
-void calculate_delta(struct belief *, float *, float *, int);
+void calculate_delta(const struct belief *, float *, float *, int);
 
 __global__
-void calculate_delta_6(struct belief *, float *, float *,
+void calculate_delta_6(const struct belief *, float *, float *,
                        int, char, int);
 
 __global__
-void calculate_delta_simple(struct belief *, float *, float *,
+void calculate_delta_simple(const struct belief *, float *, float *,
                             int);
 
 __global__
 void update_work_queue_cuda_kernel(int *, int *, int*,
-                                   struct belief *, int);
+                                   const struct belief *, int);
 __global__
-void update_work_queue_edges_cuda_kernel(int *, int *, int *, struct belief *, int);
+void update_work_queue_edges_cuda_kernel(int *, int *, int *, const struct belief *, int);
 
 void test_error();
 

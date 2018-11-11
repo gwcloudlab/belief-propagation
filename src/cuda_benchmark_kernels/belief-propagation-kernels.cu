@@ -7,8 +7,8 @@
  * @param num_nodes The number of nodes in the graph
  */
 __global__
-void init_message_buffer_kernel(struct belief *message_buffer,
-                                struct belief *node_states,
+void init_message_buffer_kernel(struct belief * __restrict__ message_buffer,
+                                const struct belief * __restrict__ node_states,
                                 int num_nodes){
     int node_index, state_index, num_variables;
 
@@ -33,7 +33,7 @@ void init_message_buffer_kernel(struct belief *message_buffer,
  * @param warp_size The warp size of the GPU
  */
 __device__
-void combine_message_cuda(struct belief *dest, struct belief *edge_messages, int num_vertices, int node_index,
+void combine_message_cuda(struct belief * __restrict__ dest, const struct belief * __restrict__ edge_messages, int num_vertices, int node_index,
                           int edge_offset, int num_edges, char n_is_pow_2, int warp_size){
     __shared__ float shared_dest[BLOCK_SIZE_3_D_Z];
     __shared__ float shared_src[BLOCK_SIZE_3_D_Z];
@@ -42,7 +42,6 @@ void combine_message_cuda(struct belief *dest, struct belief *edge_messages, int
     if(index < num_vertices && edge_offset < num_edges){
         shared_dest[index] = dest[node_index].data[index];
         shared_src[index] = edge_messages[edge_offset].data[index];
-        __syncthreads();
 
         dest[node_index].data[index] = shared_dest[index] * shared_src[index];
     }
@@ -60,7 +59,7 @@ void combine_message_cuda(struct belief *dest, struct belief *edge_messages, int
  * @param warp_size The warp size of the GPU
  */
 __device__
-void combine_page_rank_message_cuda(struct belief *dest, struct belief *edge_messages, int num_vertices, int node_index,
+void combine_page_rank_message_cuda(struct belief * __restrict__ dest, const struct belief * __restrict__ edge_messages, int num_vertices, int node_index,
                           int edge_offset, int num_edges, char n_is_pow_2, int warp_size){
     __shared__ float shared_dest[BLOCK_SIZE_3_D_Z];
     __shared__ float shared_src[BLOCK_SIZE_3_D_Z];
@@ -69,7 +68,6 @@ void combine_page_rank_message_cuda(struct belief *dest, struct belief *edge_mes
     if(index < num_vertices && edge_offset < num_edges){
         shared_dest[index] = dest[node_index].data[index];
         shared_src[index] = edge_messages[edge_offset].data[index];
-        __syncthreads();
 
         dest[node_index].data[index] = shared_dest[index] + shared_src[index];
     }
@@ -87,7 +85,7 @@ void combine_page_rank_message_cuda(struct belief *dest, struct belief *edge_mes
  * @param warp_size The warp size of the GPU
  */
 __device__
-void combine_viterbi_message_cuda(struct belief *dest, struct belief *edge_messages, int num_vertices, int node_index,
+void combine_viterbi_message_cuda(struct belief * __restrict__ dest, const struct belief * __restrict__ edge_messages, int num_vertices, int node_index,
                           int edge_offset, int num_edges, char n_is_pow_2, int warp_size){
     __shared__ float shared_dest[BLOCK_SIZE_3_D_Z];
     __shared__ float shared_src[BLOCK_SIZE_3_D_Z];
@@ -114,9 +112,9 @@ void combine_viterbi_message_cuda(struct belief *dest, struct belief *edge_messa
  * @param warp_size The warp size of the GPU
  */
 __global__
-void read_incoming_messages_kernel(struct belief *message_buffer, struct belief *previous_messages,
-                                   int * dest_node_to_edges_nodes,
-                                   int * dest_node_to_edges_edges,
+void read_incoming_messages_kernel(struct belief * __restrict__ message_buffer, const struct belief * __restrict__ previous_messages,
+                                   const int * __restrict__ dest_node_to_edges_nodes,
+                                   const int * __restrict__ dest_node_to_edges_edges,
                                    int current_num_edges,
                                    int num_vertices,
                                    char n_is_pow_2, int warp_size){
@@ -152,9 +150,9 @@ void read_incoming_messages_kernel(struct belief *message_buffer, struct belief 
  * @param edge_messages The outbound buffer
  */
 __device__
-void send_message_for_edge_cuda(struct belief * message_buffer, int edge_index, int node_index,
-                                struct joint_probability * joint_probabilities,
-                                struct belief * edge_messages){
+void send_message_for_edge_cuda(const struct belief * __restrict__ message_buffer, int edge_index, int node_index,
+                                const struct joint_probability * __restrict__ joint_probabilities,
+                                struct belief * __restrict__ edge_messages){
     int i, j, num_src, num_dest;
     struct joint_probability joint_probability;
     __shared__ float partial_sums[BLOCK_SIZE];
@@ -201,10 +199,11 @@ void send_message_for_edge_cuda(struct belief * message_buffer, int edge_index, 
  * @param num_vertices The number of vertices (nodes) in the graph
  */
 __global__
-void send_message_for_node_kernel(struct belief *message_buffer, int current_num_edges,
-                                  struct joint_probability *joint_probabilities, struct belief *current_edge_messages,
-                                  int * src_node_to_edges_nodes,
-                                  int * src_node_to_edges_edges,
+void send_message_for_node_kernel(const struct belief * __restrict__ message_buffer, int current_num_edges,
+                                  const struct joint_probability * __restrict__ joint_probabilities,
+                                          struct belief * __restrict__ current_edge_messages,
+                                  const int * __restrict__ src_node_to_edges_nodes,
+                                  const int * __restrict__ src_node_to_edges_edges,
                                   int num_vertices){
     int node_index, edge_index, start_index, end_index, diff_index;
 
@@ -239,10 +238,10 @@ void send_message_for_node_kernel(struct belief *message_buffer, int current_num
  * @param warp_size The size of the warp of the GPU
  */
 __global__
-void marginalize_node_combine_kernel(struct belief *message_buffer, struct belief *node_states,
-                             struct belief *current_edges_messages,
-                             int * dest_node_to_edges_nodes,
-                             int * dest_node_to_edges_edges,
+void marginalize_node_combine_kernel(struct belief * __restrict__ message_buffer, const struct belief * __restrict__ node_states,
+                             const struct belief * __restrict__ current_edges_messages,
+                             const int * __restrict__ dest_node_to_edges_nodes,
+                             const int * __restrict__ dest_node_to_edges_edges,
                              int num_vertices,
                              int num_edges, char n_is_pow_2, int warp_size){
     int node_index, edge_index, temp_edge_index, num_variables, start_index, end_index, diff_index;
@@ -285,10 +284,10 @@ void marginalize_node_combine_kernel(struct belief *message_buffer, struct belie
  * @param warp_size The size of the warp of the GPU
  */
 __global__
-void marginalize_page_rank_node_combine_kernel(struct belief *message_buffer, struct belief *node_states,
-                                     struct belief *current_edges_messages,
-                                     int * dest_node_to_edges_nodes,
-                                     int * dest_node_to_edges_edges,
+void marginalize_page_rank_node_combine_kernel(struct belief * __restrict__ message_buffer, const struct belief * __restrict__ node_states,
+                                     const struct belief * __restrict__ current_edges_messages,
+                                     const int * __restrict__ dest_node_to_edges_nodes,
+                                     const int * __restrict__ dest_node_to_edges_edges,
                                      int num_vertices,
                                      int num_edges, char n_is_pow_2, int warp_size){
     int node_index, edge_index, temp_edge_index, num_variables, start_index, end_index, diff_index;
@@ -331,10 +330,10 @@ void marginalize_page_rank_node_combine_kernel(struct belief *message_buffer, st
  * @param warp_size The size of the warp of the GPU
  */
 __global__
-void argmax_node_combine_kernel(struct belief *message_buffer, struct belief *node_states,
-                                     struct belief *current_edges_messages,
-                                     int * dest_node_to_edges_nodes,
-                                     int * dest_node_to_edges_edges,
+void argmax_node_combine_kernel(struct belief * __restrict__ message_buffer, const struct belief * __restrict__ node_states,
+                                     const struct belief * __restrict__ current_edges_messages,
+                                     const int * __restrict__ dest_node_to_edges_nodes,
+                                     const int * __restrict__  dest_node_to_edges_edges,
                                      int num_vertices,
                                      int num_edges, char n_is_pow_2, int warp_size){
     int node_index, edge_index, temp_edge_index, num_variables, start_index, end_index, diff_index;
@@ -377,10 +376,10 @@ void argmax_node_combine_kernel(struct belief *message_buffer, struct belief *no
  * @param warp_size The size of the warp of the GPU
  */
 __global__
-void marginalize_sum_node_kernel(struct belief * message_buffer, struct belief * node_states,
-                             struct belief * current_edges_messages,
-                             int * dest_node_to_edges_nodes,
-                             int * dest_node_to_edges_edges,
+void marginalize_sum_node_kernel(const struct belief * __restrict__  message_buffer, struct belief * __restrict__ node_states,
+                             const struct belief * __restrict__ current_edges_messages,
+                             const int * __restrict__ dest_node_to_edges_nodes,
+                             const int * __restrict__ dest_node_to_edges_edges,
                              int num_vertices,
                              int num_edges, char n_is_pow_2, int warp_size){
     int node_index, edge_index, num_variables;
@@ -411,10 +410,10 @@ void marginalize_sum_node_kernel(struct belief * message_buffer, struct belief *
 }
 
 __global__
-void marginalize_dampening_factor_kernel(struct belief * message_buffer, struct belief * node_states,
-                                          struct belief * current_edges_messages,
-                                          int * dest_node_to_edges_nodes,
-                                          int * dest_node_to_edges_edges,
+void marginalize_dampening_factor_kernel(const struct belief * __restrict__ message_buffer, struct belief * __restrict__ node_states,
+                                          const struct belief * __restrict__ current_edges_messages,
+                                          const int * __restrict__ dest_node_to_edges_nodes,
+                                          const int * __restrict__ dest_node_to_edges_edges,
                                           int num_vertices,
                                           int num_edges, char n_is_pow_2, int warp_size){
     int node_index, edge_index, num_variables, end_index, start_index;
@@ -446,7 +445,7 @@ void marginalize_dampening_factor_kernel(struct belief * message_buffer, struct 
 }
 
 __global__
-void marginalize_viterbi_beliefs(struct belief * nodes, int num_nodes){
+void marginalize_viterbi_beliefs(struct belief * __restrict__ nodes, int num_nodes){
     int idx, i, num_variables;
     float sum;
 
@@ -474,10 +473,10 @@ void marginalize_viterbi_beliefs(struct belief * nodes, int num_nodes){
  * @param warp_size The size of the warp of the GPU
  */
 __global__
-void argmax_kernel(struct belief * message_buffer, struct belief * node_states,
-                                 struct belief * current_edges_messages,
-                                 int * dest_node_to_edges_nodes,
-                                 int * dest_node_to_edges_edges,
+void argmax_kernel(const struct belief * __restrict__ message_buffer, struct belief * __restrict__ node_states,
+                                 const struct belief * __restrict__ current_edges_messages,
+                                 const int * __restrict__ dest_node_to_edges_nodes,
+                                 const int * __restrict__ dest_node_to_edges_edges,
                                  int num_vertices,
                                  int num_edges, char n_is_pow_2, int warp_size){
     int node_index, edge_index, num_variables;
@@ -508,7 +507,7 @@ void argmax_kernel(struct belief * message_buffer, struct belief * node_states,
  * @return The delta between the messages
  */
 __device__
-float calculate_local_delta(int i, struct belief * current_messages){
+float calculate_local_delta(int i, const struct belief * __restrict__ current_messages){
     float delta, diff;
 
     diff = current_messages[i].previous - current_messages[i].current;
@@ -528,7 +527,7 @@ float calculate_local_delta(int i, struct belief * current_messages){
  * @param num_edges The number of edges in the graph
  */
 __global__
-void calculate_delta(struct belief * current_messages, float * delta, float * delta_array, int num_edges){
+void calculate_delta(const struct belief * __restrict__ current_messages, float * __restrict__ delta, float * __restrict__ delta_array, int num_edges){
     extern __shared__ float shared_delta[];
     int tid, idx, i, s;
 
@@ -608,7 +607,7 @@ void calculate_delta(struct belief * current_messages, float * delta, float * de
  * @param num_edges The number of edges in the graph
  */
 __global__
-void calculate_delta_6(struct belief *current_messages, float * delta, float * delta_array,
+void calculate_delta_6(const struct belief * __restrict__ current_messages, float * __restrict__ delta, float * __restrict__ delta_array,
                        int num_edges, char n_is_pow_2, int warp_size) {
     extern __shared__ float shared_delta[];
 
@@ -715,8 +714,8 @@ void calculate_delta_6(struct belief *current_messages, float * delta, float * d
  * @param num_edges The number of edges in the graph
  */
 __global__
-void calculate_delta_simple(struct belief * current_messages,
-                            float * delta, float * delta_array,
+void calculate_delta_simple(const struct belief * __restrict__ current_messages,
+                            float * __restrict__ delta, float * __restrict__ delta_array,
                             int num_edges) {
     extern __shared__ float shared_delta[];
     int tid, idx, i, s;
