@@ -116,4 +116,6 @@ void run_test_loopy_belief_propagation_mtx_files_kernels(const char *, const cha
 __global__
 void calculate_delta(struct belief * previous_messages, struct belief * current_messages, float * delta, float * delta_array, int * edges_x_dim, int num_edges);
 
+void CheckCudaErrorAux (const char *, int, const char *, cudaError_t);
+
 #endif

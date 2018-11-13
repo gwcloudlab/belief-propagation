@@ -151,7 +151,7 @@ void read_incoming_messages_kernel(struct belief * __restrict__ message_buffer, 
  */
 __device__
 void send_message_for_edge_cuda(const struct belief * __restrict__ message_buffer, int edge_index, int node_index,
-                                const struct joint_probability * __restrict__ joint_probabilities,
+                                const struct joint_probability * joint_probabilities,
                                 struct belief * __restrict__ edge_messages){
     int i, j, num_src, num_dest;
     struct joint_probability joint_probability;
@@ -174,16 +174,16 @@ void send_message_for_edge_cuda(const struct belief * __restrict__ message_buffe
             partial_sums[threadIdx.x] += s_joint_probability[threadIdx.x] * s_belief[threadIdx.x];
         }
         edge_messages[edge_index].data[i] = partial_sums[threadIdx.x];
-        sum += partial_sums[threadIdx.x];
+        sums[threadIdx.x] += partial_sums[threadIdx.x];
     }
-    if(sum <= 0.0){
+    if(sums[threadIdx.x] <= 0.0){
         sums[threadIdx.x] = 1.0;
     }
     edge_messages[edge_index].previous = edge_messages[edge_index].current;
-    edge_messages[edge_index].current = sum;
+    edge_messages[edge_index].current = sums[threadIdx.x];
     for(i = 0; i < num_src; ++i){
         partial_sums[threadIdx.x] = edge_messages[edge_index].data[i];
-        partial_sums[threadIdx.x] =/ sums[threadIdx.x];
+        partial_sums[threadIdx.x] /= sums[threadIdx.x];
         edge_messages[edge_index].data[i] = partial_sums[threadIdx.x];
     }
 }
@@ -200,7 +200,7 @@ void send_message_for_edge_cuda(const struct belief * __restrict__ message_buffe
  */
 __global__
 void send_message_for_node_kernel(const struct belief * __restrict__ message_buffer, int current_num_edges,
-                                  const struct joint_probability * __restrict__ joint_probabilities,
+                                  const struct joint_probability * joint_probabilities,
                                           struct belief * __restrict__ current_edge_messages,
                                   const int * __restrict__ src_node_to_edges_nodes,
                                   const int * __restrict__ src_node_to_edges_edges,

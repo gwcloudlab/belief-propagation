@@ -242,9 +242,9 @@ void read_incoming_messages_cuda(struct belief * __restrict__ message_buffer,
  * @param edge_messages The current beliefs
  */
 __device__
-void send_message_for_edge_cuda(const struct belief * __restrict__ buffer, int edge_index,
-                                const struct joint_probability * __restrict__ joint_probabilities,
-                                struct belief * edge_messages){
+void send_message_for_edge_cuda(const struct belief * __restrict__  buffer, int edge_index,
+                                const struct joint_probability *  joint_probabilities, // TODO fix??
+                                struct belief * __restrict__ edge_messages){
     int i, j, num_src, num_dest;
     struct joint_probability joint_probability;
     __shared__ float partial_sums[BLOCK_SIZE];
@@ -282,8 +282,8 @@ void send_message_for_edge_cuda(const struct belief * __restrict__ buffer, int e
 
 __device__
 void send_message_for_edge_cuda_streaming(const struct belief * __restrict__ buffer, int edge_index,
-                                const struct joint_probability * __restrict__ joint_probabilities,
-                                struct belief * edge_messages){
+                                const struct joint_probability * joint_probabilities, // TOOD fix??
+                                struct belief * __restrict__ edge_messages){
     int i, j, num_src, num_dest;
     struct joint_probability joint_probability;
     __shared__ float partial_sums[BLOCK_SIZE_NODE_STREAMING];
@@ -382,7 +382,7 @@ __launch_bounds__(BLOCK_SIZE_NODE_STREAMING, MIN_BLOCKS_PER_MP)
 send_message_for_node_cuda_streaming_kernel(int begin_index, int end_index,
                                           const int * __restrict__ work_queue, const int * __restrict__ num_work_queue_items,
                                           const struct belief * __restrict__ message_buffers, int current_num_edges,
-                                          const struct joint_probability * __restrict__ joint_probabilities,
+                                          const struct joint_probability * joint_probabilities,
                                           struct belief * __restrict__ current_edge_messages,
                                           const int * __restrict__ src_nodes_to_edges_nodes, const int * __restrict__ src_nodes_to_edges_edges,
                                           int num_vertices) {
@@ -759,7 +759,7 @@ void argmax_nodes(struct belief * __restrict__ node_states,
 __global__
 void loopy_propagate_main_loop(int num_vertices, int num_edges,
                                struct belief * __restrict__ node_messages,
-                               const struct joint_probability * __restrict__ joint_probabilities,
+                               const struct joint_probability * joint_probabilities, // TOOD fix??
                                struct belief *current_edge_messages,
                                int * __restrict__ work_queue_nodes, int * __restrict__ num_work_items,
                                int * __restrict__ work_queue_scratch,
@@ -811,7 +811,7 @@ void loopy_propagate_main_loop(int num_vertices, int num_edges,
 __global__
 void page_rank_main_loop(int num_vertices, int num_edges,
                                struct belief * __restrict__ node_messages,
-                               const struct joint_probability * __restrict__ joint_probabilities,
+                               const struct joint_probability * joint_probabilities,
                                struct belief *current_edge_messages,
                                const int * __restrict__ src_nodes_to_edges_nodes, const int * __restrict__ src_nodes_to_edges_edges,
                                const int * __restrict__ dest_nodes_to_edges_nodes, const int * __restrict__ dest_nodes_to_edges_edges){
@@ -851,7 +851,7 @@ void page_rank_main_loop(int num_vertices, int num_edges,
 __global__
 void viterbi_main_loop(int num_vertices, int num_edges,
                          struct belief * __restrict__ node_messages,
-                         const struct joint_probability * __restrict__ joint_probabilities,
+                         const struct joint_probability * joint_probabilities,
                          struct belief * __restrict__ current_edge_messages,
                          const int * __restrict__ src_nodes_to_edges_nodes, const int * __restrict__ src_nodes_to_edges_edges,
                          const int * __restrict__ dest_nodes_to_edges_nodes, const int * __restrict__ dest_nodes_to_edges_edges){
@@ -884,7 +884,7 @@ void viterbi_main_loop(int num_vertices, int num_edges,
  * @param edge_messages The current message on the edge
  */
 __device__
-static void send_message_for_edge_iteration_cuda(const struct belief * __restrict__ belief, int src_index, int edge_index,
+void send_message_for_edge_iteration_cuda(const struct belief * __restrict__ belief, int src_index, int edge_index,
                                                  const struct joint_probability * __restrict__ joint_probabilities,
                                                          struct belief * __restrict__ edge_messages){
     int i, j, num_src, num_dest;
@@ -1158,7 +1158,7 @@ void calculate_delta(const struct belief * __restrict__ current_messages,
             my_delta += shared_delta[tid + 32];
         }
         for(s = WARP_SIZE/2; s > 0; s /= 2){
-            my_delta += __shfl_down(my_delta, s);
+            my_delta += __shfl_down_sync(FULL_MASK, my_delta, s);
         }
     }
 #else
@@ -1259,7 +1259,7 @@ void calculate_delta_6(const struct belief * __restrict__ current_messages,
             my_delta += shared_delta[tid + 32];
         }
         for(offset = warp_size/2; offset > 0; offset /= 2 ){
-            my_delta += __shfl_down(my_delta, offset);
+            my_delta += __shfl_down_sync(FULL_MASK, my_delta, offset);
         }
     }
 #else
@@ -1579,7 +1579,7 @@ static void *launch_marginalize_node_kernels(void *data) {
 }
 
 static
-__global__ void update_work_queue_nodes_cuda_kernel(int * __restrict__ work_queue_nodes, int * __restrict__ num_work_items, int * __restrict__ work_queue_scratch, const struct belief * __restrict__ node_messages, int num_vertices) {
+__global__ void update_work_queue_nodes_cuda_kernel(int * work_queue_nodes, int * num_work_items, int * work_queue_scratch, const struct belief * node_messages, int num_vertices) {
     update_work_queue_nodes_cuda(work_queue_nodes, num_work_items, work_queue_scratch, node_messages, num_vertices, PRECISION_ITERATION);
 }
 
@@ -2724,13 +2724,13 @@ static void* launch_marginalize_streaming_kernel(void * data) {
 }
 
 __global__
-void update_work_queue_cuda_kernel(int * __restrict__ work_queue_edges, int * __restrict__ num_work_items, int* __restrict__ work_queue_scratch,
+void update_work_queue_cuda_kernel(int * work_queue_edges, int * num_work_items, int* work_queue_scratch,
                                    const struct belief *current_messages, int num_edges) {
     update_work_queue_edges_cuda(work_queue_edges, num_work_items, work_queue_scratch, current_messages, num_edges, PRECISION_ITERATION);
 }
 
 __global__
-void update_work_queue_edges_cuda_kernel(int * __restrict__ work_queue_edges, int * __restrict__ num_work_items, int * __restrict__ work_queue_scratch, const struct belief * __restrict__ current_edge_messages, int num_edges) {
+void update_work_queue_edges_cuda_kernel(int * work_queue_edges, int * num_work_items, int * work_queue_scratch, const struct belief * current_edge_messages, int num_edges) {
     update_work_queue_edges_cuda(work_queue_edges, num_work_items, work_queue_scratch, current_edge_messages, num_edges, PRECISION_ITERATION);
 }
 

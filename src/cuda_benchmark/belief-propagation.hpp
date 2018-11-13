@@ -14,6 +14,8 @@
 #include <cooperative_groups_helpers.h>
 #include <mpi.h>
 
+#define FULL_MASK 0xffffffff
+
 extern "C" {
     #include "../bnf-parser/expression.h"
     #include "../bnf-parser/Parser.h"
@@ -230,7 +232,7 @@ void viterbi_main_loop(int, int,
                          const int *, const int *);
 
 __device__
-static void send_message_for_edge_iteration_cuda(const struct belief *, int, int,
+void send_message_for_edge_iteration_cuda(const struct belief *, int, int,
                                                  const struct joint_probability *, struct belief *);
 
 __global__
