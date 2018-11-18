@@ -563,7 +563,7 @@ void propagate_using_levels_start(Graph_t g){
  * @param edge_joint_probabilities The array of joint probabilities in the graph
  * @param edge_messages The array of edge buffer beliefs
  */
-void send_message(struct belief *states, int edge_index, struct joint_probability *edge_joint_probabilities, struct belief *edge_messages){
+void send_message(const struct belief * __restrict__ states, int edge_index, const struct joint_probability * __restrict__ edge_joint_probabilities, struct belief *edge_messages){
 	int i, j, num_src, num_dest;
 	float sum;
     struct joint_probability joint_probability;
@@ -599,7 +599,7 @@ void send_message(struct belief *states, int edge_index, struct joint_probabilit
  * @param offset The index offset for the source lookup
  */
 #pragma acc routine
-static inline void combine_message(struct belief *dest, struct belief *src, int num_variables, int offset){
+static inline void combine_message(struct belief * __restrict__ dest, const struct belief * __restrict__ src, int num_variables, int offset){
 	int i;
 
 	for(i = 0; i < num_variables; ++i){
@@ -617,7 +617,7 @@ static inline void combine_message(struct belief *dest, struct belief *src, int 
  * @param offset The index offset for the source lookup
  */
 #pragma acc routine
-static inline void combine_page_rank_message(struct belief * dest, struct belief *src, int num_variables, int offset){
+static inline void combine_page_rank_message(struct belief * __restrict__ dest, const struct belief * __restrict__ src, int num_variables, int offset){
     int i;
 
     for(i = 0; i < num_variables; ++i){
@@ -635,7 +635,7 @@ static inline void combine_page_rank_message(struct belief * dest, struct belief
  * @param offset The index offset for the source lookup
  */
 #pragma acc routine
-static inline void combine_viterbi_message(struct belief * dest, struct belief *src, int num_variables, int offset){
+static inline void combine_viterbi_message(struct belief * __restrict__ dest, const struct belief * __restrict__ src, int num_variables, int offset){
     int i;
 
     for(i = 0; i < num_variables; ++i){
@@ -1118,7 +1118,7 @@ void print_levels_to_nodes(Graph_t graph){
  * @param node_states The current node states
  */
 #pragma acc routine
-static void initialize_message_buffer(struct belief *message_buffer, struct belief *node_states, int node_index, int num_variables){
+static void initialize_message_buffer(struct belief * __restrict__ message_buffer, const struct belief * __restrict__ node_states, int node_index, int num_variables){
 	int j;
 
 	//clear buffer
@@ -1140,10 +1140,10 @@ static void initialize_message_buffer(struct belief *message_buffer, struct beli
  * @param i The index of the current node in the graph
  */
 #pragma acc routine
-static void read_incoming_messages(struct belief *message_buffer,
-								   const int * dest_node_to_edges_nodes,
-								   const int * dest_node_to_edges_edges,
-								   struct belief * previous_messages,
+static void read_incoming_messages(struct belief * __restrict__ message_buffer,
+								   const int * __restrict__ dest_node_to_edges_nodes,
+								   const int * __restrict__ dest_node_to_edges_edges,
+								   const struct belief * __restrict__ previous_messages,
                                    int num_edges, int num_vertices,
 								   int num_variables, int i){
 	int start_index, end_index, j, edge_index;
@@ -1171,9 +1171,9 @@ static void read_incoming_messages(struct belief *message_buffer,
  * @param edge_messages The array of message buffers for the edges
  */
 #pragma acc routine
-static void send_message_for_edge(struct belief *buffer, int edge_index,
-								  struct joint_probability *joint_probabilities,
-								  struct belief *edge_messages) {
+static void send_message_for_edge(const struct belief * __restrict__ buffer, int edge_index,
+								  const struct joint_probability * __restrict__ joint_probabilities,
+								  struct belief * __restrict__ edge_messages) {
 	int i, j, num_src, num_dest;
 	float sum, partial_sum;
     struct joint_probability joint_probability;
@@ -1216,9 +1216,9 @@ static void send_message_for_edge(struct belief *buffer, int edge_index,
  *
  */
 #pragma acc routine
-static void send_message_for_edge_iteration(struct belief *belief, int src_index, int edge_index,
-                                            struct joint_probability *joint_probabilities,
-											struct belief *edge_messages){
+static void send_message_for_edge_iteration(const struct belief * __restrict__ belief, int src_index, int edge_index,
+                                            const struct joint_probability * __restrict__ joint_probabilities,
+											struct belief * __restrict__ edge_messages){
     int i, j;
     int num_src, num_dest;
     float sum, partial_sum;
@@ -1263,10 +1263,10 @@ static void send_message_for_edge_iteration(struct belief *belief, int src_index
  * @param i The current index of the node
  */
 #pragma acc routine
-static void send_message_for_node(const int * src_node_to_edges_nodes,
-								  const int * src_node_to_edges_edges,
-								  struct belief *message_buffer, int num_edges,
-								  struct joint_probability *joint_probabilities,
+static void send_message_for_node(const int * __restrict__ src_node_to_edges_nodes,
+								  const int * __restrict__ src_node_to_edges_edges,
+								  const struct belief * __restrict__ message_buffer, int num_edges,
+								  const struct joint_probability * __restrict__ joint_probabilities,
 								  struct belief *edge_messages,
 								  int num_vertices, int i){
 	int start_index, end_index, j, edge_index;
@@ -1293,7 +1293,7 @@ static void send_message_for_node(const int * src_node_to_edges_nodes,
  * @param current_messages The current edge-buffered messages
  * @param num_vertices The number of nodes in the graph
  */
-static void marginalize_loopy_nodes(Graph_t graph, struct belief *current_messages, int num_vertices) {
+static void marginalize_loopy_nodes(Graph_t graph, const struct belief * __restrict__ current_messages, int num_vertices) {
 	int j;
 
 	int i, num_variables, start_index, end_index, edge_index, current_num_vertices, current_num_edges;
@@ -1372,7 +1372,7 @@ static void marginalize_loopy_nodes(Graph_t graph, struct belief *current_messag
  * @param current_messages The current edge-buffered messages
  * @param num_vertices The number of nodes in the graph
  */
-static void marginalize_page_rank_nodes(Graph_t graph, struct belief *current_messages, int num_vertices) {
+static void marginalize_page_rank_nodes(Graph_t graph, const struct belief * __restrict__ current_messages, int num_vertices) {
     int j;
 
     int i, num_variables, start_index, end_index, edge_index, current_num_vertices, current_num_edges;
@@ -1428,7 +1428,7 @@ static void marginalize_page_rank_nodes(Graph_t graph, struct belief *current_me
  * @param current_messages The current edge-buffered messages
  * @param num_vertices The number of nodes in the graph
  */
-static void argmax_loopy_nodes(Graph_t graph, struct belief *current_messages, int num_vertices) {
+static void argmax_loopy_nodes(Graph_t graph, const struct belief * __restrict__ current_messages, int num_vertices) {
     int j;
 
     int i, num_variables, start_index, end_index, edge_index, current_num_vertices, current_num_edges;
@@ -1493,7 +1493,7 @@ static void argmax_loopy_nodes(Graph_t graph, struct belief *current_messages, i
  * @param belief The array of nodes in the graph
  */
 #pragma acc routine
-static void combine_loopy_edge(int edge_index, struct belief *current_messages,
+static void combine_loopy_edge(int edge_index, const struct belief * __restrict__ current_messages,
 							   int dest_node_index, struct belief *belief){
     int i, num_variables;
 	num_variables = belief[dest_node_index].size;
@@ -1516,10 +1516,10 @@ static void combine_loopy_edge(int edge_index, struct belief *current_messages,
  * @param num_edges The number of edges in the graph
  */
 #pragma acc routine
-static void marginalize_node_acc(struct belief *node_states, int node_index,
-								 struct belief *edge_messages,
-								 const int * dest_nodes_to_edges_nodes,
-								 const int * dest_nodes_to_edges_edges,
+static void marginalize_node_acc(struct belief * __restrict__ node_states, int node_index,
+								 const struct belief * __restrict__ edge_messages,
+								 const int * __restrict__ dest_nodes_to_edges_nodes,
+								 const int * __restrict__ dest_nodes_to_edges_edges,
 								 int num_vertices, int num_edges){
 	int i;
     int num_variables, start_index, end_index, edge_index;
@@ -1576,10 +1576,10 @@ static void marginalize_node_acc(struct belief *node_states, int node_index,
  * @param num_edges The number of edges in the graph
  */
 #pragma acc routine
-static void marginalize_page_rank_nodes_acc(struct belief *node_states, int node_index,
-                                            struct belief *edge_messages,
-                                            const int * dest_nodes_to_edges_nodes,
-                                            const int * dest_nodes_to_edges_edges,
+static void marginalize_page_rank_nodes_acc(struct belief * __restrict__ node_states, int node_index,
+                                            struct belief * __restrict__ edge_messages,
+                                            const int * __restrict__ dest_nodes_to_edges_nodes,
+                                            const int * __restrict__ dest_nodes_to_edges_edges,
                                             int num_vertices, int num_edges) {
     int i;
     int num_variables, start_index, end_index, edge_index;
@@ -1625,10 +1625,10 @@ static void marginalize_page_rank_nodes_acc(struct belief *node_states, int node
  * @param num_edges The number of edges in the graph
  */
 #pragma acc routine
-static void argmax_node_acc(struct belief *node_states, int node_index,
-                                 struct belief *edge_messages,
-                                 const int * dest_nodes_to_edges_nodes,
-                                 const int * dest_nodes_to_edges_edges,
+static void argmax_node_acc(struct belief * __restrict__ node_states, int node_index,
+                                 const struct belief * __restrict__ edge_messages,
+                                 const int * __restrict__ dest_nodes_to_edges_nodes,
+                                 const int * __restrict__ dest_nodes_to_edges_edges,
                                  int num_vertices, int num_edges){
     int i;
     int num_variables, start_index, end_index, edge_index;
@@ -2279,6 +2279,28 @@ int viterbi_until(Graph_t graph, float convergence, int max_iterations){
     return i;
 }
 
+static void update_work_queue_nodes_acc(int * __restrict__ num_work_items_nodes,
+										int * __restrict__ work_queue_scratch, int * __restrict__ work_queue_nodes,
+										const struct belief * __restrict__ node_states, int num_vertices, float convergence) {
+	int current_index, i;
+
+	current_index = 0;
+#pragma omp parallel for default(none) shared(current_index, num_work_items_nodes, work_queue_scratch, convergence, work_queue_nodes, node_states) private(i)
+#pragma acc parallel private(i) copyin(work_queue_nodes[0:num_vertices], node_states[0:num_vertices]) copyout(work_queue_scratch[0:num_vertices])
+	for(i = 0; i < *num_work_items_nodes; ++i) {
+		if(fabs(node_states[work_queue_nodes[i]].current - node_states[work_queue_nodes[i]].previous) >= convergence) {
+#pragma omp critical
+#pragma acc atomic capture
+			{
+				work_queue_scratch[current_index] = work_queue_nodes[i];
+				current_index++;
+			}
+		}
+	}
+	memcpy(work_queue_nodes, work_queue_scratch, (size_t)num_vertices);
+	*num_work_items_nodes = current_index;
+}
+
 
 /**
  * Runs loopy BP for OpenACC
@@ -2293,17 +2315,21 @@ int viterbi_until(Graph_t graph, float convergence, int max_iterations){
  * @param current_messages The current messages in the graph
  * @param joint_probabilities The joint probability tables of the edges
  * @param work_items_nodes The work queue for the nodes
+ * @param work_queue_scratch The scratch space for adjusting the queue
  * @param num_work_items_nodes The number of items in the work queue
  * @param max_iterations The maximum number of iterations to run for
  * @param convergence The convergence threshold
  * @return The actual number of iterations used
  */
 static int loopy_propagate_iterations_acc(int num_vertices, int num_edges,
-										   int *dest_node_to_edges_nodes, int *dest_node_to_edges_edges,
-										   int *src_node_to_edges_nodes, int *src_node_to_edges_edges,
-										   struct belief *node_states, struct belief *current_messages,
-										   struct joint_probability *joint_probabilities,
-										   const int *work_items_nodes,
+										   const int * __restrict__ dest_node_to_edges_nodes,
+										   const int * __restrict__ dest_node_to_edges_edges,
+										   const int * __restrict__ src_node_to_edges_nodes,
+										   const int * __restrict__ src_node_to_edges_edges,
+										   struct belief * __restrict__ node_states,
+										   struct belief * __restrict__ current_messages,
+										   const struct joint_probability * __restrict__ joint_probabilities,
+										   int * __restrict__ work_items_nodes, int * __restrict__ work_queue_scratch,
 										   int num_work_items_nodes,
 										   int max_iterations,
 										   float convergence){
@@ -2361,6 +2387,7 @@ static int loopy_propagate_iterations_acc(int num_vertices, int num_edges,
 
                     marginalize_node_acc(node_states, current_index, curr_messages, dest_node_to_edges_nodes, dest_node_to_edges_edges, num_vertices,
                                          num_edges);
+                    update_work_queue_nodes_acc(&num_work_items_nodes, work_queue_scratch, work_items_nodes, node_states, num_vertices, convergence);
                 }
             }
 
@@ -2407,10 +2434,13 @@ static int loopy_propagate_iterations_acc(int num_vertices, int num_edges,
  * @return The actual number of iterations used
  */
 static int page_rank_iterations_acc(int num_vertices, int num_edges,
-                                                   int *dest_node_to_edges_nodes, int *dest_node_to_edges_edges,
-                                                   int *src_node_to_edges_nodes, int *src_node_to_edges_edges,
-                                                   struct belief *node_states, struct belief *current_messages,
-                                                   struct joint_probability *joint_probabilities,
+                                                   const int * __restrict__ dest_node_to_edges_nodes,
+                                                   const int * __restrict__ dest_node_to_edges_edges,
+                                                   const int * __restrict__ src_node_to_edges_nodes,
+                                                   int *src_node_to_edges_edges,
+                                                   struct belief * __restrict__ node_states,
+													struct belief * __restrict__ current_messages,
+                                                   const struct joint_probability * __restrict__ joint_probabilities,
                                                    int max_iterations,
                                                    float convergence){
     int j, k;
@@ -2508,8 +2538,10 @@ static int page_rank_iterations_acc(int num_vertices, int num_edges,
  * @return The actual number of iterations used
  */
 static int viterbi_iterations_acc(int num_vertices, int num_edges,
-                                             int *dest_node_to_edges_nodes, int *dest_node_to_edges_edges,
-                                             int *src_node_to_edges_nodes, int *src_node_to_edges_edges,
+                                             const int * __restrict__ dest_node_to_edges_nodes,
+                                             const int * __restrict__ dest_node_to_edges_edges,
+                                             const int * __restrict__ src_node_to_edges_nodes,
+                                             const int * __restrict__ src_node_to_edges_edges,
                                              struct belief *node_states, struct belief *current_messages,
                                              struct joint_probability *joint_probabilities,
                                              int max_iterations,
@@ -2631,7 +2663,8 @@ int loopy_propagate_until_acc(Graph_t graph, float convergence, int max_iteratio
 										  graph->src_nodes_to_edges_node_list, graph->src_nodes_to_edges_edge_list,
 	graph->node_states,
 	graph->edges_messages, graph->edges_joint_probabilities,
-										  graph->work_queue_nodes, graph->num_work_items_nodes,
+										  graph->work_queue_nodes, graph->work_queue_scratch,
+										  graph->num_work_items_nodes,
 										  max_iterations, convergence);
 
 	/*printf("===AFTER====\n");
@@ -2697,6 +2730,29 @@ int viterbi_until_acc(Graph_t graph, float convergence, int max_iterations){
     return iter;
 }
 
+static void update_work_queue_edges_acc(int * __restrict__ num_work_items_edges, int * __restrict__ work_queue_edges,
+										int * __restrict__ work_queue_scratch, const struct belief * __restrict__ edge_states, int num_edges,
+										float convergence) {
+	int i, current_index;
+
+	current_index = 0;
+
+#pragma omp parallel for default(none) shared(current_index, num_work_items_edges, work_queue_scratch, convergence, work_queue_edges, edge_states) private(i)
+#pragma acc parallel private(i) copyin(work_queue_edges[0:num_edges], edge_states[0:num_edges]) copyout(work_queue_scratch[0:num_edges])
+	for(i = 0; i < *num_work_items_edges; ++i) {
+		if(fabs(edge_states[work_queue_edges[i]].current - edge_states[work_queue_edges[i]].previous) >= convergence) {
+#pragma omp critical
+#pragma acc atomic capture
+			{
+				work_queue_scratch[current_index] = work_queue_edges[i];
+				current_index++;
+			}
+		}
+	}
+	memcpy(work_queue_edges, work_queue_scratch, (size_t)num_edges);
+	*num_work_items_edges = current_index;
+}
+
 
 /**
  * Runs edge-optimized loopy BP
@@ -2715,12 +2771,13 @@ int viterbi_until_acc(Graph_t graph, float convergence, int max_iterations){
  * @return The actual number of iterations executed
  */
 static int loopy_propagate_iterations_edges_acc(int num_vertices, int num_edges,
-														 struct belief *node_states,
-														 struct belief *current_edge_messages,
-														 struct joint_probability *joint_probabilities,
-														 const int * edges_src_index,
-														 const int * edges_dest_index,
-														 int * dest_node_to_edges_node_list, int * dest_node_to_edges_edge_list,
+														 struct belief * __restrict__ node_states,
+														 struct belief * __restrict__ current_edge_messages,
+														 const struct joint_probability * __restrict__ joint_probabilities,
+														 const int * __restrict__ edges_src_index,
+														 const int * __restrict__ edges_dest_index,
+														 const int * __restrict__ dest_node_to_edges_node_list,
+														 const int * __restrict__ dest_node_to_edges_edge_list,
 														 int max_iterations, float convergence){
 	int j, k;
     int i, num_iter, src_node_index, dest_node_index;
@@ -2805,12 +2862,13 @@ static int loopy_propagate_iterations_edges_acc(int num_vertices, int num_edges,
  * @return The actual number of iterations executed
  */
 static int page_rank_iterations_edges_acc(int num_vertices, int num_edges,
-                                                         struct belief *node_states,
-                                                         struct belief *current_edge_messages,
-                                                         struct joint_probability *joint_probabilities,
-                                                         const int * edges_src_index,
-                                                         const int * edges_dest_index,
-                                                         int * dest_node_to_edges_node_list, int * dest_node_to_edges_edge_list,
+                                                         struct belief * __restrict__ node_states,
+                                                         struct belief * __restrict__ current_edge_messages,
+                                                         const struct joint_probability * __restrict__ joint_probabilities,
+                                                         const int * __restrict__ edges_src_index,
+                                                         const int * __restrict__ edges_dest_index,
+                                                         const int * __restrict__ dest_node_to_edges_node_list,
+                                                         const int * __restrict__ dest_node_to_edges_edge_list,
                                                          int max_iterations, float convergence){
     int j, k;
     int i, num_iter, src_node_index, dest_node_index;
@@ -2894,12 +2952,13 @@ static int page_rank_iterations_edges_acc(int num_vertices, int num_edges,
  * @return The actual number of iterations executed
  */
 static int viterbi_iterations_edges_acc(int num_vertices, int num_edges,
-                                                   struct belief *node_states,
-                                                   struct belief *current_edge_messages,
-                                                   struct joint_probability *joint_probabilities,
-                                                   const int * edges_src_index,
-                                                   const int * edges_dest_index,
-                                                   int * dest_node_to_edges_node_list, int * dest_node_to_edges_edge_list,
+                                                   struct belief * __restrict__ node_states,
+                                                   struct belief * __restrict__ current_edge_messages,
+                                                   const struct joint_probability * __restrict__ joint_probabilities,
+                                                   const int * __restrict__ edges_src_index,
+                                                   const int * __restrict__ edges_dest_index,
+                                                   const int * __restrict__ dest_node_to_edges_node_list,
+                                                   const int * __restrict__ dest_node_to_edges_edge_list,
                                                    int max_iterations, float convergence){
     int j, k;
     int i, num_iter, src_node_index, dest_node_index, num_variables;
@@ -3243,8 +3302,6 @@ void init_work_queue_edges(Graph_t graph) {
         work_queue_edges[i] = i;
 	}
 }
-
-
 
 void update_work_queue_nodes(Graph_t graph, float convergence) {
 	int current_index, i, num_work_items_nodes, num_vertices;

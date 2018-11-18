@@ -13,7 +13,8 @@ endif()
 set(CMAKE_C_FLAGS_RELEASE "-O3 -march=native")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native")
 set(CUDA_NVCC_FLAGS_DEBUG "-g -G")
-set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} -lineinfo -gencode arch=compute_61,code=sm_61)
+#set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -lineinfo -gencode arch=compute_61,code=sm_61 -Xptxas -dlcm=cg")
+set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -lineinfo -gencode arch=compute_61,code=sm_61")
 
 
 cuda_add_executable(cuda_node_benchmark belief-propagation-node.cu belief-propagation.cu ../bnf-xml-parser/bnf-xml-wrapper.c ../bnf-xml-parser/xml-expression.c ../bnf-parser/bnf-wrapper.c ../bnf-parser/expression.c ../bnf-parser/Lexer.c ../bnf-parser/Parser.c ../graph/graph.c ../snap-parser/snap-parser.c  ../csr-parser/csr-parser.c)
