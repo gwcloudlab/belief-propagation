@@ -45,8 +45,14 @@ int main(void) {
     run_test_loopy_belief_propagation_edge_mtx_files("/home/mjt5v/Desktop/belief_network/200000_nodes_400000_edges_10_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief_network/200000_nodes_400000_edges_10_beliefs.nodes.mtx", out);
     run_test_loopy_belief_propagation_edge_mtx_files("/home/mjt5v/Desktop/belief_network/400000_nodes_800000_edges_10_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief_network/400000_nodes_800000_edges_10_beliefs.nodes.mtx", out);
     run_test_loopy_belief_propagation_edge_mtx_files("/home/mjt5v/Desktop/belief_network/600000_nodes_1200000_edges_10_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief_network/600000_nodes_1200000_edges_10_beliefs.nodes.mtx", out);
-   // run_test_loopy_belief_propagation_edge_mtx_files("/home/mjt5v/Desktop/belief_network/800000_nodes_1600000_edges_10_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief_network/800000_nodes_1600000_edges_10_beliefs.nodes.mtx", out);
-  //  run_test_loopy_belief_propagation_edge_mtx_files("/home/mjt5v/Desktop/belief_network/1000000_nodes_2000000_edges_10_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief_network/1000000_nodes_2000000_edges_10_beliefs.nodes.mtx", out);
+    //run_test_loopy_belief_propagation_edge_mtx_files("/home/mjt5v/Desktop/belief_network/800000_nodes_1600000_edges_10_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief_network/800000_nodes_1600000_edges_10_beliefs.nodes.mtx", out);
+    //run_test_loopy_belief_propagation_edge_mtx_files("/home/mjt5v/Desktop/belief_network/1000000_nodes_2000000_edges_10_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief_network/1000000_nodes_2000000_edges_10_beliefs.nodes.mtx", out);
+
+    run_test_loopy_belief_propagation_edge_mtx_files("/home/mjt5v/Desktop/belief_network/10_nodes_20_edges_100_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief_network/10_nodes_20_edges_100_beliefs.nodes.mtx", out);
+    run_test_loopy_belief_propagation_edge_mtx_files("/home/mjt5v/Desktop/belief_network/100_nodes_200_edges_100_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief_network/100_nodes_200_edges_100_beliefs.nodes.mtx", out);
+    run_test_loopy_belief_propagation_edge_mtx_files("/home/mjt5v/Desktop/belief_network/1000_nodes_2000_edges_100_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief_network/1000_nodes_2000_edges_100_beliefs.nodes.mtx", out);
+    run_test_loopy_belief_propagation_edge_mtx_files("/home/mjt5v/Desktop/belief_network/10000_nodes_20000_edges_100_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief_network/10000_nodes_20000_edges_100_beliefs.nodes.mtx", out);
+    run_test_loopy_belief_propagation_edge_mtx_files("/home/mjt5v/Desktop/belief_network/100000_nodes_200000_edges_100_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief_network/100000_nodes_200000_edges_100_beliefs.nodes.mtx", out);
 
     fclose(out);
 

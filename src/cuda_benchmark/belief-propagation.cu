@@ -1347,7 +1347,7 @@ void calculate_delta_simple(const struct belief * __restrict__ current_messages,
 }
 
 __global__
-void marginalize_viterbi_beliefs(struct belief * __restrict__ nodes, int num_nodes){
+void marginalize_viterbi_beliefs(struct belief * nodes, int num_nodes){
     int idx, i;
     float sum;
 
