@@ -2286,7 +2286,7 @@ static void update_work_queue_nodes_acc(int * __restrict__ num_work_items_nodes,
 
 	current_index = 0;
 #pragma omp parallel for default(none) shared(current_index, num_work_items_nodes, work_queue_scratch, convergence, work_queue_nodes, node_states) private(i)
-#pragma acc parallel private(i) copyin(work_queue_nodes[0:num_vertices], node_states[0:num_vertices]) copyout(work_queue_scratch[0:num_vertices])
+#pragma acc parallel copyin(work_queue_nodes[0:num_vertices], node_states[0:num_vertices]) copyout(work_queue_scratch[0:num_vertices])
 	for(i = 0; i < *num_work_items_nodes; ++i) {
 		if(fabs(node_states[work_queue_nodes[i]].current - node_states[work_queue_nodes[i]].previous) >= convergence) {
 #pragma omp critical
@@ -2387,9 +2387,10 @@ static int loopy_propagate_iterations_acc(int num_vertices, int num_edges,
 
                     marginalize_node_acc(node_states, current_index, curr_messages, dest_node_to_edges_nodes, dest_node_to_edges_edges, num_vertices,
                                          num_edges);
-                    update_work_queue_nodes_acc(&num_work_items_nodes, work_queue_scratch, work_items_nodes, node_states, num_vertices, convergence);
                 }
             }
+
+            update_work_queue_nodes_acc(&num_work_items_nodes, work_queue_scratch, work_items_nodes, node_states, num_vertices, convergence);
 
 
             delta = 0.0f;
