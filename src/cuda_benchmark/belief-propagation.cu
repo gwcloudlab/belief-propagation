@@ -124,15 +124,15 @@ void init_and_read_message_buffer_cuda_streaming(
 __device__
 void combine_message_cuda(struct belief * __restrict__ dest, const struct belief * __restrict__ edge_messages, int length, int offset){
     int i;
-    __shared__ float messages[BLOCK_SIZE];
-    __shared__ float buffer[BLOCK_SIZE];
+    float buffer[MAX_STATES];
+    float messages[MAX_STATES];
+
+    memcpy(buffer, dest->data, MAX_STATES);
+    memcpy(messages, edge_messages->data, MAX_STATES);
 
     for(i = 0; i < length; ++i){
-        buffer[threadIdx.x] = dest->data[i];
-        messages[threadIdx.x] = edge_messages[offset].data[i];
-        if(messages[threadIdx.x] == messages[threadIdx.x]){
-            buffer[threadIdx.x] *= messages[threadIdx.x];
-            dest->data[i] = buffer[threadIdx.x];
+        if(messages[i] == messages[i]){
+            dest->data[i] = buffer[i] * messages[i];
         }
     }
 }
@@ -140,15 +140,15 @@ void combine_message_cuda(struct belief * __restrict__ dest, const struct belief
 __device__
 void combine_message_cuda_node_streaming(struct belief * __restrict__ dest, const struct belief * __restrict__ edge_messages, int length, int offset){
     int i;
-    __shared__ float messages[BLOCK_SIZE_NODE_STREAMING];
-    __shared__ float buffer[BLOCK_SIZE_NODE_STREAMING];
+    float buffer[MAX_STATES];
+    float messages[MAX_STATES];
+
+    memcpy(buffer, dest->data, MAX_STATES);
+    memcpy(messages, edge_messages->data, MAX_STATES);
 
     for(i = 0; i < length; ++i){
-        buffer[threadIdx.x] = dest->data[i];
-        messages[threadIdx.x] = edge_messages[offset].data[i];
-        if(messages[threadIdx.x] == messages[threadIdx.x]){
-            buffer[threadIdx.x] *= messages[threadIdx.x];
-            dest->data[i] = buffer[threadIdx.x];
+        if(messages[i] == messages[i]){
+            dest->data[i] = buffer[i] * messages[i];
         }
     }
 }
@@ -156,15 +156,15 @@ void combine_message_cuda_node_streaming(struct belief * __restrict__ dest, cons
 __device__
 void combine_message_cuda_edge_streaming(struct belief * __restrict__ dest, const struct belief * __restrict__ edge_messages, int length, int offset){
     int i;
-    __shared__ float messages[BLOCK_SIZE_NODE_EDGE_STREAMING];
-    __shared__ float buffer[BLOCK_SIZE_NODE_EDGE_STREAMING];
+    float buffer[MAX_STATES];
+    float messages[MAX_STATES];
+
+    memcpy(buffer, dest->data, MAX_STATES);
+    memcpy(messages, edge_messages->data, MAX_STATES);
 
     for(i = 0; i < length; ++i){
-        buffer[threadIdx.x] = dest->data[i];
-        messages[threadIdx.x] = edge_messages[offset].data[i];
-        if(messages[threadIdx.x] == messages[threadIdx.x]){
-            buffer[threadIdx.x] *= messages[threadIdx.x];
-            dest->data[i] = buffer[threadIdx.x];
+        if(messages[i] == messages[i]){
+            dest->data[i] = buffer[i] * messages[i];
         }
     }
 }
@@ -172,15 +172,17 @@ void combine_message_cuda_edge_streaming(struct belief * __restrict__ dest, cons
 __device__
 void combine_page_rank_message_cuda(struct belief * __restrict__ dest, const struct belief * __restrict__ edge_messages, int length, int offset){
     int i;
-    __shared__ float messages[BLOCK_SIZE];
-    __shared__ float buffer[BLOCK_SIZE];
+    float buffer[MAX_STATES];
+    float messages[MAX_STATES];
+
+    memcpy(buffer, dest->data, MAX_STATES);
+    memcpy(messages, edge_messages->data, MAX_STATES);
 
     for(i = 0; i < length; ++i){
         buffer[threadIdx.x] = dest->data[i];
         messages[threadIdx.x] = edge_messages[offset].data[i];
-        if(messages[threadIdx.x] == messages[threadIdx.x]){
-            buffer[threadIdx.x] += messages[threadIdx.x];
-            dest->data[i] = buffer[threadIdx.x];
+        if(messages[i] == messages[i]){
+            dest->data[i] = buffer[i] + messages[i];
         }
     }
 }
@@ -188,15 +190,18 @@ void combine_page_rank_message_cuda(struct belief * __restrict__ dest, const str
 __device__
 void combine_viterbi_message_cuda(struct belief * __restrict__ dest, const struct belief * __restrict__ edge_messages, int length, int offset){
     int i;
-    __shared__ float messages[BLOCK_SIZE];
-    __shared__ float buffer[BLOCK_SIZE];
+
+    float buffer[MAX_STATES];
+    float messages[MAX_STATES];
+
+    memcpy(buffer, dest->data, MAX_STATES);
+    memcpy(messages, edge_messages->data, MAX_STATES);
 
     for(i = 0; i < length; ++i){
         buffer[threadIdx.x] = dest->data[i];
         messages[threadIdx.x] = edge_messages[offset].data[i];
-        if(messages[threadIdx.x] == messages[threadIdx.x]){
-            buffer[threadIdx.x] = fmaxf(buffer[threadIdx.x], messages[threadIdx.x]);
-            dest->data[i] = buffer[threadIdx.x];
+        if(messages[i] == messages[i]){
+            dest->data[i] = fmaxf(buffer[i], messages[i]);
         }
     }
 }
@@ -243,40 +248,39 @@ void read_incoming_messages_cuda(struct belief * __restrict__ message_buffer,
  */
 __device__
 void send_message_for_edge_cuda(const struct belief * __restrict__  buffer, int edge_index,
-                                const struct joint_probability *  joint_probabilities, // TODO fix??
+                                const struct joint_probability * __restrict__ joint_probabilities, // TODO fix??
                                 struct belief * __restrict__ edge_messages){
     int i, j, num_src, num_dest;
     struct joint_probability joint_probability;
-    __shared__ float partial_sums[BLOCK_SIZE];
-    __shared__ float sums[BLOCK_SIZE];
-    __shared__ float s_joint_probability[BLOCK_SIZE];
-    __shared__ float s_belief[BLOCK_SIZE];
+
+    float sums, partial_sums;
+    float joint_data[MAX_STATES][MAX_STATES];
+    float belief_data[MAX_STATES];
 
     joint_probability = joint_probabilities[edge_index];
+
+    memcpy(joint_data, joint_probability.data, MAX_STATES * MAX_STATES);
+    memcpy(belief_data, buffer->data, MAX_STATES);
 
     num_src = joint_probability.dim_x;
     num_dest = joint_probability.dim_y;
 
-    sums[threadIdx.x] = 0.0;
+    sums = 0.0f;
     for(i = 0; i < num_src; ++i){
-        partial_sums[threadIdx.x] = 0.0;
+        partial_sums = 0.0f;
         for(j = 0; j < num_dest; ++j){
-            s_joint_probability[threadIdx.x] = joint_probability.data[i][j];
-            s_belief[threadIdx.x] = buffer->data[j];
-            partial_sums[threadIdx.x] += s_joint_probability[threadIdx.x] * s_belief[threadIdx.x];
+            partial_sums += joint_data[i][j] * belief_data[j];
         }
-        edge_messages[edge_index].data[i] = partial_sums[threadIdx.x];
-        sums[threadIdx.x] += partial_sums[threadIdx.x];
+        edge_messages[edge_index].data[i] = partial_sums;
+        sums += partial_sums;
     }
-    if(sums[threadIdx.x] <= 0.0){
-        sums[threadIdx.x] = 1.0;
+    if(sums <= 0.0f){
+        sums = 1.0f;
     }
     edge_messages[edge_index].previous = edge_messages[edge_index].current;
-    edge_messages[edge_index].current = sums[threadIdx.x];
+    edge_messages[edge_index].current = sums;
     for(i = 0; i < num_src; ++i){
-        partial_sums[threadIdx.x] = edge_messages[edge_index].data[i];
-        partial_sums[threadIdx.x] /= sums[threadIdx.x];
-        edge_messages[edge_index].data[i] = partial_sums[threadIdx.x];
+        edge_messages[edge_index].data[i] /= sums;
     }
 }
 
@@ -286,36 +290,34 @@ void send_message_for_edge_cuda_streaming(const struct belief * __restrict__ buf
                                 struct belief * __restrict__ edge_messages){
     int i, j, num_src, num_dest;
     struct joint_probability joint_probability;
-    __shared__ float partial_sums[BLOCK_SIZE_NODE_STREAMING];
-    __shared__ float sums[BLOCK_SIZE_NODE_STREAMING];
-    __shared__ float s_joint_probability[BLOCK_SIZE_NODE_STREAMING];
-    __shared__ float s_buffer[BLOCK_SIZE_NODE_STREAMING];
+    float sums, partial_sums;
+    float joint_data[MAX_STATES * MAX_STATES];
+    float belief_data[MAX_STATES];
 
     joint_probability = joint_probabilities[edge_index];
+
+    memcpy(joint_data, joint_probability.data, MAX_STATES * MAX_STATES);
+    memcpy(belief_data, buffer->data, MAX_STATES);
 
     num_src = joint_probability.dim_x;
     num_dest = joint_probability.dim_y;
 
-    sums[threadIdx.x] = 0.0;
+    sums = 0.0f;
     for(i = 0; i < num_src; ++i){
-        partial_sums[threadIdx.x] = 0.0;
+        partial_sums = 0.0f;
         for(j = 0; j < num_dest; ++j){
-            s_joint_probability[threadIdx.x] = joint_probability.data[i][j];
-            s_buffer[threadIdx.x] = buffer->data[j];
-            partial_sums[threadIdx.x] += s_joint_probability[threadIdx.x] * s_buffer[threadIdx.x];
+            partial_sums += joint_data[threadIdx.x] * belief_data[threadIdx.x];
         }
-        edge_messages[edge_index].data[i] = partial_sums[threadIdx.x];
-        sums[threadIdx.x] += partial_sums[threadIdx.x];
+        edge_messages[edge_index].data[i] = partial_sums;
+        sums += partial_sums;
     }
-    if(sums[threadIdx.x] <= 0.0){
-        sums[threadIdx.x] = 1.0;
+    if(sums <= 0.0f){
+        sums = 1.0f;
     }
     edge_messages[edge_index].previous = edge_messages[edge_index].current;
-    edge_messages[edge_index].current = sums[threadIdx.x];
+    edge_messages[edge_index].current = sums;
     for(i = 0; i < num_src; ++i){
-        partial_sums[threadIdx.x] = edge_messages[edge_index].data[i];
-        partial_sums[threadIdx.x] /= sums[threadIdx.x];
-        edge_messages[edge_index].data[i] = partial_sums[threadIdx.x];
+        edge_messages[edge_index].data[i] /= sums;
     }
 }
 
@@ -423,7 +425,7 @@ void marginalize_node(struct belief * __restrict__ node_states, int idx,
 
     new_belief.size = num_variables;
     for(i = 0; i < num_variables; ++i){
-        new_belief.data[i] = 1.0;
+        new_belief.data[i] = 1.0f;
     }
 
     start_index = dest_nodes_to_edges_nodes[idx];
@@ -439,17 +441,15 @@ void marginalize_node(struct belief * __restrict__ node_states, int idx,
 
         combine_message_cuda(&new_belief, current_edges_messages, num_variables, edge_index);
     }
+    sum = 0.0f;
     if(start_index < end_index){
         for(i = 0; i < num_variables; ++i){
              new_belief.data[i] *= node_states[idx].data[i];
+             sum += new_belief.data[i];
         }
     }
-    sum = 0.0;
-    for(i = 0; i < num_variables; ++i){
-        sum += new_belief.data[i];
-    }
-    if(sum <= 0.0){
-        sum = 1.0;
+    if(sum <= 0.0f){
+        sum = 1.0f;
     }
     for(i = 0; i < num_variables; ++i){
         node_states[idx].data[i] /= sum;
@@ -471,7 +471,7 @@ void marginalize_node_node_streaming(struct belief * __restrict__ node_states, i
 
     new_belief.size = num_variables;
     for(i = 0; i < num_variables; ++i){
-        new_belief.data[i] = 1.0;
+        new_belief.data[i] = 1.0f;
     }
 
     start_index = dest_nodes_to_edges_nodes[idx];
@@ -492,12 +492,12 @@ void marginalize_node_node_streaming(struct belief * __restrict__ node_states, i
             new_belief.data[i] *= node_states[idx].data[i];
         }
     }
-    sum = 0.0;
+    sum = 0.0f;
     for(i = 0; i < num_variables; ++i){
         sum += new_belief.data[i];
     }
-    if(sum <= 0.0){
-        sum = 1.0;
+    if(sum <= 0.0f){
+        sum = 1.0f;
     }
     for(i = 0; i < num_variables; ++i){
         node_states[idx].data[i] /= sum;
@@ -522,7 +522,7 @@ void marginalize_node_edge_streaming(struct belief * __restrict__ node_states, i
 
     new_belief.size = num_variables;
     for(i = 0; i < num_variables; ++i){
-        new_belief.data[i] = 1.0;
+        new_belief.data[i] = 1.0f;
     }
 
     start_index = dest_nodes_to_edges_nodes[idx];
@@ -543,12 +543,12 @@ void marginalize_node_edge_streaming(struct belief * __restrict__ node_states, i
             new_belief.data[i] *= node_states[idx].data[i];
         }
     }
-    sum = 0.0;
+    sum = 0.0f;
     for(i = 0; i < num_variables; ++i){
         sum += new_belief.data[i];
     }
-    if(sum <= 0.0){
-        sum = 1.0;
+    if(sum <= 0.0f){
+        sum = 1.0f;
     }
     for(i = 0; i < num_variables; ++i){
         node_states[idx].data[i] /= sum;
@@ -599,7 +599,7 @@ void marginalize_page_rank_node(struct belief * __restrict__ node_states, int id
 
     new_belief.size = num_variables;
     for (i = 0; i < num_variables; ++i) {
-        new_belief.data[i] = 0.0;
+        new_belief.data[i] = 0.0f;
     }
 
     start_index = dest_nodes_to_edges_nodes[idx];
@@ -888,34 +888,33 @@ void send_message_for_edge_iteration_cuda(const struct belief * __restrict__ bel
                                                  const struct joint_probability * __restrict__ joint_probabilities,
                                                          struct belief * __restrict__ edge_messages){
     int i, j, num_src, num_dest;
-    __shared__ float partial_sums[BLOCK_SIZE];
-    __shared__ float sums[BLOCK_SIZE];
-    __shared__ float s_joint_probability[BLOCK_SIZE];
-    __shared__ float s_belief[BLOCK_SIZE];
+
+    float sums, partial_sums;
+    float belief_data[MAX_STATES];
+    float joint_data[MAX_STATES][MAX_STATES];
+
+    memcpy(belief_data, belief->data, MAX_STATES);
+    memcpy(joint_data, joint_probabilities[edge_index].data, MAX_STATES * MAX_STATES);
 
     num_src = joint_probabilities[edge_index].dim_x;
     num_dest = joint_probabilities[edge_index].dim_y;
 
-    sums[threadIdx.x] = 0.0;
+    sums = 0.0f;
     for(i = 0; i < num_src; ++i){
-        partial_sums[threadIdx.x] = 0.0;
+        partial_sums = 0.0f;
         for(j = 0; j < num_dest; ++j){
-            s_joint_probability[threadIdx.x] = joint_probabilities[edge_index].data[i][j];
-            s_belief[threadIdx.x] = belief[src_index].data[j];
-            partial_sums[threadIdx.x] += s_joint_probability[threadIdx.x] * s_belief[threadIdx.x];
+            partial_sums += joint_data[i][j] * belief_data[j];
         }
-        edge_messages[edge_index].data[i] = partial_sums[threadIdx.x];
-        sums[threadIdx.x] += partial_sums[threadIdx.x];
+        edge_messages[edge_index].data[i] = partial_sums;
+        sums += partial_sums;
     }
-    if(sums[threadIdx.x] <= 0.0){
-        sums[threadIdx.x] = 1.0;
+    if(sums <= 0.0f){
+        sums = 1.0f;
     }
     edge_messages[edge_index].previous = edge_messages[edge_index].current;
-    edge_messages[edge_index].current = sums[threadIdx.x];
+    edge_messages[edge_index].current = sums;
     for (i = 0; i < num_src; ++i) {
-        partial_sums[threadIdx.x] = edge_messages[edge_index].data[i];
-        partial_sums[threadIdx.x] /= sums[threadIdx.x];
-        edge_messages[edge_index].data[i] = partial_sums[threadIdx.x];
+        edge_messages[edge_index].data[i] /= sums;
     }
 }
 
@@ -1104,7 +1103,7 @@ float calculate_local_delta(int i, const struct belief * __restrict__ current_me
 
     diff = current_messages[i].previous - current_messages[i].current;
     if(diff != diff){
-        diff = 0.0;
+        diff = 0.0f;
     }
     delta = (float)fabs(diff);
 
@@ -1221,7 +1220,7 @@ void calculate_delta_6(const struct belief * __restrict__ current_messages,
     }
     __syncthreads();
 
-    float my_delta = 0.0;
+    float my_delta = 0.0f;
 
     while (i < num_edges) {
         my_delta += delta_array[i];
@@ -1352,7 +1351,7 @@ void marginalize_viterbi_beliefs(struct belief * nodes, int num_nodes){
     float sum;
 
     for(idx = blockIdx.x * blockDim.x + threadIdx.x; idx < num_nodes; idx += blockDim.x * gridDim.x){
-        sum = 0.0;
+        sum = 0.0f;
         for(i = 0; i < nodes[idx].size; ++i){
             sum += nodes[idx].data[i];
         }
@@ -1395,12 +1394,12 @@ int loopy_propagate_until_cuda(Graph_t graph, float convergence, int max_iterati
 
     struct belief * node_states;
 
-    host_delta = 0.0;
+    host_delta = 0.0f;
     previous_delta = INFINITY;
 
     init_work_queue_nodes(graph);
 
-    struct cudaChannelFormatDesc channel_desc_unsigned_int = cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindUnsigned);
+    //struct cudaChannelFormatDesc channel_desc_unsigned_int = cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindUnsigned);
 
     int * dest_node_to_edges_nodes;
     int * dest_node_to_edges_edges;
@@ -1606,7 +1605,7 @@ int loopy_propagate_until_cuda_streaming(Graph_t graph, float convergence, int m
     struct belief * read_buffer;
     int retval;
 
-    host_delta = 0.0;
+    host_delta = 0.0f;
     previous_delta = INFINITY;
 
     init_work_queue_nodes(graph);
@@ -1851,7 +1850,7 @@ int loopy_propagate_until_cuda_openmpi(Graph_t graph, float convergence, int max
     int retval;
     float node_difference;
 
-    host_delta = 0.0;
+    host_delta = 0.0f;
     previous_delta = INFINITY;
 
     init_work_queue_nodes(graph);
@@ -2321,7 +2320,7 @@ int page_rank_until_cuda(Graph_t graph, float convergence, int max_iterations){
 
     struct belief * node_states;
 
-    host_delta = 0.0;
+    host_delta = 0.0f;
     previous_delta = INFINITY;
 
     struct cudaChannelFormatDesc channel_desc_unsigned_int = cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindUnsigned);
@@ -2441,7 +2440,7 @@ int viterbi_until_cuda(Graph_t graph, float convergence, int max_iterations){
 
     struct belief * node_states;
 
-    host_delta = 0.0;
+    host_delta = 0.0f;
     previous_delta = INFINITY;
 
     struct cudaChannelFormatDesc channel_desc_unsigned_int = cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindUnsigned);
@@ -2570,10 +2569,10 @@ int loopy_propagate_until_cuda_edge(Graph_t graph, float convergence, int max_it
 
     init_work_queue_edges(graph);
 
-    host_delta = 0.0;
+    host_delta = 0.0f;
     previous_delta = INFINITY;
 
-    struct cudaChannelFormatDesc channel_desc_unsigned_int = cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindUnsigned);
+  //  struct cudaChannelFormatDesc channel_desc_unsigned_int = cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindUnsigned);
 
     num_vertices = graph->current_num_vertices;
     num_edges = graph->current_num_edges;
@@ -2765,7 +2764,7 @@ int loopy_propagate_until_cuda_edge_streaming(Graph_t graph, float convergence, 
 
     init_work_queue_edges(graph);
 
-    host_delta = 0.0;
+    host_delta = 0.0f;
     previous_delta = INFINITY;
 
     struct cudaChannelFormatDesc channel_desc_unsigned_int = cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindUnsigned);
@@ -3069,7 +3068,7 @@ int loopy_propagate_until_cuda_edge_openmpi(Graph_t graph, float convergence, in
     CUDA_CHECK_RETURN(cudaHostRegister(graph->work_queue_edges, sizeof(int) * graph->current_num_edges, cudaHostRegisterDefault));
     CUDA_CHECK_RETURN(cudaHostRegister(&graph->num_work_items_edges, sizeof(int), cudaHostRegisterDefault));
 
-    host_delta = 0.0;
+    host_delta = 0.0f;
     previous_delta = INFINITY;
 
     struct cudaChannelFormatDesc channel_desc_unsigned_int = cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindUnsigned);
@@ -3499,7 +3498,7 @@ int page_rank_until_cuda_edge(Graph_t graph, float convergence, int max_iteratio
     int * dest_nodes_to_edges_nodes;
     int * dest_nodes_to_edges_edges;
 
-    host_delta = 0.0;
+    host_delta = 0.0f;
     previous_delta = INFINITY;
 
     struct cudaChannelFormatDesc channel_desc_unsigned_int = cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindUnsigned);
@@ -3622,7 +3621,7 @@ int viterbi_until_cuda_edge(Graph_t graph, float convergence, int max_iterations
     int * dest_nodes_to_edges_nodes;
     int * dest_nodes_to_edges_edges;
 
-    host_delta = 0.0;
+    host_delta = 0.0f;
     previous_delta = INFINITY;
 
     struct cudaChannelFormatDesc channel_desc_unsigned_int = cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindUnsigned);
