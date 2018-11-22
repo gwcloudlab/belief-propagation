@@ -124,11 +124,8 @@ void init_and_read_message_buffer_cuda_streaming(
 __device__
 void combine_message_cuda(struct belief * __restrict__ dest, const struct belief * __restrict__ edge_messages, int length, int offset){
     int i;
-    float buffer[MAX_STATES];
-    float messages[MAX_STATES];
-
-    memcpy(buffer, dest->data, MAX_STATES);
-    memcpy(messages, edge_messages->data, MAX_STATES);
+    const float *buffer = dest->data;
+    const float *messages = edge_messages[offset].data;
 
     for(i = 0; i < length; ++i){
         if(messages[i] == messages[i]){
@@ -140,11 +137,8 @@ void combine_message_cuda(struct belief * __restrict__ dest, const struct belief
 __device__
 void combine_message_cuda_node_streaming(struct belief * __restrict__ dest, const struct belief * __restrict__ edge_messages, int length, int offset){
     int i;
-    float buffer[MAX_STATES];
-    float messages[MAX_STATES];
-
-    memcpy(buffer, dest->data, MAX_STATES);
-    memcpy(messages, edge_messages->data, MAX_STATES);
+    const float *buffer = dest->data;
+    const float *messages = edge_messages[offset].data;
 
     for(i = 0; i < length; ++i){
         if(messages[i] == messages[i]){
@@ -156,11 +150,8 @@ void combine_message_cuda_node_streaming(struct belief * __restrict__ dest, cons
 __device__
 void combine_message_cuda_edge_streaming(struct belief * __restrict__ dest, const struct belief * __restrict__ edge_messages, int length, int offset){
     int i;
-    float buffer[MAX_STATES];
-    float messages[MAX_STATES];
-
-    memcpy(buffer, dest->data, MAX_STATES);
-    memcpy(messages, edge_messages->data, MAX_STATES);
+    const float *buffer = dest->data;
+    const float *messages = edge_messages[offset].data;
 
     for(i = 0; i < length; ++i){
         if(messages[i] == messages[i]){
@@ -172,15 +163,10 @@ void combine_message_cuda_edge_streaming(struct belief * __restrict__ dest, cons
 __device__
 void combine_page_rank_message_cuda(struct belief * __restrict__ dest, const struct belief * __restrict__ edge_messages, int length, int offset){
     int i;
-    float buffer[MAX_STATES];
-    float messages[MAX_STATES];
-
-    memcpy(buffer, dest->data, MAX_STATES);
-    memcpy(messages, edge_messages->data, MAX_STATES);
+    const float * buffer = dest->data;
+    const float * messages = edge_messages[offset].data;
 
     for(i = 0; i < length; ++i){
-        buffer[threadIdx.x] = dest->data[i];
-        messages[threadIdx.x] = edge_messages[offset].data[i];
         if(messages[i] == messages[i]){
             dest->data[i] = buffer[i] + messages[i];
         }
@@ -191,15 +177,13 @@ __device__
 void combine_viterbi_message_cuda(struct belief * __restrict__ dest, const struct belief * __restrict__ edge_messages, int length, int offset){
     int i;
 
-    float buffer[MAX_STATES];
-    float messages[MAX_STATES];
+    const float *buffer;
+    const float *messages;
 
-    memcpy(buffer, dest->data, MAX_STATES);
-    memcpy(messages, edge_messages->data, MAX_STATES);
+    buffer = dest->data;
+    messages = edge_messages[offset].data;
 
     for(i = 0; i < length; ++i){
-        buffer[threadIdx.x] = dest->data[i];
-        messages[threadIdx.x] = edge_messages[offset].data[i];
         if(messages[i] == messages[i]){
             dest->data[i] = fmaxf(buffer[i], messages[i]);
         }
@@ -253,14 +237,14 @@ void send_message_for_edge_cuda(const struct belief * __restrict__  buffer, int 
     int i, j, num_src, num_dest;
     struct joint_probability joint_probability;
 
-    float sums, partial_sums;
-    float joint_data[MAX_STATES][MAX_STATES];
-    float belief_data[MAX_STATES];
+    float sums, partial_sums, joint_prob, belief_prob;
+    const float * __restrict__ joint_data;
+    const float  * __restrict__  belief_data;
 
     joint_probability = joint_probabilities[edge_index];
 
-    memcpy(joint_data, joint_probability.data, MAX_STATES * MAX_STATES);
-    memcpy(belief_data, buffer->data, MAX_STATES);
+    joint_data = &joint_probability.data[0][0];
+    belief_data = buffer->data;
 
     num_src = joint_probability.dim_x;
     num_dest = joint_probability.dim_y;
@@ -269,7 +253,9 @@ void send_message_for_edge_cuda(const struct belief * __restrict__  buffer, int 
     for(i = 0; i < num_src; ++i){
         partial_sums = 0.0f;
         for(j = 0; j < num_dest; ++j){
-            partial_sums += joint_data[i][j] * belief_data[j];
+            joint_prob = *(joint_data + i * MAX_STATES + j);
+            belief_prob = belief_data[j];
+            partial_sums +=  joint_prob * belief_prob;
         }
         edge_messages[edge_index].data[i] = partial_sums;
         sums += partial_sums;
@@ -291,13 +277,13 @@ void send_message_for_edge_cuda_streaming(const struct belief * __restrict__ buf
     int i, j, num_src, num_dest;
     struct joint_probability joint_probability;
     float sums, partial_sums;
-    float joint_data[MAX_STATES * MAX_STATES];
-    float belief_data[MAX_STATES];
+    const float * joint_data;
+    const float * belief_data;
 
     joint_probability = joint_probabilities[edge_index];
 
-    memcpy(joint_data, joint_probability.data, MAX_STATES * MAX_STATES);
-    memcpy(belief_data, buffer->data, MAX_STATES);
+    joint_data = &joint_probability.data[0][0];
+    belief_data = buffer->data;
 
     num_src = joint_probability.dim_x;
     num_dest = joint_probability.dim_y;
@@ -306,7 +292,7 @@ void send_message_for_edge_cuda_streaming(const struct belief * __restrict__ buf
     for(i = 0; i < num_src; ++i){
         partial_sums = 0.0f;
         for(j = 0; j < num_dest; ++j){
-            partial_sums += joint_data[threadIdx.x] * belief_data[threadIdx.x];
+            partial_sums += *(joint_data + MAX_STATES * i + j) * belief_data[j];
         }
         edge_messages[edge_index].data[i] = partial_sums;
         sums += partial_sums;
@@ -418,14 +404,17 @@ void marginalize_node(struct belief * __restrict__ node_states, int idx,
                       int num_vertices, int num_edges){
     int i, num_variables, start_index, end_index, edge_index;
     float sum;
+    float *new_belief_data, *node_states_data;
 
     num_variables = node_states[idx].size;
 
     struct belief new_belief;
+    new_belief_data = new_belief.data;
+    node_states_data = node_states[idx].data;
 
     new_belief.size = num_variables;
     for(i = 0; i < num_variables; ++i){
-        new_belief.data[i] = 1.0f;
+        new_belief_data[i] = 1.0f;
     }
 
     start_index = dest_nodes_to_edges_nodes[idx];
@@ -444,15 +433,15 @@ void marginalize_node(struct belief * __restrict__ node_states, int idx,
     sum = 0.0f;
     if(start_index < end_index){
         for(i = 0; i < num_variables; ++i){
-             new_belief.data[i] *= node_states[idx].data[i];
-             sum += new_belief.data[i];
+             new_belief_data[i] *= node_states_data[i];
+             sum += new_belief_data[i];
         }
     }
     if(sum <= 0.0f){
         sum = 1.0f;
     }
     for(i = 0; i < num_variables; ++i){
-        node_states[idx].data[i] /= sum;
+        node_states_data[i] /= sum;
     }
 }
 
@@ -764,11 +753,11 @@ void loopy_propagate_main_loop(int num_vertices, int num_edges,
                                int * __restrict__ work_queue_nodes, int * __restrict__ num_work_items,
                                int * __restrict__ work_queue_scratch,
                                const int * __restrict__ src_nodes_to_edges_nodes, const int * __restrict__ src_nodes_to_edges_edges,
-                               const int * __restrict__ dest_nodes_to_edges_nodes, const int * __restrict__ dest_nodes_to_edges_edges){
-    int i, idx, num_variables;
+                               const int * __restrict__ dest_nodes_to_edges_nodes, const int * __restrict__ dest_nodes_to_edges_edges) {
+    int i, j, idx, num_variables;
     struct belief new_belief;
 
-    for(i = blockIdx.x * blockDim.x + threadIdx.x; i < *num_work_items; i += blockDim.x * gridDim.x){
+    for (i = blockIdx.x * blockDim.x + threadIdx.x; i < *num_work_items; i += blockDim.x * gridDim.x) {
         idx = work_queue_nodes[i];
 
         num_variables = node_messages[idx].size;
@@ -776,17 +765,18 @@ void loopy_propagate_main_loop(int num_vertices, int num_edges,
         init_message_buffer_cuda(&new_belief, node_messages, num_variables, idx);
         __syncthreads();
 
-        read_incoming_messages_cuda(&new_belief, current_edge_messages, dest_nodes_to_edges_nodes, dest_nodes_to_edges_edges, num_edges, num_vertices, num_variables, idx);
+        read_incoming_messages_cuda(&new_belief, current_edge_messages, dest_nodes_to_edges_nodes,
+                                    dest_nodes_to_edges_edges, num_edges, num_vertices, num_variables, idx);
         __syncthreads();
 
-        send_message_for_node_cuda(&new_belief, num_edges, joint_probabilities, current_edge_messages, src_nodes_to_edges_nodes, src_nodes_to_edges_edges, num_vertices, idx);
+        send_message_for_node_cuda(&new_belief, num_edges, joint_probabilities, current_edge_messages,
+                                   src_nodes_to_edges_nodes, src_nodes_to_edges_edges, num_vertices, idx);
         __syncthreads();
+        marginalize_node(node_messages, idx, current_edge_messages, dest_nodes_to_edges_nodes,
+                         dest_nodes_to_edges_edges, num_vertices, num_edges);
 
-        marginalize_node(node_messages, idx, current_edge_messages, dest_nodes_to_edges_nodes, dest_nodes_to_edges_edges, num_vertices, num_edges);
         __syncthreads();
     }
-
-
     update_work_queue_nodes_cuda(work_queue_nodes, num_work_items, work_queue_scratch, node_messages, num_vertices, PRECISION_ITERATION);
 
     __syncthreads();
@@ -884,17 +874,17 @@ void viterbi_main_loop(int num_vertices, int num_edges,
  * @param edge_messages The current message on the edge
  */
 __device__
-void send_message_for_edge_iteration_cuda(const struct belief * __restrict__ belief, int src_index, int edge_index,
+void send_message_for_edge_iteration_cuda(const struct belief * __restrict__ buffer, int src_index, int edge_index,
                                                  const struct joint_probability * __restrict__ joint_probabilities,
                                                          struct belief * __restrict__ edge_messages){
     int i, j, num_src, num_dest;
 
-    float sums, partial_sums;
-    float belief_data[MAX_STATES];
-    float joint_data[MAX_STATES][MAX_STATES];
+    float sums, partial_sums, joint_prob, belief_prob;
+    const float *belief_data;
+    const float *joint_data;
 
-    memcpy(belief_data, belief->data, MAX_STATES);
-    memcpy(joint_data, joint_probabilities[edge_index].data, MAX_STATES * MAX_STATES);
+    belief_data = buffer->data;
+    joint_data = &joint_probabilities[edge_index].data[0][0];
 
     num_src = joint_probabilities[edge_index].dim_x;
     num_dest = joint_probabilities[edge_index].dim_y;
@@ -903,7 +893,9 @@ void send_message_for_edge_iteration_cuda(const struct belief * __restrict__ bel
     for(i = 0; i < num_src; ++i){
         partial_sums = 0.0f;
         for(j = 0; j < num_dest; ++j){
-            partial_sums += joint_data[i][j] * belief_data[j];
+            joint_prob = *(joint_data + i *MAX_STATES + j);
+            belief_prob = belief_data[j];
+            partial_sums += joint_prob * belief_prob;
         }
         edge_messages[edge_index].data[i] = partial_sums;
         sums += partial_sums;
@@ -1466,7 +1458,6 @@ int loopy_propagate_until_cuda(Graph_t graph, float convergence, int max_iterati
     int reduceSmemSize = (BLOCK_SIZE <= 32) ? 2 * BLOCK_SIZE * sizeof(float) : BLOCK_SIZE * sizeof(float);
 
     for(i = 0; i < max_iterations; i+= BATCH_SIZE){
-        for(j = 0; j < BATCH_SIZE; ++j) {
             loopy_propagate_main_loop<<<nodeCount, BLOCK_SIZE >>>(num_vertices, num_edges,
             node_states,
             edges_joint_probabilities,
@@ -1477,7 +1468,6 @@ int loopy_propagate_until_cuda(Graph_t graph, float convergence, int max_iterati
             dest_node_to_edges_nodes, dest_node_to_edges_edges);
             test_error();
             num_iter++;
-        }
         calculate_delta_6<<<dimReduceGrid, dimReduceBlock, reduceSmemSize>>>(current_messages, delta, delta_array, num_edges, is_pow_2, WARP_SIZE);
         //calculate_delta<<<dimReduceGrid, dimReduceBlock, reduceSmemSize>>>(current_messages, delta, delta_array, num_edges);
         //calculate_delta_simple<<<dimReduceGrid, dimReduceBlock, reduceSmemSize>>>(current_messages, delta, delta_array, num_edges);
@@ -1747,25 +1737,26 @@ int loopy_propagate_until_cuda_streaming(Graph_t graph, float convergence, int m
                 }
             }
 
-            //marginalize
-            for(k = 0; k < NUM_THREAD_PARTITIONS; ++k) {
-                retval = pthread_create(&threads[k], NULL, launch_marginalize_node_kernels, &(thread_data[k]));
-                if(retval) {
-                    fprintf(stderr, "Error creating marginalize thread %d: %d\n", k, retval);
-                    return 1;
-                }
-            }
-            for(k = 0; k < NUM_THREAD_PARTITIONS; ++k) {
-                retval = pthread_join(threads[k], NULL);
-                if(retval) {
-                    fprintf(stderr, "Error joining marginalize thread %d: %d\n", k, retval);
-                    return 1;
-                }
-            }
 
             update_work_queue_nodes_cuda_kernel<<<nodeCount, BLOCK_SIZE>>>(work_queue_nodes, num_work_items, work_queue_scratch, node_states, graph->current_num_vertices);
             test_error();
             num_iter++;
+        }
+
+        //marginalize
+        for(k = 0; k < NUM_THREAD_PARTITIONS; ++k) {
+            retval = pthread_create(&threads[k], NULL, launch_marginalize_node_kernels, &(thread_data[k]));
+            if(retval) {
+                fprintf(stderr, "Error creating marginalize thread %d: %d\n", k, retval);
+                return 1;
+            }
+        }
+        for(k = 0; k < NUM_THREAD_PARTITIONS; ++k) {
+            retval = pthread_join(threads[k], NULL);
+            if(retval) {
+                fprintf(stderr, "Error joining marginalize thread %d: %d\n", k, retval);
+                return 1;
+            }
         }
         calculate_delta_6<<<dimReduceGrid, dimReduceBlock, reduceSmemSize>>>(current_messages, delta, delta_array, num_edges, is_pow_2, WARP_SIZE);
         //calculate_delta<<<dimReduceGrid, dimReduceBlock, reduceSmemSize>>>(current_messages, delta, delta_array, num_edges);
@@ -2632,12 +2623,11 @@ int loopy_propagate_until_cuda_edge(Graph_t graph, float convergence, int max_it
             combine_loopy_edge_cuda_work_queue_kernel<<<edgeCount, BLOCK_SIZE>>>(num_edges, edges_dest_index, current_messages, node_states, work_queue_edges, num_work_items, work_queue_scratch);
             test_error();
             //marginalize_loop_node_edge_kernel<<<nodeCount, BLOCK_SIZE>>>(node_states, num_vars, num_vertices);
-            marginalize_nodes<<<nodeCount, BLOCK_SIZE>>>(node_states, current_messages,
-            dest_nodes_to_edges_nodes, dest_nodes_to_edges_edges, num_vertices, num_edges);
-            test_error();
-
             num_iter++;
         }
+        marginalize_nodes<<<nodeCount, BLOCK_SIZE>>>(node_states, current_messages,
+                dest_nodes_to_edges_nodes, dest_nodes_to_edges_edges, num_vertices, num_edges);
+        test_error();
         calculate_delta_6<<<dimReduceGrid, dimReduceBlock, reduceSmemSize>>>(current_messages, delta, delta_array, num_edges, is_pow_2, WARP_SIZE);
         //calculate_delta<<<dimReduceGrid, dimReduceBlock, reduceSmemSize>>>(current_messages, delta, delta_array, num_edges);
         //calculate_delta_simple<<<dimReduceGrid, dimReduceBlock, reduceSmemSize>>>(current_messages, delta, delta_array, num_edges);
