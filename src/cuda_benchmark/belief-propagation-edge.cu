@@ -63,8 +63,13 @@ int main(void) {
     run_test_loopy_belief_propagation_mtx_files_edge_cuda("/home/mjt5v/Desktop/belief_network/100_200_32_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief_network/100_200_32_beliefs.nodes.mtx", out);
     run_test_loopy_belief_propagation_mtx_files_edge_cuda("/home/mjt5v/Desktop/belief_network/1000_2000_32_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief_network/1000_2000_32_beliefs.nodes.mtx", out);
     run_test_loopy_belief_propagation_mtx_files_edge_cuda("/home/mjt5v/Desktop/belief_network/10000_20000_32_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief_network/10000_20000_32_beliefs.nodes.mtx", out);*/
-    run_test_loopy_belief_propagation_mtx_files_edge_cuda("/home/mjt5v/Desktop/belief_network/100000_200000_32_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief_network/100000_200000_32_beliefs.nodes.mtx", out);
+    //run_test_loopy_belief_propagation_mtx_files_edge_cuda("/home/mjt5v/Desktop/belief_network/100000_200000_32_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief_network/100000_200000_32_beliefs.nodes.mtx", out);
    // run_test_loopy_belief_propagation_mtx_files_edge_cuda("/home/mjt5v/Desktop/belief_network/200000_400000_32_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief_network/200000_400000_32_beliefs.nodes.mtx", out);
+    run_test_loopy_belief_propagation_mtx_files_edge_cuda("/home/mjt5v/Desktop/belief_network/10_nodes_40_edges_32_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief_network/10_nodes_40_edges_32_beliefs.nodes.mtx", out);
+    run_test_loopy_belief_propagation_mtx_files_edge_cuda("/home/mjt5v/Desktop/belief_network/100_nodes_400_edges_32_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief_network/100_nodes_400_edges_32_beliefs.nodes.mtx", out);
+    run_test_loopy_belief_propagation_mtx_files_edge_cuda("/home/mjt5v/Desktop/belief_network/1000_nodes_4000_edges_32_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief_network/1000_nodes_4000_edges_32_beliefs.nodes.mtx", out);
+    run_test_loopy_belief_propagation_mtx_files_edge_cuda("/home/mjt5v/Desktop/belief_network/10000_nodes_40000_edges_32_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief_network/10000_nodes_40000_edges_32_beliefs.nodes.mtx", out);
+    run_test_loopy_belief_propagation_mtx_files_edge_cuda("/home/mjt5v/Desktop/belief_network/100000_nodes_400000_edges_32_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief_network/100000_nodes_400000_edges_32_beliefs.nodes.mtx", out);
 
 
     /*
