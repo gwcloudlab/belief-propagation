@@ -27,36 +27,17 @@ struct belief {
 	 * The priori probabilities
 	 */
     float data[MAX_STATES];
-	/**
-	 * The size of the probabilities
-	 */
-    int size;
-	/**
-	 * The previous sum
-	 */
-	float previous;
-	/**
-	 * The current sum
-	 */
-	float current;
 };
 
 /**
  * Struct holding the joint probabilities on the edge
  */
+
 struct joint_probability {
 	/**
 	 * The joint probability table
 	 */
     float data[MAX_STATES][MAX_STATES];
-	/**
-	 * The first dimension of the table
-	 */
-    int dim_x;
-	/**
-	 * The second dimension of the table
-	 */
-    int dim_y;
 };
 
 /**
@@ -101,16 +82,24 @@ struct graph {
 	 * Array of joint probabilities indexed by edge
 	 */
 	struct joint_probability * edges_joint_probabilities;
+	int * edges_joint_probabilities_dim_x;
+	int * edges_joint_probabilities_dim_y;
 
 	/**
 	 * The array of current beliefs
 	 */
 	struct belief * edges_messages;
+	float *edges_messages_current;
+	float *edges_messages_previous;
+	int *edges_messages_size;
 
 	/**
 	 * Array of belief states indexed by node
 	 */
 	struct belief * node_states;
+	float *node_states_current;
+	float *node_states_previous;
+	int *node_states_size;
 
 	/**
 	 * Array of indices in src_nodes_to_edges_edge_list indexed by their source node
@@ -247,7 +236,7 @@ void initialize_node(Graph_t, int, int);
 void node_set_state(Graph_t, int, int, struct belief *);
 
 void init_edge(Graph_t, int, int, int, int, int, struct joint_probability *);
-void send_message(const struct belief * __restrict__, int, const struct joint_probability * __restrict__, struct belief *);
+void send_message(const struct belief * __restrict__, int, const struct joint_probability * __restrict__, const int * __restrict__, const int * __restrict__, struct belief *, float *, float *);
 
 void fill_in_node_hash_table(Graph_t);
 long find_node_by_name(char *, Graph_t);
@@ -300,6 +289,6 @@ void init_work_queue_edges(Graph_t);
 void update_work_queue_nodes(Graph_t, float);
 void update_work_queue_edges(Graph_t, float);
 
-float difference(struct belief *, struct belief *);
+float difference(struct belief *, int, struct belief *, int);
 
 #endif /* GRAPH_H_ */
