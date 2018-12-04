@@ -638,6 +638,8 @@ void send_message(const struct belief * __restrict__ states, int edge_index,
 static inline void combine_message(struct belief * __restrict__ dest, const struct belief * __restrict__ src, int num_variables, int offset){
 	int i;
 
+#pragma omp simd safelen(AVG_STATES)
+#pragma simd vectorlength(AVG_STATES)
 	for(i = 0; i < num_variables; ++i){
 		if(src[offset].data[i] == src[offset].data[i]) { // ensure no nan's
 			dest->data[i] *= src[offset].data[i];
@@ -656,6 +658,8 @@ static inline void combine_message(struct belief * __restrict__ dest, const stru
 static inline void combine_page_rank_message(struct belief * __restrict__ dest, const struct belief * __restrict__ src, int num_variables, int offset){
     int i;
 
+#pragma omp simd safelen(AVG_STATES)
+#pragma simd vectorlength(AVG_STATES)
     for(i = 0; i < num_variables; ++i){
         if(src[offset].data[i] == src[offset].data[i]) { // ensure no nan's
             dest->data[i] += src[offset].data[i];
@@ -674,6 +678,8 @@ static inline void combine_page_rank_message(struct belief * __restrict__ dest, 
 static inline void combine_viterbi_message(struct belief * __restrict__ dest, const struct belief * __restrict__ src, int num_variables, int offset){
     int i;
 
+#pragma omp simd safelen(AVG_STATES)
+#pragma simd vectorlength(AVG_STATES)
     for(i = 0; i < num_variables; ++i){
         if(src[offset].data[i] == src[offset].data[i]) { // ensure no nan's
             dest->data[i] = fmaxf(dest->data[i], src->data[i]);
@@ -1361,7 +1367,7 @@ static void marginalize_loopy_nodes(Graph_t graph, const struct belief * __restr
 	states = graph->node_states;
 	states_size = graph->node_states_size;
 
-#pragma omp parallel for default(none) shared(states, num_vertices, current_num_vertices, current_num_edges, dest_nodes_to_edges_nodes, dest_nodes_to_edges_edges, current_messages) private(i, j, num_variables, start_index, end_index, edge_index, sum, new_belief)
+#pragma omp parallel for default(none) shared(states, states_size, num_vertices, current_num_vertices, current_num_edges, dest_nodes_to_edges_nodes, dest_nodes_to_edges_edges, current_messages) private(i, j, num_variables, start_index, end_index, edge_index, sum, new_belief)
 	for(j = 0; j < num_vertices; ++j) {
 
 		num_variables = states_size[j];
@@ -1441,7 +1447,7 @@ static void marginalize_page_rank_nodes(Graph_t graph, const struct belief * __r
     states = graph->node_states;
     states_size = graph->node_states_size;
 
-#pragma omp parallel for default(none) shared(states, num_vertices, current_num_vertices, current_num_edges, dest_nodes_to_edges_nodes, dest_nodes_to_edges_edges, current_messages) private(i, j, num_variables, start_index, end_index, edge_index, new_belief, factor)
+#pragma omp parallel for default(none) shared(states, states_size, num_vertices, current_num_vertices, current_num_edges, dest_nodes_to_edges_nodes, dest_nodes_to_edges_edges, current_messages) private(i, j, num_variables, start_index, end_index, edge_index, new_belief, factor)
     for(j = 0; j < num_vertices; ++j) {
 
         num_variables = states_size[j];
@@ -1497,7 +1503,7 @@ static void argmax_loopy_nodes(Graph_t graph, const struct belief * __restrict__
     states = graph->node_states;
     states_size = graph->node_states_size;
 
-#pragma omp parallel for default(none) shared(states, num_vertices, current_num_vertices, current_num_edges, dest_nodes_to_edges_nodes, dest_nodes_to_edges_edges, current_messages) private(i, j, num_variables, start_index, end_index, edge_index, new_belief)
+#pragma omp parallel for default(none) shared(states, states_size, num_vertices, current_num_vertices, current_num_edges, dest_nodes_to_edges_nodes, dest_nodes_to_edges_edges, current_messages) private(i, j, num_variables, start_index, end_index, edge_index, new_belief)
     for(j = 0; j < num_vertices; ++j) {
 
         num_variables = states_size[j];
@@ -1823,7 +1829,7 @@ void loopy_propagate_edge_one_iteration(Graph_t graph){
 	num_work_items_edges = graph->num_work_items_edges;
 	work_queue_edges = graph->work_queue_edges;
 
-    #pragma omp parallel for default(none) shared(node_states, joint_probabilities, current_edge_messages, edges_src_index, num_edges, work_queue_edges, num_work_items_edges, joint_probabilities_dim_x, joint_probabilities_dim_y) private(src_node_index, i, current_index)
+    #pragma omp parallel for default(none) shared(node_states, joint_probabilities, current_edge_messages, edges_messages_previous, edges_messages_current, edges_src_index, num_edges, work_queue_edges, num_work_items_edges, joint_probabilities_dim_x, joint_probabilities_dim_y) private(src_node_index, i, current_index)
     for(i = 0; i < num_work_items_edges; ++i){
 		current_index = work_queue_edges[i];
 
@@ -1886,7 +1892,7 @@ void page_rank_one_iteration(Graph_t graph){
     node_states = graph->node_states;
     node_states_size = graph->node_states_size;
 
-#pragma omp parallel for default(none) shared(node_states, num_vertices, dest_node_to_edges_nodes, dest_node_to_edges_edges, src_node_to_edges_nodes, src_node_to_edges_edges, num_edges, current_edge_messages, edges_messages_current, edges_messages_previous, joint_probabilities, joint_probabilities_dim_x, joint_probabilities_dim_y) private(buffer, i, num_variables) //schedule(dynamic, 16)
+#pragma omp parallel for default(none) shared(node_states, node_states_size, num_vertices, dest_node_to_edges_nodes, dest_node_to_edges_edges, src_node_to_edges_nodes, src_node_to_edges_edges, num_edges, current_edge_messages, edges_messages_current, edges_messages_previous, joint_probabilities, joint_probabilities_dim_x, joint_probabilities_dim_y) private(buffer, i, num_variables) //schedule(dynamic, 16)
     for(i = 0; i < num_vertices; ++i){
         num_variables = node_states_size[i];
 
@@ -2006,7 +2012,7 @@ void viterbi_one_iteration(Graph_t graph){
     node_states = graph->node_states;
     node_states_size = graph->node_states_size;
 
-#pragma omp parallel for default(none) shared(node_states, num_vertices, dest_node_to_edges_nodes, dest_node_to_edges_edges, src_node_to_edges_nodes, src_node_to_edges_edges, num_edges, current_edge_messages, edges_messages_current, edges_messages_previous, joint_probabilities, joint_probabilities_dim_x, joint_probabilities_dim_y) private(buffer, i, num_variables) //schedule(dynamic, 16)
+#pragma omp parallel for default(none) shared(node_states, node_states_size, num_vertices, dest_node_to_edges_nodes, dest_node_to_edges_edges, src_node_to_edges_nodes, src_node_to_edges_edges, num_edges, current_edge_messages, edges_messages_current, edges_messages_previous, joint_probabilities, joint_probabilities_dim_x, joint_probabilities_dim_y) private(buffer, i, num_variables) //schedule(dynamic, 16)
     for(i = 0; i < num_vertices; ++i){
         num_variables = node_states_size[i];
 
@@ -2075,7 +2081,7 @@ void viterbi_edge_one_iteration(Graph_t graph){
         send_message_for_edge_iteration(node_states, src_node_index, i, joint_probabilities, joint_probabilities_dim_x, joint_probabilities_dim_y, current_edge_messages, edge_messages_previous, edge_messages_current);
     }
 
-#pragma omp parallel for default(none) shared(current_edge_messages, node_states, edges_dest_index, num_edges) private(dest_node_index, i)
+#pragma omp parallel for default(none) shared(current_edge_messages, node_states, node_states_size, edges_dest_index, num_edges) private(dest_node_index, i)
     for(i = 0; i < num_edges; ++i){
         dest_node_index = edges_dest_index[i];
         combine_loopy_edge(i, current_edge_messages, dest_node_index, node_states, node_states_size);
@@ -2121,7 +2127,7 @@ int loopy_propagate_until_edge(Graph_t graph, float convergence, int max_iterati
 
         delta = 0.0f;
 
-#pragma omp parallel for default(none) shared(edges_message_previous, edges_message_current, num_edges)  private(j, diff) reduction(+:delta)
+#pragma omp parallel for default(none) shared(edge_messages_previous, edge_messages_current, num_edges)  private(j, diff) reduction(+:delta)
         for(j = 0; j < num_edges; ++j){
             diff = edge_messages_previous[j] - edge_messages_current[j];
             //printf("Previous: %f\n", previous_edge_messages[j].data[k]);
@@ -2148,7 +2154,7 @@ int loopy_propagate_until_edge(Graph_t graph, float convergence, int max_iterati
     states = graph->node_states;
     states_size = graph->node_states_size;
 
-#pragma omp parallel for default(none) shared(states, num_nodes) private(sum, num_variables, k)
+#pragma omp parallel for default(none) shared(states, states_size, num_nodes) private(sum, num_variables, k)
     for(j = 0; j < num_nodes; ++j){
         sum = 0.0;
         num_variables = states_size[j];
@@ -2199,7 +2205,7 @@ int page_rank_until_edge(Graph_t graph, float convergence, int max_iterations){
 
         delta = 0.0f;
 
-#pragma omp parallel for default(none) shared(edges_message_previous, edges_message_current, num_edges)  private(j, diff) reduction(+:delta)
+#pragma omp parallel for default(none) shared(edge_messages_previous, edge_messages_current, num_edges)  private(j, diff) reduction(+:delta)
         for(j = 0; j < num_edges; ++j){
             diff = edge_messages_previous[j] - edge_messages_current[j];
             //printf("Previous: %f\n", previous_edge_messages[j].data[k]);
@@ -2391,7 +2397,7 @@ int viterbi_until(Graph_t graph, float convergence, int max_iterations){
     states = graph->node_states;
     states_size = graph->node_states_size;
 
-    #pragma omp parallel for default(none) shared(states, num_nodes) private(sum, num_variables, k)
+    #pragma omp parallel for default(none) shared(states, states_size, num_nodes) private(sum, num_variables, k)
     for(j = 0; j < num_nodes; ++j){
         sum = 0.0;
         num_variables = states_size[j];
@@ -2422,7 +2428,7 @@ static void update_work_queue_nodes_acc(int * __restrict__ num_work_items_nodes,
 	int current_index, i;
 
 	current_index = 0;
-#pragma omp parallel for default(none) shared(current_index, num_work_items_nodes, work_queue_scratch, convergence, work_queue_nodes, node_states) private(i)
+#pragma omp parallel for default(none) shared(current_index, num_work_items_nodes, work_queue_scratch, convergence, work_queue_nodes, node_states, node_states_previous, node_states_current) private(i)
 #pragma acc parallel copyin(work_queue_nodes[0:num_vertices], node_states[0:num_vertices], node_states_current[0:num_vertices], node_states_previous[0:num_vertices]) copyout(work_queue_scratch[0:num_vertices])
 	for(i = 0; i < *num_work_items_nodes; ++i) {
 		if(fabs(node_states_current[work_queue_nodes[i]] - node_states_previous[work_queue_nodes[i]]) >= convergence) {
@@ -2898,8 +2904,8 @@ static void update_work_queue_edges_acc(int * __restrict__ num_work_items_edges,
 
 	current_index = 0;
 
-#pragma omp parallel for default(none) shared(current_index, num_work_items_edges, work_queue_scratch, convergence, work_queue_edges, edge_states, current_state, previous_state) private(i)
-#pragma acc parallel private(i) copyin(work_queue_edges[0:num_edges], edge_states[0:num_edges]) copyout(work_queue_scratch[0:num_edges])
+#pragma omp parallel for default(none) shared(current_index, num_work_items_edges, work_queue_scratch, convergence, work_queue_edges, current_state, previous_state) private(i)
+#pragma acc parallel private(i) copyin(work_queue_edges[0:num_edges], previous_state[0:num_edges], current_state[0:num_edges]) copyout(work_queue_scratch[0:num_edges])
 	for(i = 0; i < *num_work_items_edges; ++i) {
 		if(fabs(current_state[work_queue_edges[i]] - previous_state[work_queue_edges[i]]) >= convergence) {
 #pragma omp critical

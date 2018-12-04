@@ -8,7 +8,8 @@
 
 #define CHAR_BUFFER_SIZE 50
 
-#define AVG_STATES 2
+//#define AVG_STATES 2
+#define AVG_STATES 32
 
 #define NODE_DIFFERENCE_THRESHOLD 0.001f
 
