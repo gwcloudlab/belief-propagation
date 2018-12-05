@@ -613,7 +613,7 @@ void send_message(const struct belief * __restrict__ states, int edge_index,
 	for(i = 0; i < num_src; ++i){
 		edge_messages[edge_index].data[i] = 0.0;
 		for(j = 0; j < num_dest; ++j){
-            edge_messages[edge_index].data[i] += edge_joint_probabilities->data[i][j] * states->data[j];
+            edge_messages[edge_index].data[i] += edge_joint_probabilities[edge_index].data[i][j] * states->data[j];
 		}
 		sum += edge_messages[edge_index].data[i];
 	}
