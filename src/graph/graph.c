@@ -2429,7 +2429,7 @@ static void update_work_queue_nodes_acc(int * __restrict__ num_work_items_nodes,
 
 	current_index = 0;
 #pragma omp parallel for default(none) shared(current_index, num_work_items_nodes, work_queue_scratch, convergence, work_queue_nodes, node_states, node_states_previous, node_states_current) private(i)
-#pragma acc parallel copyin(work_queue_nodes[0:num_vertices], node_states[0:num_vertices], node_states_current[0:num_vertices], node_states_previous[0:num_vertices]) copyout(work_queue_scratch[0:num_vertices])
+#pragma acc kernels copyin(work_queue_nodes[0:num_vertices], node_states[0:num_vertices], node_states_current[0:num_vertices], node_states_previous[0:num_vertices]) copyout(work_queue_scratch[0:num_vertices])
 	for(i = 0; i < *num_work_items_nodes; ++i) {
 		if(fabs(node_states_current[work_queue_nodes[i]] - node_states_previous[work_queue_nodes[i]]) >= convergence) {
 #pragma omp critical
@@ -2905,7 +2905,7 @@ static void update_work_queue_edges_acc(int * __restrict__ num_work_items_edges,
 	current_index = 0;
 
 #pragma omp parallel for default(none) shared(current_index, num_work_items_edges, work_queue_scratch, convergence, work_queue_edges, current_state, previous_state) private(i)
-#pragma acc parallel private(i) copyin(work_queue_edges[0:num_edges], previous_state[0:num_edges], current_state[0:num_edges]) copyout(work_queue_scratch[0:num_edges])
+#pragma acc kernels copyin(work_queue_edges[0:num_edges], previous_state[0:num_edges], current_state[0:num_edges]) copyout(work_queue_scratch[0:num_edges])
 	for(i = 0; i < *num_work_items_edges; ++i) {
 		if(fabs(current_state[work_queue_edges[i]] - previous_state[work_queue_edges[i]]) >= convergence) {
 #pragma omp critical
