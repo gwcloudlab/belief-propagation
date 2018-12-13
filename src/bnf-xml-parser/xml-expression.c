@@ -447,10 +447,10 @@ static void add_edges_to_graph(xmlDocPtr doc, xmlNodePtr definition, Graph_t gra
     build_probabilities(doc, definition, new_belief, num_probabilities);
 
     fill_in_for_node_name(doc, definition, dest_node_name);
-    dest_index = find_node_by_name(dest_node_name, graph);
+    dest_index = (int)find_node_by_name(dest_node_name, graph);
     //assert(dest_index >= 0);
     //assert(dest_index < graph->current_num_vertices);
-    slice = num_probabilities / graph->node_states[dest_index].size;
+    slice = num_probabilities / graph->node_states_size[dest_index];
 
     // fill in joint probability
     offset = 1;
@@ -462,23 +462,23 @@ static void add_edges_to_graph(xmlDocPtr doc, xmlNodePtr definition, Graph_t gra
         }
         xmlFree(value);
 
-        src_index = find_node_by_name(src_node_name, graph);
+        src_index = (int)find_node_by_name(src_node_name, graph);
         //printf("Adding edge: (%s)->(%s)\n", src_node_name, dest_node_name);
         //printf("indices: (%d)->(%d)\n", src_index, dest_index);
         //assert(src_index >= 0);
         //assert(src_index < graph->current_num_vertices);
 
-        delta = graph->node_states[src_index].size;
+        delta = graph->node_states_size[src_index];
 
-        for(k = 0; k < graph->node_states[dest_index].size; ++k){
-            for(j = 0; j < graph->node_states[src_index].size; ++j){
+        for(k = 0; k < graph->node_states_size[dest_index]; ++k){
+            for(j = 0; j < graph->node_states_size[src_index]; ++j){
                 sub_graph.data[j][k] = 0.0;
                 transpose.data[k][j] = 0.0;
             }
         }
 
-        for(k = 0; k < graph->node_states[dest_index].size; ++k){
-            for(j = 0; j < graph->node_states[src_index].size; ++j){
+        for(k = 0; k < graph->node_states_size[dest_index]; ++k){
+            for(j = 0; j < graph->node_states_size[src_index]; ++j){
                 diff = 0;
                 index = j * offset + diff;
                 while(index <= slice) {
@@ -495,19 +495,19 @@ static void add_edges_to_graph(xmlDocPtr doc, xmlNodePtr definition, Graph_t gra
             }
         }
 
-        for(j = 0; j < graph->node_states[src_index].size; ++j){
-            for(k = 0; k < graph->node_states[dest_index].size; ++k){
+        for(j = 0; j < graph->node_states_size[src_index]; ++j){
+            for(k = 0; k < graph->node_states_size[dest_index]; ++k){
                 transpose.data[k][j] = sub_graph.data[j][k];
             }
         }
 
-        graph_add_edge(graph, src_index, dest_index, graph->node_states[src_index].size, graph->node_states[dest_index].size, &sub_graph);
+        graph_add_edge(graph, src_index, dest_index, graph->node_states_size[src_index], graph->node_states_size[dest_index], &sub_graph);
         if(graph->observed_nodes[src_index] != 1 ){
-            graph_add_edge(graph, dest_index, src_index, graph->node_states[dest_index].size, graph->node_states[src_index].size, &transpose);
+            graph_add_edge(graph, dest_index, src_index, graph->node_states_size[dest_index], graph->node_states_size[src_index], &transpose);
         }
 
 
-        offset *= graph->node_states[src_index].size;
+        offset *= graph->node_states_size[src_index];
     }
 
     free(new_belief);
