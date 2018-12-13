@@ -8,10 +8,10 @@
 #include <stdio.h>
 #include <time.h>
 
-void test_10_20_file(const char *edges_mtx, const char *nodes_mtx) {
+void test_10_20_file(const char *edges_mtx, const char *nodes_mtx, const struct joint_probability * edge_joint_probability, int dim_x, int dim_y) {
     Graph_t graph;
 
-    graph = build_graph_from_mtx(edges_mtx, nodes_mtx);
+    graph = build_graph_from_mtx(edges_mtx, nodes_mtx, edge_joint_probability, dim_x, dim_y);
 
     assert(graph->current_num_edges == 12);
     assert(graph->current_num_vertices == 10);
@@ -25,14 +25,14 @@ void test_10_20_file(const char *edges_mtx, const char *nodes_mtx) {
     graph_destroy(graph);
 }
 
-void run_test_belief_propagation_mtx_files(const char *edges_mtx, const char *nodes_mtx, FILE *out) {
+void run_test_belief_propagation_mtx_files(const char *edges_mtx, const char *nodes_mtx, , const struct joint_probability * edge_joint_probability, int dim_x, int dim_y, FILE *out) {
     Graph_t graph;
     clock_t start, end;
     double time_elapsed;
     int i;
 
     // parse files
-    graph = build_graph_from_mtx(edges_mtx, nodes_mtx);
+    graph = build_graph_from_mtx(edges_mtx, nodes_mtx, edge_joint_probability, dim_x, dim_y);
     assert(graph != NULL);
 
     // set up parallel arrays
@@ -67,14 +67,14 @@ void run_test_belief_propagation_mtx_files(const char *edges_mtx, const char *no
     graph_destroy(graph);
 }
 
-void run_test_loopy_belief_propagation_mtx_files(const char * edges_mtx, const char * nodes_mtx, FILE *out) {
+void run_test_loopy_belief_propagation_mtx_files(const char * edges_mtx, const char * nodes_mtx, const struct joint_probability * edge_joint_probability, int dim_x, int dim_y, FILE *out) {
     Graph_t graph;
     clock_t start, end;
     double time_elapsed;
     int num_iterations;
 
     // read data
-    graph = build_graph_from_mtx(edges_mtx, nodes_mtx);
+    graph = build_graph_from_mtx(edges_mtx, nodes_mtx, edge_joint_probability, dim_x, dim_y);
 
     assert(graph != NULL);
     //print_nodes(graph);
@@ -103,13 +103,13 @@ void run_test_loopy_belief_propagation_mtx_files(const char * edges_mtx, const c
 }
 
 
-void run_test_loopy_belief_propagation_edge_mtx_files(const char * edges_mtx, const char * nodes_mtx, FILE *out) {
+void run_test_loopy_belief_propagation_edge_mtx_files(const char * edges_mtx, const char * nodes_mtx, const struct joint_probability * edge_joint_probability, int dim_x, int dim_y, FILE *out) {
     Graph_t graph;
     clock_t start, end;
     double time_elapsed;
     int num_iterations;
 
-    graph = build_graph_from_mtx(edges_mtx, nodes_mtx);
+    graph = build_graph_from_mtx(edges_mtx, nodes_mtx, edge_joint_probability, dim_x, dim_y);
 
     assert(graph != NULL);
     //print_nodes(graph);
@@ -137,13 +137,13 @@ void run_test_loopy_belief_propagation_edge_mtx_files(const char * edges_mtx, co
     graph_destroy(graph);
 }
 
-void run_test_loopy_belief_propagation_mtx_files_acc(const char *edges_mtx, const char *nodes_mtx, FILE *out) {
+void run_test_loopy_belief_propagation_mtx_files_acc(const char *edges_mtx, const char *nodes_mtx, const struct joint_probability * edge_joint_probability, int dim_x, int dim_y, FILE *out) {
     Graph_t graph;
     clock_t start, end;
     double time_elapsed;
     int num_iterations;
 
-    graph = build_graph_from_mtx(edges_mtx, nodes_mtx);
+    graph = build_graph_from_mtx(edges_mtx, nodes_mtx, edge_joint_probability, dim_x, dim_y);
 
     assert(graph != NULL);
     //print_nodes(graph);
@@ -171,13 +171,13 @@ void run_test_loopy_belief_propagation_mtx_files_acc(const char *edges_mtx, cons
     graph_destroy(graph);
 }
 
-void run_test_loopy_belief_propagation_edge_mtx_files_acc(const char *edges_mtx, const char *nodes_mtx, FILE *out) {
+void run_test_loopy_belief_propagation_edge_mtx_files_acc(const char *edges_mtx, const char *nodes_mtx, const struct joint_probability * edge_joint_probability, int dim_x, int dim_y, FILE *out) {
     Graph_t graph;
     clock_t start, end;
     double time_elapsed;
     int num_iterations;
 
-    graph = build_graph_from_mtx(edges_mtx, nodes_mtx);
+    graph = build_graph_from_mtx(edges_mtx, nodes_mtx, edge_joint_probability, dim_x, dim_y);
     assert(graph != NULL);
     //print_nodes(graph);
     //print_edges(graph);

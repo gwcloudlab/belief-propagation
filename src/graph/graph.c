@@ -21,7 +21,7 @@ float fmaxf(float a, float b) {
  * @return An initialized graph
  */
 Graph_t
-create_graph(int num_vertices, int num_edges)
+create_graph(int num_vertices, int num_edges, const struct joint_probability *joint_probability, int joint_probability_dim_x, int joint_probability_dim_y)
 {
 	Graph_t g;
 
@@ -32,12 +32,20 @@ create_graph(int num_vertices, int num_edges)
 	g->edges_dest_index = (int *)malloc(sizeof(int) * num_edges);
 	assert(g->edges_dest_index);
 
-    g->edges_joint_probabilities = (struct joint_probability *)malloc(sizeof(struct joint_probability) * num_edges);
-	assert(g->edges_joint_probabilities);
-	g->edges_joint_probabilities_dim_x = (int *)malloc(sizeof(int) * num_edges);
-	assert(g->edges_joint_probabilities_dim_x);
-	g->edges_joint_probabilities_dim_y = (int *)malloc(sizeof(int) * num_edges);
-	assert(g->edges_joint_probabilities_dim_y);
+	assert(joint_probability_dim_x > 0);
+	assert(joint_probability_dim_x <= MAX_STATES);
+
+	assert(joint_probability_dim_y > 0);
+	assert(joint_probability_dim_y <= MAX_STATES);
+
+	g->edge_joint_probability_dim_x = joint_probability_dim_x;
+	g->edge_joint_probability_dim_y = joint_probability_dim_y;
+
+	for(int x = 0; x < joint_probability_dim_x; ++x) {
+	    for(int y = 0; y < joint_probability_dim_y; ++y) {
+	        g->edge_joint_probability.data[x][y] = joint_probability->data[x][y];
+	    }
+	}
 
     g->edges_messages = (struct belief *)malloc(sizeof(struct belief) * num_edges);
     assert(g->edges_messages);
@@ -120,10 +128,8 @@ void initialize_node(Graph_t graph, int node_index, int num_variables){
  * @param dim_y The second the dimension of the joint probability matrix
  * @param joint_probabilities The joint probability of the edge
  */
-void init_edge(Graph_t graph, int edge_index, int src_index, int dest_index, int dim_x,
-			   int dim_y, struct joint_probability *joint_probabilities){
+void init_edge(Graph_t graph, int edge_index, int src_index, int dest_index, int dim_x){
 	int i, j;
-	struct joint_probability *joint_probability;
     struct belief *edges_messages;
 
 	assert(src_index < graph->total_num_vertices);
@@ -131,25 +137,15 @@ void init_edge(Graph_t graph, int edge_index, int src_index, int dest_index, int
 	assert(edge_index < graph->total_num_edges);
 
 	assert(dim_x <= MAX_STATES);
-	assert(dim_y <= MAX_STATES);
 
 	graph->edges_src_index[edge_index] = src_index;
 	graph->edges_dest_index[edge_index] = dest_index;
 
-    joint_probability = &graph->edges_joint_probabilities[edge_index];
-    assert(joint_probability);
     edges_messages = &graph->edges_messages[edge_index];
     assert(edges_messages);
-
-    graph->edges_joint_probabilities_dim_x[edge_index] = dim_x;
-	graph->edges_joint_probabilities_dim_y[edge_index] = dim_y;
-
     graph->edges_messages_size[edge_index] = dim_x;
 
     for(i = 0; i < dim_x; ++i){
-        for(j = 0; j < dim_y; ++j){
-            joint_probability->data[i][j] = joint_probabilities->data[i][j];
-        }
 		graph->edges_messages[edge_index].data[i] = 0;
         graph->edges_messages_previous[edge_index] = INFINITY;
         graph->edges_messages_current[edge_index] = INFINITY;
@@ -236,8 +232,7 @@ void graph_set_node_state(Graph_t g, int node_index, int num_states, struct beli
  * @param dim_y The second dimension of the edge's joint probability matrix
  * @param joint_probabilities The joint probability matrix
  */
-void graph_add_edge(Graph_t graph, int src_index, int dest_index, int dim_x, int dim_y,
-					struct joint_probability *joint_probabilities) {
+void graph_add_edge(Graph_t graph, int src_index, int dest_index, int dim_x, int dim_y) {
 	int edge_index;
     ENTRY src_e, *src_ep;
     ENTRY dest_e, *dest_ep;
@@ -249,7 +244,7 @@ void graph_add_edge(Graph_t graph, int src_index, int dest_index, int dim_x, int
 	assert(graph->node_states_size[src_index] == dim_x);
 	assert(graph->node_states_size[dest_index] == dim_y);
 
-    init_edge(graph, edge_index, src_index, dest_index, dim_x, dim_y, joint_probabilities);
+    init_edge(graph, edge_index, src_index, dest_index, dim_x);
     if(graph->edge_tables_created == 0){
         graph->src_node_to_edge_table = (struct hsearch_data *)calloc(sizeof(struct hsearch_data), 1);
 		assert(graph->src_node_to_edge_table);
@@ -495,10 +490,6 @@ void graph_destroy(Graph_t g) {
 	free(g->edges_src_index);
 	free(g->edges_dest_index);
 
-	free(g->edges_joint_probabilities);
-	free(g->edges_joint_probabilities_dim_x);
-	free(g->edges_joint_probabilities_dim_y);
-
 	free(g->edges_messages);
 	free(g->edges_messages_current);
 	free(g->edges_messages_previous);
@@ -566,8 +557,8 @@ void propagate_using_levels_start(Graph_t g){
 			g->visited[node_index] = 1;
 			edge_index = g->src_nodes_to_edges_edge_list[i];
 
-			send_message(&g->node_states[node_index], edge_index, g->edges_joint_probabilities,
-					g->edges_joint_probabilities_dim_x, g->edges_joint_probabilities_dim_y,
+			send_message(&g->node_states[node_index], edge_index, &(g->edge_joint_probability),
+					g->edge_joint_probability_dim_x, g->edge_joint_probability_dim_y,
 					g->edges_messages, g->edges_messages_previous, g->edges_messages_current);
 
 			/*printf("sending belief on edge\n");
@@ -597,23 +588,20 @@ void propagate_using_levels_start(Graph_t g){
  * @param edge_messages The array of edge buffer beliefs
  */
 void send_message(const struct belief * __restrict__ states, int edge_index,
-		const struct joint_probability * __restrict__ edge_joint_probabilities,
-				const int * __restrict__ edges_joint_probabilities_dim_x,
-				const int * __restrict__ edges_joint_probabilities_dim_y,
+		const struct joint_probability * __restrict__ edge_joint_probability,
+				const int num_src,
+				const int num_dest,
 				struct belief *edge_messages,
 				float * __restrict__ edges_messages_previous,
 				float * __restrict__ edges_messages_current){
-	int i, j, num_src, num_dest;
+	int i, j;
 	float sum;
-
-	num_src = edges_joint_probabilities_dim_x[edge_index];
-	num_dest = edges_joint_probabilities_dim_y[edge_index];
 
 	sum = 0.0;
 	for(i = 0; i < num_src; ++i){
 		edge_messages[edge_index].data[i] = 0.0;
 		for(j = 0; j < num_dest; ++j){
-            edge_messages[edge_index].data[i] += edge_joint_probabilities[edge_index].data[i][j] * states->data[j];
+            edge_messages[edge_index].data[i] += edge_joint_probability->data[i][j] * states->data[j];
 		}
 		sum += edge_messages[edge_index].data[i];
 	}
@@ -750,7 +738,7 @@ static void propagate_node_using_levels(Graph_t g, int current_node_index){
 				printf("%.6lf\t", message_buffer[j]);
 			}
 			printf("]\n");*/
-			send_message(&buffer, edge_index, g->edges_joint_probabilities, g->edges_joint_probabilities_dim_x, g->edges_joint_probabilities_dim_y,
+			send_message(&buffer, edge_index, &(g->edge_joint_probability), g->edge_joint_probability_dim_x, g->edge_joint_probability_dim_y,
 					g->edges_messages, g->edges_messages_previous, g->edges_messages_current);
 		}
 	}
@@ -885,8 +873,8 @@ void print_edge(Graph_t graph, int edge_index){
 	int i, j, dim_x, dim_y, src_index, dest_index;
 
 
-	dim_x = graph->edges_joint_probabilities_dim_x[edge_index];
-	dim_y = graph->edges_joint_probabilities_dim_y[edge_index];
+	dim_x = graph->edge_joint_probability_dim_x;
+	dim_y = graph->edge_joint_probability_dim_y;
 	src_index = graph->edges_src_index[edge_index];
 	dest_index = graph->edges_dest_index[edge_index];
 
@@ -895,7 +883,7 @@ void print_edge(Graph_t graph, int edge_index){
 	for(i = 0; i < dim_x; ++i){
 		printf("[");
 		for(j = 0; j < dim_y; ++j){
-			printf("\t%.6lf",  graph->edges_joint_probabilities[edge_index].data[i][j]);
+			printf("\t%.6lf",  graph->edge_joint_probability.data[i][j]);
 		}
 		printf("\t]\n");
 	}
@@ -1034,8 +1022,8 @@ void init_previous_edge(Graph_t graph){
 		for(j = start_index; j < end_index; ++j){
 			edge_index = src_node_to_edges_edges[j];
 
-			send_message(&graph->node_states[i], edge_index, graph->edges_joint_probabilities, graph->edges_joint_probabilities_dim_x,
-					graph->edges_joint_probabilities_dim_y, previous_messages, previous, current);
+			send_message(&graph->node_states[i], edge_index, &(graph->edge_joint_probability), graph->edge_joint_probability_dim_x,
+					graph->edge_joint_probability_dim_y, previous_messages, previous, current);
 		}
 	}
 }
@@ -1217,17 +1205,14 @@ static void read_incoming_messages(struct belief * __restrict__ message_buffer,
  */
 #pragma acc routine
 static void send_message_for_edge(const struct belief * __restrict__ buffer, int edge_index,
-								  const struct joint_probability * __restrict__ joint_probabilities,
-								  const int * joint_probabilities_dim_x,
-								  const int * joint_prababilities_dim_y,
+								  const struct joint_probability * __restrict__ edge_joint_probability,
+								  const int num_src,
+								  const int num_dest,
 								  struct belief * __restrict__ edge_messages,
 								  		float *edge_messages_previous,
 								  		float *edge_messages_current) {
-	int i, j, num_src, num_dest;
+	int i, j;
 	float sum, partial_sum;
-
-	num_src = joint_probabilities_dim_x[edge_index];
-	num_dest = joint_prababilities_dim_y[edge_index];
 
 
 	sum = 0.0;
@@ -1236,7 +1221,7 @@ static void send_message_for_edge(const struct belief * __restrict__ buffer, int
         #pragma omp simd safelen(AVG_STATES)
         #pragma simd vectorlength(AVG_STATES)
 		for(j = 0; j < num_dest; ++j){
-			partial_sum += joint_probabilities[edge_index].data[i][j] * buffer->data[j];
+			partial_sum += edge_joint_probability->data[i][j] * buffer->data[j];
 		}
 		edge_messages[edge_index].data[i] = partial_sum;
 		sum += partial_sum;
@@ -1263,18 +1248,14 @@ static void send_message_for_edge(const struct belief * __restrict__ buffer, int
  */
 #pragma acc routine
 static void send_message_for_edge_iteration(const struct belief * __restrict__ belief, int src_index, int edge_index,
-                                            const struct joint_probability * __restrict__ joint_probabilities,
-											const int * __restrict__ joint_probabilities_dim_x,
-											const int * __restrict__ joint_probabilities_dim_y,
+                                            const struct joint_probability * __restrict__ edge_joint_probability,
+											const int num_src,
+											const int num_dest,
 											struct belief * __restrict__ edge_messages,
 											float * __restrict__ edge_messages_previous,
 											float * __restrict__ edge_messages_current){
     int i, j;
-    int num_src, num_dest;
     float sum, partial_sum;
-
-    num_src = joint_probabilities_dim_x[edge_index];
-    num_dest = joint_probabilities_dim_y[edge_index];
 
     sum = 0.0;
     for(i = 0; i < num_src; ++i){
@@ -1282,7 +1263,7 @@ static void send_message_for_edge_iteration(const struct belief * __restrict__ b
         #pragma omp simd safelen(AVG_STATES)
         #pragma simd vectorlength(AVG_STATES)
         for(j = 0; j < num_dest; ++j){
-            partial_sum += joint_probabilities[edge_index].data[i][j] * belief[src_index].data[j];
+            partial_sum += edge_joint_probability->data[i][j] * belief[src_index].data[j];
         }
         edge_messages[edge_index].data[i] = partial_sum;
         sum += partial_sum;
@@ -1316,9 +1297,9 @@ static void send_message_for_edge_iteration(const struct belief * __restrict__ b
 static void send_message_for_node(const int * __restrict__ src_node_to_edges_nodes,
 								  const int * __restrict__ src_node_to_edges_edges,
 								  const struct belief * __restrict__ message_buffer, int num_edges,
-								  const struct joint_probability * __restrict__ joint_probabilities,
-								  const int * __restrict__ joint_probabilities_dim_x,
-								  const int * __restrict__ joint_probabilities_dim_y,
+								  const struct joint_probability * __restrict__ edge_joint_probability,
+								  const int edge_joint_probability_dim_x,
+								  const int edge_joint_probability_dim_y,
 								  struct belief *edge_messages,
 								  float * __restrict__ edge_messages_previous,
 								  float * __restrict__ edge_messages_current,
@@ -1337,7 +1318,7 @@ static void send_message_for_node(const int * __restrict__ src_node_to_edges_nod
 		edge_index = src_node_to_edges_edges[j];
 		/*printf("Sending on edge\n");
         print_edge(graph, edge_index);*/
-		send_message_for_edge(message_buffer, edge_index, joint_probabilities, joint_probabilities_dim_x, joint_probabilities_dim_y,
+		send_message_for_edge(message_buffer, edge_index, edge_joint_probability, edge_joint_probability_dim_x, edge_joint_probability_dim_y,
 				edge_messages, edge_messages_previous, edge_messages_current);
 	}
 }
@@ -1731,9 +1712,9 @@ void loopy_propagate_one_iteration(Graph_t graph){
 	int * work_queue_nodes;
 	struct belief *node_states;
 	int *node_states_size;
-	struct joint_probability *joint_probabilities;
-	int * joint_probabilities_dim_x;
-	int * joint_probabilities_dim_y;
+	struct joint_probability edge_joint_probability;
+	int edge_joint_probability_dim_x;
+	int edge_joint_probability_dim_y;
 	struct belief *current_edge_messages;
 	float *edges_messages_current;
 	float *edges_messages_previous;
@@ -1742,9 +1723,9 @@ void loopy_propagate_one_iteration(Graph_t graph){
 	edges_messages_current = graph->edges_messages_current;
 	edges_messages_previous = graph->edges_messages_previous;
 
-	joint_probabilities = graph->edges_joint_probabilities;
-	joint_probabilities_dim_x = graph->edges_joint_probabilities_dim_x;
-	joint_probabilities_dim_y = graph->edges_joint_probabilities_dim_y;
+	edge_joint_probability = graph->edge_joint_probability;
+	edge_joint_probability_dim_x = graph->edge_joint_probability_dim_x;
+	edge_joint_probability_dim_y = graph->edge_joint_probability_dim_y;
 
 	struct belief buffer;
 
@@ -1760,7 +1741,7 @@ void loopy_propagate_one_iteration(Graph_t graph){
 	work_queue_nodes = graph->work_queue_nodes;
 	num_work_queue_items = graph->num_work_items_nodes;
 
-#pragma omp parallel for default(none) shared(node_states, num_vertices, dest_node_to_edges_nodes, dest_node_to_edges_edges, src_node_to_edges_nodes, src_node_to_edges_edges, num_edges, current_edge_messages, joint_probabilities, work_queue_nodes, num_work_queue_items, node_states_size, joint_probabilities_dim_x, joint_probabilities_dim_y, edges_messages_current, edges_messages_previous) private(buffer, i, num_variables, current_index) //schedule(dynamic, 16)
+#pragma omp parallel for default(none) shared(node_states, num_vertices, dest_node_to_edges_nodes, dest_node_to_edges_edges, src_node_to_edges_nodes, src_node_to_edges_edges, num_edges, current_edge_messages, edge_joint_probability, work_queue_nodes, num_work_queue_items, node_states_size, edge_joint_probability_dim_x, edge_joint_probability_dim_y, edges_messages_current, edges_messages_previous) private(buffer, i, num_variables, current_index) //schedule(dynamic, 16)
     for(i = 0; i < num_work_queue_items; ++i){
 		current_index = work_queue_nodes[i];
 
@@ -1782,7 +1763,7 @@ void loopy_propagate_one_iteration(Graph_t graph){
 
 
 		//send belief
-		send_message_for_node(src_node_to_edges_nodes, src_node_to_edges_edges, &buffer, num_edges, joint_probabilities, joint_probabilities_dim_x, joint_probabilities_dim_y, current_edge_messages, edges_messages_previous, edges_messages_current, num_vertices, current_index);
+		send_message_for_node(src_node_to_edges_nodes, src_node_to_edges_edges, &buffer, num_edges, edge_joint_probability, edge_joint_probability_dim_x, edge_joint_probability_dim_y, current_edge_messages, edges_messages_previous, edges_messages_current, num_vertices, current_index);
 
 	}
 
@@ -1800,9 +1781,9 @@ void loopy_propagate_edge_one_iteration(Graph_t graph){
 	int num_edges, num_nodes, src_node_index, dest_node_index, current_index, num_work_items_edges;
     struct belief *node_states;
     int *node_states_size;
-    struct joint_probability *joint_probabilities;
-    int *joint_probabilities_dim_x;
-    int *joint_probabilities_dim_y;
+    struct joint_probability *edge_joint_probability;
+    int edge_joint_probability_dim_x;
+    int edge_joint_probability_dim_y;
     struct belief *current_edge_messages;
     float *edges_messages_previous;
     float *edges_messages_current;
@@ -1815,9 +1796,9 @@ void loopy_propagate_edge_one_iteration(Graph_t graph){
     edges_messages_previous = graph->edges_messages_previous;
     edges_messages_current = graph->edges_messages_current;
 
-    joint_probabilities = graph->edges_joint_probabilities;
-	joint_probabilities_dim_x = graph->edges_joint_probabilities_dim_x;
-	joint_probabilities_dim_y = graph->edges_joint_probabilities_dim_y;
+	edge_joint_probability = graph->edge_joint_probability;
+	edge_joint_probability_dim_x = graph->edge_joint_probability_dim_x;
+	edge_joint_probability_dim_y = graph->edge_joint_probability_dim_y;
 
     num_edges = graph->current_num_edges;
 	num_nodes = graph->current_num_vertices;
@@ -1829,12 +1810,12 @@ void loopy_propagate_edge_one_iteration(Graph_t graph){
 	num_work_items_edges = graph->num_work_items_edges;
 	work_queue_edges = graph->work_queue_edges;
 
-    #pragma omp parallel for default(none) shared(node_states, joint_probabilities, current_edge_messages, edges_messages_previous, edges_messages_current, edges_src_index, num_edges, work_queue_edges, num_work_items_edges, joint_probabilities_dim_x, joint_probabilities_dim_y) private(src_node_index, i, current_index)
+    #pragma omp parallel for default(none) shared(node_states, edge_joint_probability, current_edge_messages, edges_messages_previous, edges_messages_current, edges_src_index, num_edges, work_queue_edges, num_work_items_edges, edge_joint_probability_dim_x, edge_joint_probability_dim_y) private(src_node_index, i, current_index)
     for(i = 0; i < num_work_items_edges; ++i){
 		current_index = work_queue_edges[i];
 
         src_node_index = edges_src_index[current_index];
-        send_message_for_edge_iteration(node_states, src_node_index, current_index, joint_probabilities, joint_probabilities_dim_x, joint_probabilities_dim_y, current_edge_messages, edges_messages_previous, edges_messages_current);
+        send_message_for_edge_iteration(node_states, src_node_index, current_index, edge_joint_probability, edge_joint_probability_dim_x, edge_joint_probability_dim_y, current_edge_messages, edges_messages_previous, edges_messages_current);
     }
 
     #pragma omp parallel for default(none) shared(current_edge_messages, node_states, node_states_size, edges_dest_index, num_edges, work_queue_edges, num_work_items_edges) private(dest_node_index, i, current_index)
@@ -1866,9 +1847,9 @@ void page_rank_one_iteration(Graph_t graph){
     int * src_node_to_edges_edges;
     struct belief *node_states;
     int *node_states_size;
-    struct joint_probability *joint_probabilities;
-    int * joint_probabilities_dim_x;
-    int * joint_probabilities_dim_y;
+    struct joint_probability *edge_joint_probability;
+    int edge_joint_probability_dim_x;
+    int edge_joint_probability_dim_y;
     struct belief *current_edge_messages;
     float * edges_messages_previous;
     float * edges_messages_current;
@@ -1877,9 +1858,9 @@ void page_rank_one_iteration(Graph_t graph){
     edges_messages_current = graph->edges_messages_current;
     edges_messages_previous = graph->edges_messages_previous;
 
-    joint_probabilities = graph->edges_joint_probabilities;
-	joint_probabilities_dim_x = graph->edges_joint_probabilities_dim_x;
-	joint_probabilities_dim_y = graph->edges_joint_probabilities_dim_y;
+	edge_joint_probability = graph->edge_joint_probability;
+	edge_joint_probability_dim_x = graph->edge_joint_probability_dim_x;
+	edge_joint_probability_dim_y = graph->edge_joint_probability_dim_y;
 
     struct belief buffer;
 
@@ -1912,7 +1893,7 @@ void page_rank_one_iteration(Graph_t graph){
 
 
         //send belief
-        send_message_for_node(src_node_to_edges_nodes, src_node_to_edges_edges, &buffer, num_edges, joint_probabilities, joint_probabilities_dim_x, joint_probabilities_dim_y, current_edge_messages, edges_messages_previous, edges_messages_current, num_vertices, i);
+        send_message_for_node(src_node_to_edges_nodes, src_node_to_edges_edges, &buffer, num_edges, edge_joint_probability, edge_joint_probability_dim_x, edge_joint_probability_dim_y, current_edge_messages, edges_messages_previous, edges_messages_current, num_vertices, i);
 
     }
 
@@ -1929,9 +1910,9 @@ void page_rank_edge_one_iteration(Graph_t graph){
     int num_edges, num_nodes, src_node_index, dest_node_index;
     struct belief *node_states;
     int *node_states_size;
-    struct joint_probability *joint_probabilities;
-    int *joint_probabilities_dim_x;
-    int *joint_probabilities_dim_y;
+    struct joint_probability *edge_joint_probability;
+    int edge_joint_probability_dim_x;
+    int edge_joint_probability_dim_y;
     struct belief *current_edge_messages;
     float *edge_messages_current;
     float *edge_messages_previous;
@@ -1943,9 +1924,9 @@ void page_rank_edge_one_iteration(Graph_t graph){
     edge_messages_current = graph->edges_messages_current;
     edge_messages_previous = graph->edges_messages_previous;
 
-    joint_probabilities = graph->edges_joint_probabilities;
-    joint_probabilities_dim_x = graph->edges_joint_probabilities_dim_x;
-    joint_probabilities_dim_y = graph->edges_joint_probabilities_dim_y;
+	edge_joint_probability = graph->edge_joint_probability;
+	edge_joint_probability_dim_x = graph->edge_joint_probability_dim_x;
+	edge_joint_probability_dim_y = graph->edge_joint_probability_dim_y;
 
     num_edges = graph->current_num_edges;
     num_nodes = graph->current_num_vertices;
@@ -1957,7 +1938,7 @@ void page_rank_edge_one_iteration(Graph_t graph){
 #pragma omp parallel for default(none) shared(node_states, joint_probabilities, joint_probabilities_dim_x, joint_probabilities_dim_y, current_edge_messages, edge_messages_current, edge_messages_previous, edges_src_index, num_edges) private(src_node_index, i)
     for(i = 0; i < num_edges; ++i){
         src_node_index = edges_src_index[i];
-        send_message_for_edge_iteration(node_states, src_node_index, i, joint_probabilities, joint_probabilities_dim_x, joint_probabilities_dim_y, current_edge_messages, edge_messages_previous, edge_messages_current);
+        send_message_for_edge_iteration(node_states, src_node_index, i, edge_joint_probability, edge_joint_probability_dim_x, edge_joint_probability_dim_y, current_edge_messages, edge_messages_previous, edge_messages_current);
     }
 
 #pragma omp parallel for default(none) shared(current_edge_messages, node_states, node_states_size, edges_dest_index, num_edges) private(dest_node_index, i)
@@ -1986,9 +1967,9 @@ void viterbi_one_iteration(Graph_t graph){
     int * src_node_to_edges_edges;
     struct belief *node_states;
     int *node_states_size;
-    struct joint_probability *joint_probabilities;
-    int *joint_probabilities_dim_x;
-    int *joint_probabilities_dim_y;
+    struct joint_probability *edge_joint_probability;
+    int edge_joint_probability_dim_x;
+    int edge_joint_probability_dim_y;
     struct belief *current_edge_messages;
     float *edges_messages_current;
     float *edges_messages_previous;
@@ -1997,9 +1978,9 @@ void viterbi_one_iteration(Graph_t graph){
     edges_messages_previous = graph->edges_messages_previous;
     edges_messages_current = graph->edges_messages_current;
 
-    joint_probabilities = graph->edges_joint_probabilities;
-	joint_probabilities_dim_x = graph->edges_joint_probabilities_dim_x;
-	joint_probabilities_dim_y = graph->edges_joint_probabilities_dim_y;
+	edge_joint_probability = graph->edge_joint_probability;
+	edge_joint_probability_dim_x = graph->edge_joint_probability_dim_x;
+	edge_joint_probability_dim_y = graph->edge_joint_probability_dim_y;
 
     struct belief buffer;
 
@@ -2032,8 +2013,8 @@ void viterbi_one_iteration(Graph_t graph){
 
 
         //send belief
-        send_message_for_node(src_node_to_edges_nodes, src_node_to_edges_edges, &buffer, num_edges, joint_probabilities,
-        		joint_probabilities_dim_x, joint_probabilities_dim_y, current_edge_messages, edges_messages_previous, edges_messages_current, num_vertices, i);
+        send_message_for_node(src_node_to_edges_nodes, src_node_to_edges_edges, &buffer, num_edges, edge_joint_probability,
+							  edge_joint_probability_dim_x, edge_joint_probability_dim_y, current_edge_messages, edges_messages_previous, edges_messages_current, num_vertices, i);
 
     }
 
@@ -2050,9 +2031,9 @@ void viterbi_edge_one_iteration(Graph_t graph){
     int num_edges, num_nodes, src_node_index, dest_node_index;
     struct belief *node_states;
     int *node_states_size;
-    struct joint_probability *joint_probabilities;
-    int *joint_probabilities_dim_x;
-    int *joint_probabilities_dim_y;
+    struct joint_probability *edge_joint_probability;
+    int edge_joint_probability_dim_x;
+    int edge_joint_probability_dim_y;
     struct belief *current_edge_messages;
     float *edge_messages_current;
     float *edge_messages_previous;
@@ -2064,9 +2045,9 @@ void viterbi_edge_one_iteration(Graph_t graph){
     edge_messages_previous = graph->edges_messages_previous;
     edge_messages_current = graph->edges_messages_current;
 
-    joint_probabilities = graph->edges_joint_probabilities;
-    joint_probabilities_dim_x = graph->edges_joint_probabilities_dim_x;
-    joint_probabilities_dim_y = graph->edges_joint_probabilities_dim_y;
+	edge_joint_probability = graph->edge_joint_probability;
+	edge_joint_probability_dim_x = graph->edge_joint_probability_dim_x;
+	edge_joint_probability_dim_y = graph->edge_joint_probability_dim_y;
 
     num_edges = graph->current_num_edges;
     num_nodes = graph->current_num_vertices;
@@ -2078,7 +2059,7 @@ void viterbi_edge_one_iteration(Graph_t graph){
 #pragma omp parallel for default(none) shared(node_states, joint_probabilities, joint_probabilities_dim_x, joint_probabilities_dim_y, current_edge_messages, edge_messages_previous, edge_messages_current, edges_src_index, num_edges) private(src_node_index, i)
     for(i = 0; i < num_edges; ++i){
         src_node_index = edges_src_index[i];
-        send_message_for_edge_iteration(node_states, src_node_index, i, joint_probabilities, joint_probabilities_dim_x, joint_probabilities_dim_y, current_edge_messages, edge_messages_previous, edge_messages_current);
+        send_message_for_edge_iteration(node_states, src_node_index, i, edge_joint_probability, edge_joint_probability_dim_x, edge_joint_probability_dim_y, current_edge_messages, edge_messages_previous, edge_messages_current);
     }
 
 #pragma omp parallel for default(none) shared(current_edge_messages, node_states, node_states_size, edges_dest_index, num_edges) private(dest_node_index, i)
@@ -2476,9 +2457,9 @@ static int loopy_propagate_iterations_acc(int num_vertices, int num_edges,
 										   struct belief * __restrict__ current_messages,
 										   float * __restrict__ messages_previous,
 										   float * __restrict__ messages_current,
-										   const struct joint_probability * __restrict__ joint_probabilities,
-										   const int * __restrict__ joint_probabilities_dim_x,
-										   const int * __restrict__ joint_probabilities_dim_y,
+										   const struct joint_probability * __restrict__ edge_joint_probability,
+										   const int edge_joint_probability_dim_x,
+										   const int edge_joint_probability_dim_y,
 										   int * __restrict__ work_items_nodes, int * __restrict__ work_queue_scratch,
 										   int num_work_items_nodes,
 										   int max_iterations,
@@ -2499,7 +2480,7 @@ static int loopy_propagate_iterations_acc(int num_vertices, int num_edges,
 	delta = 0.0f;
 
     for(i = 0; i < max_iterations; i+= BATCH_SIZE) {
-#pragma acc data present_or_copy(node_states[0:(num_vertices)], node_states_previous[0:(num_vertices)], node_states_current[0:(num_vertices)], curr_messages[0:(num_edges)], messages_current[0:(num_edges)], messages_previous[0:(num_edges)], work_items_nodes[0:(num_work_items_nodes)]) present_or_copyin(dest_node_to_edges_nodes[0:num_vertices], dest_node_to_edges_edges[0:num_edges], src_node_to_edges_nodes[0:num_vertices], src_node_to_edges_edges[0:num_edges], joint_probabilities[0:(num_edges)], node_states_size[0:(num_vertices)], joint_probabilities_dim_x[0:(num_edges)], joint_probabilities_dim_y[0:(num_edges)])
+#pragma acc data present_or_copy(node_states[0:(num_vertices)], node_states_previous[0:(num_vertices)], node_states_current[0:(num_vertices)], curr_messages[0:(num_edges)], messages_current[0:(num_edges)], messages_previous[0:(num_edges)], work_items_nodes[0:(num_work_items_nodes)]) present_or_copyin(dest_node_to_edges_nodes[0:num_vertices], dest_node_to_edges_edges[0:num_edges], src_node_to_edges_nodes[0:num_vertices], src_node_to_edges_edges[0:num_edges], edge_joint_probability, node_states_size[0:(num_vertices)])
         {
             //printf("Current iteration: %d\n", i+1);
             for (j = 0; j < BATCH_SIZE; ++j) {
@@ -2526,7 +2507,7 @@ static int loopy_propagate_iterations_acc(int num_vertices, int num_edges,
 
 
                     //send belief
-                    send_message_for_node(src_node_to_edges_nodes, src_node_to_edges_edges, &belief_buffer, num_edges, joint_probabilities, joint_probabilities_dim_x, joint_probabilities_dim_y,
+                    send_message_for_node(src_node_to_edges_nodes, src_node_to_edges_edges, &belief_buffer, num_edges, edge_joint_probability, edge_joint_probability_dim_x, edge_joint_probability_dim_y,
                                           curr_messages, messages_previous, messages_current, num_vertices, current_index);
 
                 }
@@ -2594,9 +2575,9 @@ static int page_rank_iterations_acc(int num_vertices, int num_edges,
 													struct belief * __restrict__ current_messages,
                                                    float * __restrict__ messages_previous,
                                                    float * __restrict__ messages_current,
-                                                   const struct joint_probability * __restrict__ joint_probabilities,
-                                                   const int * __restrict__ joint_probabilities_dim_x,
-                                                   const int * __restrict__ joint_probabilities_dim_y,
+                                                   const struct joint_probability * __restrict__ edge_joint_probability,
+                                                   const int edge_joint_probability_dim_x,
+                                                   const int edge_joint_probability_dim_y,
                                                    int max_iterations,
                                                    float convergence){
     int j, k;
@@ -2615,7 +2596,7 @@ static int page_rank_iterations_acc(int num_vertices, int num_edges,
     delta = 0.0f;
 
     for(i = 0; i < max_iterations; i+= BATCH_SIZE) {
-#pragma acc data present_or_copy(node_states[0:(num_vertices)], curr_messages[0:(num_edges)], messages_current[0:(num_edges)], messages_previous[0:(num_edges)]) present_or_copyin(dest_node_to_edges_nodes[0:num_vertices], dest_node_to_edges_edges[0:num_edges], src_node_to_edges_nodes[0:num_vertices], src_node_to_edges_edges[0:num_edges], joint_probabilities[0:(num_edges)], joint_probabilities_dim_x[0:(num_edges)], joint_probabilities_dim_y[0:(num_edges)], node_states_size[0:(num_vertices)])
+#pragma acc data present_or_copy(node_states[0:(num_vertices)], curr_messages[0:(num_edges)], messages_current[0:(num_edges)], messages_previous[0:(num_edges)]) present_or_copyin(dest_node_to_edges_nodes[0:num_vertices], dest_node_to_edges_edges[0:num_edges], src_node_to_edges_nodes[0:num_vertices], src_node_to_edges_edges[0:num_edges], edge_joint_probability, node_states_size[0:(num_vertices)])
         {
             //printf("Current iteration: %d\n", i+1);
             for (j = 0; j < BATCH_SIZE; ++j) {
@@ -2640,7 +2621,7 @@ static int page_rank_iterations_acc(int num_vertices, int num_edges,
 
 
                     //send belief
-                    send_message_for_node(src_node_to_edges_nodes, src_node_to_edges_edges, &belief_buffer, num_edges, joint_probabilities, joint_probabilities_dim_x, joint_probabilities_dim_y,
+                    send_message_for_node(src_node_to_edges_nodes, src_node_to_edges_edges, &belief_buffer, num_edges, edge_joint_probability, edge_joint_probability_dim_x, edge_joint_probability_dim_y,
                                           curr_messages, messages_previous, messages_current, num_vertices, k);
 
                 }
@@ -2703,9 +2684,9 @@ static int viterbi_iterations_acc(int num_vertices, int num_edges,
                                              		struct belief *current_messages,
                                              		float * __restrict__ messages_previous,
                                              		float * __restrict__ messages_current,
-                                             struct joint_probability *joint_probabilities,
-                                             const int * __restrict__ joint_probabilities_dim_x,
-                                             const int * __restrict__ joint_probabilities_dim_y,
+                                             struct joint_probability *edge_joint_probability,
+                                             const int edge_joint_probability_dim_x,
+                                             const int edge_joint_probability_dim_y,
                                              int max_iterations,
                                              float convergence){
     int j, k;
@@ -2724,7 +2705,7 @@ static int viterbi_iterations_acc(int num_vertices, int num_edges,
     delta = 0.0f;
 
     for(i = 0; i < max_iterations; i+= BATCH_SIZE) {
-#pragma acc data present_or_copy(node_states[0:(num_vertices)], curr_messages[0:(num_edges)], messages_previous[0:(num_edges)], messages_current[0:(num_edges)]) present_or_copyin(dest_node_to_edges_nodes[0:num_vertices], dest_node_to_edges_edges[0:num_edges], src_node_to_edges_nodes[0:num_vertices], src_node_to_edges_edges[0:num_edges], joint_probabilities[0:(num_edges)], joint_probabilities_dim_x[0:(num_edges)], joint_probabilities_dim_y[0:(num_edges)], node_states_size[0:(num_vertices)])
+#pragma acc data present_or_copy(node_states[0:(num_vertices)], curr_messages[0:(num_edges)], messages_previous[0:(num_edges)], messages_current[0:(num_edges)]) present_or_copyin(dest_node_to_edges_nodes[0:num_vertices], dest_node_to_edges_edges[0:num_edges], src_node_to_edges_nodes[0:num_vertices], src_node_to_edges_edges[0:num_edges], edge_joint_probability, node_states_size[0:(num_vertices)])
         {
             //printf("Current iteration: %d\n", i+1);
             for (j = 0; j < BATCH_SIZE; ++j) {
@@ -2749,7 +2730,7 @@ static int viterbi_iterations_acc(int num_vertices, int num_edges,
 
 
                     //send belief
-                    send_message_for_node(src_node_to_edges_nodes, src_node_to_edges_edges, &belief_buffer, num_edges, joint_probabilities, joint_probabilities_dim_x, joint_probabilities_dim_y,
+                    send_message_for_node(src_node_to_edges_nodes, src_node_to_edges_edges, &belief_buffer, num_edges, edge_joint_probability, edge_joint_probability_dim_x, edge_joint_probability_dim_y,
                                           curr_messages, messages_previous, messages_current, num_vertices, k);
 
                 }
@@ -2824,8 +2805,8 @@ int loopy_propagate_until_acc(Graph_t graph, float convergence, int max_iteratio
 	graph->dest_nodes_to_edges_node_list, graph->dest_nodes_to_edges_edge_list,
 										  graph->src_nodes_to_edges_node_list, graph->src_nodes_to_edges_edge_list,
 	graph->node_states, graph->node_states_size, graph->node_states_previous, graph->node_states_current,
-	graph->edges_messages, graph->edges_messages_previous, graph->edges_messages_current, graph->edges_joint_probabilities,
-										  graph->edges_joint_probabilities_dim_x, graph->edges_joint_probabilities_dim_y,
+	graph->edges_messages, graph->edges_messages_previous, graph->edges_messages_current, &(graph->edge_joint_probability),
+										  graph->edge_joint_probability_dim_x, graph->edge_joint_probability_dim_y,
 										  graph->work_queue_nodes, graph->work_queue_scratch,
 										  graph->num_work_items_nodes,
 										  max_iterations, convergence);
@@ -2856,7 +2837,7 @@ int page_rank_until_acc(Graph_t graph, float convergence, int max_iterations){
                                           graph->src_nodes_to_edges_node_list, graph->src_nodes_to_edges_edge_list,
                                           graph->node_states, graph->node_states_size,
                                           graph->edges_messages, graph->edges_messages_previous, graph->edges_messages_current,
-                                          graph->edges_joint_probabilities, graph->edges_joint_probabilities_dim_x, graph->edges_joint_probabilities_dim_y,
+                                          &(graph->edge_joint_probability), graph->edge_joint_probability_dim_x, graph->edge_joint_probability_dim_y,
                                           max_iterations, convergence);
 
     /*printf("===AFTER====\n");
@@ -2885,7 +2866,7 @@ int viterbi_until_acc(Graph_t graph, float convergence, int max_iterations){
                                     graph->src_nodes_to_edges_node_list, graph->src_nodes_to_edges_edge_list,
                                     graph->node_states, graph->node_states_size,
                                     graph->edges_messages, graph->edges_messages_previous, graph->edges_messages_current,
-                                    graph->edges_joint_probabilities, graph->edges_joint_probabilities_dim_x, graph->edges_joint_probabilities_dim_y,
+                                    &(graph->edge_joint_probability), graph->edge_joint_probability_dim_x, graph->edge_joint_probability_dim_y,
                                     max_iterations, convergence);
 
     /*printf("===AFTER====\n");
@@ -2943,9 +2924,9 @@ static int loopy_propagate_iterations_edges_acc(int num_vertices, int num_edges,
 														 struct belief * __restrict__ current_edge_messages,
 														 float * __restrict__ edges_messages_previous,
 														 float * __restrict__ edges_messages_current,
-														 const struct joint_probability * __restrict__ joint_probabilities,
-														 const int * __restrict__ joint_probabilities_dim_x,
-														 const int * __restrict__ joint_probabilities_dim_y,
+														 const struct joint_probability * __restrict__ edge_joint_probability,
+														 const int edge_joint_probability_dim_x,
+														 const int edge_joint_probability_dim_y,
 														 const int * __restrict__ edges_src_index,
 														 const int * __restrict__ edges_dest_index,
 														 const int * __restrict__ dest_node_to_edges_node_list,
@@ -2965,14 +2946,14 @@ static int loopy_propagate_iterations_edges_acc(int num_vertices, int num_edges,
 	delta = 0.0f;
 
 	for(i = 0; i < max_iterations; i+= BATCH_SIZE) {
-#pragma acc data present_or_copy(node_states[0:(num_vertices)], curr_messages[0:(num_edges)], edges_messages_previous[0:(num_edges)], edges_messages_current[0:(num_edges)]) present_or_copyin(dest_node_to_edges_node_list[0:num_vertices], dest_node_to_edges_edge_list[0:num_edges], joint_probabilities[0:(num_edges)], joint_probabilities_dim_x[0:(num_edges)], joint_probabilities_dim_y[0:(num_edges)], edges_src_index[0:(num_edges)], node_states_size[0:(num_vertices)])
+#pragma acc data present_or_copy(node_states[0:(num_vertices)], curr_messages[0:(num_edges)], edges_messages_previous[0:(num_edges)], edges_messages_current[0:(num_edges)]) present_or_copyin(dest_node_to_edges_node_list[0:num_vertices], dest_node_to_edges_edge_list[0:num_edges], edge_joint_probability, edges_src_index[0:(num_edges)], node_states_size[0:(num_vertices)])
 		{
 			//printf("Current iteration: %d\n", i+1);
 			for (j = 0; j < BATCH_SIZE; ++j) {
 #pragma acc kernels
 				for(k = 0; k < num_edges; ++k){
 					src_node_index = edges_src_index[k];
-					send_message_for_edge_iteration(node_states, src_node_index, k, joint_probabilities, joint_probabilities_dim_x, joint_probabilities_dim_y, curr_messages, edges_messages_previous, edges_messages_current);
+					send_message_for_edge_iteration(node_states, src_node_index, k, edge_joint_probability, edge_joint_probability_dim_x, edge_joint_probability_dim_y, curr_messages, edges_messages_previous, edges_messages_current);
 				}
 
 #pragma acc kernels
@@ -3039,9 +3020,9 @@ static int page_rank_iterations_edges_acc(int num_vertices, int num_edges,
                                                          struct belief * __restrict__ current_edge_messages,
                                                          float * __restrict__ edges_messages_previous,
                                                          float * __restrict__ edges_messages_current,
-                                                         const struct joint_probability * __restrict__ joint_probabilities,
-                                                         const int * __restrict__ joint_probabilities_dim_x,
-                                                         const int * __restrict__ joint_probabilities_dim_y,
+                                                         const struct joint_probability * __restrict__ edge_joint_probability,
+                                                         const int edge_joint_probability_dim_x,
+                                                         const int edge_joint_probability_dim_y,
                                                          const int * __restrict__ edges_src_index,
                                                          const int * __restrict__ edges_dest_index,
                                                          const int * __restrict__ dest_node_to_edges_node_list,
@@ -3061,14 +3042,14 @@ static int page_rank_iterations_edges_acc(int num_vertices, int num_edges,
     delta = 0.0f;
 
     for(i = 0; i < max_iterations; i+= BATCH_SIZE) {
-#pragma acc data present_or_copy(node_states[0:(num_vertices)], curr_messages[0:(num_edges)], edges_messages_previous[0:(num_edges)], edges_messages_current[0:(num_edges)]) present_or_copyin(dest_node_to_edges_node_list[0:num_vertices], dest_node_to_edges_edge_list[0:num_edges], joint_probabilities[0:(num_edges)], joint_probabilities_dim_x[0:(num_edges)], joint_probabilities_dim_y[0:(num_edges)], edges_src_index[0:num_edges], node_states_size[0:(num_vertices)])
+#pragma acc data present_or_copy(node_states[0:(num_vertices)], curr_messages[0:(num_edges)], edges_messages_previous[0:(num_edges)], edges_messages_current[0:(num_edges)]) present_or_copyin(dest_node_to_edges_node_list[0:num_vertices], dest_node_to_edges_edge_list[0:num_edges], edge_joint_probability, edges_src_index[0:num_edges], node_states_size[0:(num_vertices)])
         {
             //printf("Current iteration: %d\n", i+1);
             for (j = 0; j < BATCH_SIZE; ++j) {
 #pragma acc kernels
                 for(k = 0; k < num_edges; ++k){
                     src_node_index = edges_src_index[k];
-                    send_message_for_edge_iteration(node_states, src_node_index, k, joint_probabilities, joint_probabilities_dim_x, joint_probabilities_dim_y, curr_messages, edges_messages_previous, edges_messages_current);
+                    send_message_for_edge_iteration(node_states, src_node_index, k, edge_joint_probability, edge_joint_probability_dim_x, edge_joint_probability_dim_y, curr_messages, edges_messages_previous, edges_messages_current);
                 }
 
 #pragma acc kernels
@@ -3134,9 +3115,9 @@ static int viterbi_iterations_edges_acc(int num_vertices, int num_edges,
                                                    struct belief * __restrict__ current_edge_messages,
                                                    float * __restrict__ edges_messages_previous,
                                                    float * __restrict__ edges_messages_current,
-                                                   const struct joint_probability * __restrict__ joint_probabilities,
-                                                   const int * __restrict__ joint_probabilities_dim_x,
-                                                   const int * __restrict__ joint_probabilities_dim_y,
+                                                   const struct joint_probability * __restrict__ edge_joint_probability,
+                                                   const int edge_joint_probability_dim_x,
+                                                   const int edge_joint_probability_dim_y,
                                                    const int * __restrict__ edges_src_index,
                                                    const int * __restrict__ edges_dest_index,
                                                    const int * __restrict__ dest_node_to_edges_node_list,
@@ -3163,7 +3144,7 @@ static int viterbi_iterations_edges_acc(int num_vertices, int num_edges,
 #pragma acc kernels
                 for(k = 0; k < num_edges; ++k){
                     src_node_index = edges_src_index[k];
-                    send_message_for_edge_iteration(node_states, src_node_index, k, joint_probabilities, joint_probabilities_dim_x, joint_probabilities_dim_y, curr_messages, edges_messages_previous, edges_messages_current);
+                    send_message_for_edge_iteration(node_states, src_node_index, k, edge_joint_probability, edge_joint_probability_dim_x, edge_joint_probability_dim_y, curr_messages, edges_messages_previous, edges_messages_current);
                 }
 
 #pragma acc kernels
@@ -3247,9 +3228,9 @@ int loopy_propagate_until_edge_acc(Graph_t graph, float convergence, int max_ite
     graph->edges_messages,
     graph->edges_messages_previous,
     graph->edges_messages_current,
-    graph->edges_joint_probabilities,
-    graph->edges_joint_probabilities_dim_x,
-    graph->edges_joint_probabilities_dim_y,
+    &(graph->edge_joint_probability),
+    graph->edge_joint_probability_dim_x,
+    graph->edge_joint_probability_dim_y,
     graph->edges_src_index, graph->edges_dest_index,
 	graph->dest_nodes_to_edges_node_list, graph->dest_nodes_to_edges_edge_list,
     max_iterations, convergence);
@@ -3279,9 +3260,9 @@ int page_rank_until_edge_acc(Graph_t graph, float convergence, int max_iteration
     iter = page_rank_iterations_edges_acc(graph->current_num_vertices, graph->current_num_edges,
                                                 graph->node_states, graph->node_states_size,
                                                 graph->edges_messages, graph->edges_messages_previous, graph->edges_messages_current,
-                                                graph->edges_joint_probabilities,
-                                                graph->edges_joint_probabilities_dim_x,
-                                                graph->edges_joint_probabilities_dim_y,
+                                                &(graph->edge_joint_probability),
+                                                graph->edge_joint_probability_dim_x,
+                                                graph->edge_joint_probability_dim_y,
                                                 graph->edges_src_index, graph->edges_dest_index,
                                                 graph->dest_nodes_to_edges_node_list, graph->dest_nodes_to_edges_edge_list,
                                                 max_iterations, convergence);
@@ -3310,7 +3291,7 @@ int viterbi_until_edge_acc(Graph_t graph, float convergence, int max_iterations)
     iter = page_rank_iterations_edges_acc(graph->current_num_vertices, graph->current_num_edges,
                                           graph->node_states, graph->node_states_size,
                                           graph->edges_messages, graph->edges_messages_previous, graph->edges_messages_current,
-                                          graph->edges_joint_probabilities, graph->edges_joint_probabilities_dim_x, graph->edges_joint_probabilities_dim_y,
+                                          &(graph->edge_joint_probability), graph->edge_joint_probability_dim_x, graph->edge_joint_probability_dim_y,
                                           graph->edges_src_index, graph->edges_dest_index,
                                           graph->dest_nodes_to_edges_node_list, graph->dest_nodes_to_edges_edge_list,
                                           max_iterations, convergence);
@@ -3399,57 +3380,20 @@ void calculate_diameter(Graph_t graph){
 
 void prep_as_page_rank(Graph_t g){
     //joint probability is actually out-degree
-    struct joint_probability * joint_probability;
-    int *joint_probability_dim_x;
-    int *joint_probability_dim_y;
     struct belief * node_beliefs;
     int * node_beliefs_size;
-    int *src_nodes_to_edges_nodes, *src_nodes_to_edges_edges;
-    int num_edges, num_vertices;
-    int i, j;
-
-    int start_index, end_index, edge_index;
-    float degree;
-
-    joint_probability = g->edges_joint_probabilities;
-    joint_probability_dim_x = g->edges_joint_probabilities_dim_x;
-    joint_probability_dim_y = g->edges_joint_probabilities_dim_y;
+    int num_vertices;
+    int i;
 
     node_beliefs = g->node_states;
     node_beliefs_size = g->node_states_size;
 
-    src_nodes_to_edges_nodes = g->src_nodes_to_edges_node_list;
-    src_nodes_to_edges_edges = g->src_nodes_to_edges_edge_list;
-
-    num_edges = g->current_num_edges;
     num_vertices = g->current_num_vertices;
 
     for(i = 0; i < num_vertices; ++i) {
         // fix beliefs
         node_beliefs[i].data[0] = 1.0f;
         node_beliefs_size[i] = 1;
-
-        // fix joint probabilities
-        start_index = src_nodes_to_edges_nodes[i];
-        if (i + 1 >= num_vertices) {
-            end_index = num_edges;
-        } else {
-            end_index = src_nodes_to_edges_nodes[i + 1];
-        }
-
-        for (j = start_index; j < end_index; ++j) {
-            edge_index = src_nodes_to_edges_edges[j];
-
-            degree = (float) (end_index - start_index);
-
-            if (degree > 0.0f) {
-                joint_probability[edge_index].data[0][0] = 1 / degree;
-            } else {
-                joint_probability[edge_index].data[0][0] = 0.0f;
-            }
-            joint_probability_dim_x[edge_index] = 1;
-            joint_probability_dim_y[edge_index] = 1;
-        }
     }
 }
 

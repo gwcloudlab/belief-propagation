@@ -1024,9 +1024,9 @@ static void insert_edges_into_graph(char * variable_buffer, int num_node_names, 
 			}
 		}
 
-		graph_add_edge(graph, src_index, dest_index, graph->node_states_size[src_index], graph->node_states_size[dest_index], &sub_graph);
+		graph_add_edge(graph, src_index, dest_index, graph->node_states_size[src_index], graph->node_states_size[dest_index]);
 		if(graph->observed_nodes[src_index] != 1 ){
-			graph_add_edge(graph, dest_index, src_index, graph->node_states_size[dest_index], graph->node_states_size[src_index], &transpose);
+			graph_add_edge(graph, dest_index, src_index, graph->node_states_size[dest_index], graph->node_states_size[src_index]);
 		}
 
 
@@ -1246,7 +1246,7 @@ Graph_t build_graph(struct expression * root){
 	assert(num_edges > 0);
 	assert(num_nodes > 0);
 
-	graph = create_graph((int)num_nodes, (int)2 * num_edges);
+	graph = create_graph((int)num_nodes, (int)2 * num_edges, NULL, -1, -1);
 	add_nodes_to_graph(root, graph);
 	reverse_node_names(graph);
 

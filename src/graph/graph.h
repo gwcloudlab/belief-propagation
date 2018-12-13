@@ -81,9 +81,9 @@ struct graph {
 	/**
 	 * Array of joint probabilities indexed by edge
 	 */
-	struct joint_probability * edges_joint_probabilities;
-	int * edges_joint_probabilities_dim_x;
-	int * edges_joint_probabilities_dim_y;
+	struct joint_probability edge_joint_probability;
+	int edge_joint_probability_dim_x;
+	int edge_joint_probability_dim_y;
 
 	/**
 	 * The array of current beliefs
@@ -218,13 +218,13 @@ struct htable_entry {
     int count;
 };
 
-Graph_t create_graph(int, int);
+Graph_t create_graph(int, int, const struct joint_probability *, int, int);
 
 void graph_add_node(Graph_t, int, const char *);
 void graph_add_and_set_node_state(Graph_t, int, const char *, struct belief *);
 void graph_set_node_state(Graph_t, int, int, struct belief *);
 
-void graph_add_edge(Graph_t, int, int, int, int, struct joint_probability *);
+void graph_add_edge(Graph_t, int, int, int, int);
 
 void set_up_src_nodes_to_edges(Graph_t);
 void set_up_dest_nodes_to_edges(Graph_t);
@@ -235,8 +235,8 @@ void prep_as_page_rank(Graph_t);
 void initialize_node(Graph_t, int, int);
 void node_set_state(Graph_t, int, int, struct belief *);
 
-void init_edge(Graph_t, int, int, int, int, int, struct joint_probability *);
-void send_message(const struct belief * __restrict__, int, const struct joint_probability * __restrict__, const int * __restrict__, const int * __restrict__, struct belief *, float *, float *);
+void init_edge(Graph_t, int, int, int, int);
+void send_message(const struct belief * __restrict__, int, const struct joint_probability * __restrict__, int, int , struct belief *, float *, float *);
 
 void fill_in_node_hash_table(Graph_t);
 long find_node_by_name(char *, Graph_t);
