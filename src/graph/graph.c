@@ -2540,7 +2540,7 @@ static int loopy_propagate_iterations_acc(int num_vertices, int num_edges,
                 }
             }
 
-            update_work_queue_nodes_acc(&num_work_items_nodes, work_queue_scratch, work_items_nodes, node_states, node_states_previous, node_states_current, num_vertices, convergence);
+            //update_work_queue_nodes_acc(&num_work_items_nodes, work_queue_scratch, work_items_nodes, node_states, node_states_previous, node_states_current, num_vertices, convergence);
 
 
             delta = 0.0f;
