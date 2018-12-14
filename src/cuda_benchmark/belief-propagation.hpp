@@ -36,9 +36,8 @@ struct node_stream_data {
     struct belief *buffers;
     struct belief *node_messages;
     int * node_messages_size;
-    struct joint_probability *joint_probabilities;
-    int * joint_probabilities_dim_x;
-    int * joint_probabilities_dim_y;
+    int edge_joint_probability_dim_x;
+    int edge_joint_probability_dim_y;
     struct belief *current_edge_messages;
     float *current_edge_messages_previous;
     float *current_edge_messages_current;
@@ -63,9 +62,8 @@ struct edge_stream_data {
 
     struct belief *node_states;
 
-    struct joint_probability *joint_probabilities;
-    int *joint_probabilities_dim_x;
-    int *joint_probabilities_dim_y;
+    int edge_joint_probability_dim_x;
+    int edge_joint_probability_dim_y;
 
     struct belief *current_edge_messages;
     float *current_edge_messages_previous;
@@ -261,19 +259,17 @@ void viterbi_main_loop(int, int,
 
 __device__
 void send_message_for_edge_iteration_cuda(const struct belief *, int, int,
-                                                 const struct joint_probability *, const int *, const int *,
+                                                 int, int,
                                                          struct belief *, float *, float *);
 
 __global__
 void send_message_for_edge_iteration_cuda_kernel(int, const int *,
-                                                 const struct belief *, const struct joint_probability *, const int *,
-                                                 const int *,
+                                                 const struct belief *, int, int,
                                                  struct belief *, float *, float *);
 
 __global__
 void send_message_for_edge_iteration_cuda_work_queue_kernel(int, const int *,
-                                                            const struct belief *, const struct joint_probability *,
-                                                            const int *, const int *,
+                                                            int, int,
                                                             struct belief *,
                                                             float *, float *,
                                                             int *, int *);
@@ -283,8 +279,7 @@ void send_message_for_edge_iteration_cuda_work_queue_kernel_streaming(
         int, int,
         const int *,
         const struct belief *,
-        const struct joint_probability *,
-        const int *, const int *,
+        int, int,
         struct belief *,
         float *, float *,
         const int *, const int *);
@@ -354,13 +349,13 @@ void run_test_loopy_belief_propagation_xml_file_edge_cuda_streaming(const char *
 void run_test_loopy_belief_propagation_snap_file_cuda(const char *, const char *, FILE *);
 void run_test_loopy_belief_propagation_snap_file_edge_cuda(const char *, const char *, FILE *);
 
-void run_test_loopy_belief_propagation_mtx_files_cuda(const char *, const char *, FILE *);
-void run_test_loopy_belief_propagation_mtx_files_cuda_streaming(const char *, const char *, FILE *);
-void run_test_loopy_belief_propagation_mtx_files_cuda_openmpi(const char *, const char *, FILE *,
+void run_test_loopy_belief_propagation_mtx_files_cuda(const char *, const char *, const struct joint_probability *, int, int, FILE *);
+void run_test_loopy_belief_propagation_mtx_files_cuda_streaming(const char *, const char *, const struct joint_probability *, int, int, FILE *);
+void run_test_loopy_belief_propagation_mtx_files_cuda_openmpi(const char *, const char *, const struct joint_probability *, int, int, FILE *,
         int, int, int);
-void run_test_loopy_belief_propagation_mtx_files_edge_cuda(const char *, const char *, FILE *);
-void run_test_loopy_belief_propagation_mtx_files_edge_cuda_streaming(const char *, const char *, FILE *);
-void run_test_loopy_belief_propagagtion_mtx_file_edge_openmpi_cuda(const char *, const char *,
+void run_test_loopy_belief_propagation_mtx_files_edge_cuda(const char *, const char *, const struct joint_probability *, int, int, FILE *);
+void run_test_loopy_belief_propagation_mtx_files_edge_cuda_streaming(const char *, const char *, const struct joint_probability *, int, int, FILE *);
+void run_test_loopy_belief_propagation_mtx_files_edge_cuda_openmpi(const char *, const char *, const struct joint_probability *, int, int,
                                                                    FILE *, int , int , int );
 
 
