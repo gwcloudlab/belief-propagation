@@ -501,9 +501,9 @@ static void add_edges_to_graph(xmlDocPtr doc, xmlNodePtr definition, Graph_t gra
             }
         }
 
-        graph_add_edge(graph, src_index, dest_index, graph->node_states_size[src_index], graph->node_states_size[dest_index], &sub_graph);
+        graph_add_edge(graph, src_index, dest_index, graph->node_states_size[src_index], graph->node_states_size[dest_index]);
         if(graph->observed_nodes[src_index] != 1 ){
-            graph_add_edge(graph, dest_index, src_index, graph->node_states_size[dest_index], graph->node_states_size[src_index], &transpose);
+            graph_add_edge(graph, dest_index, src_index, graph->node_states_size[dest_index], graph->node_states_size[src_index]);
         }
 
 
@@ -562,7 +562,7 @@ Graph_t parse_xml_file(const char * file_name){
     num_nodes = count_number_of_nodes(doc);
     num_edges = count_number_of_edges(doc);
 
-    graph = create_graph(num_nodes, num_edges * 2);
+    graph = create_graph(num_nodes, num_edges * 2, NULL, -1, -1);
     add_nodes_to_graph(doc, graph);
     add_definitions_to_graph(doc, graph);
 

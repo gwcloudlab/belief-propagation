@@ -25,7 +25,7 @@ void test_10_20_file(const char *edges_mtx, const char *nodes_mtx, const struct 
     graph_destroy(graph);
 }
 
-void run_test_belief_propagation_mtx_files(const char *edges_mtx, const char *nodes_mtx, , const struct joint_probability * edge_joint_probability, int dim_x, int dim_y, FILE *out) {
+void run_test_belief_propagation_mtx_files(const char *edges_mtx, const char *nodes_mtx, const struct joint_probability * edge_joint_probability, int dim_x, int dim_y, FILE *out) {
     Graph_t graph;
     clock_t start, end;
     double time_elapsed;

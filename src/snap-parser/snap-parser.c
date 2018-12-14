@@ -293,12 +293,10 @@ static void add_edge(Graph_t graph, struct graph_info *info, const char * edge_f
                 }
             }
             if(src_to_dest_valid == 1) {
-                graph_add_edge(graph, src_index, dest_index, info->num_belief_states, info->num_belief_states,
-                               &joint_probability);
+                graph_add_edge(graph, src_index, dest_index, info->num_belief_states, info->num_belief_states);
             }
             if(dest_to_src_valid == 1){
-                graph_add_edge(graph, dest_index, src_index, info->num_belief_states, info->num_belief_states,
-                               &inverted_joint_probability);
+                graph_add_edge(graph, dest_index, src_index, info->num_belief_states, info->num_belief_states);
             }
         }
     }
@@ -330,7 +328,7 @@ Graph_t parse_graph_from_snap_files(const char * edge_file, const char * observe
     assert(info.num_edges == 5);
     assert(info.num_beliefs == 2);
     assert(info.num_belief_states == 2);*/
-    graph = create_graph(info.num_nodes, info.num_edges);
+    graph = create_graph(info.num_nodes, info.num_edges, NULL, -1, -1);
 
     create_nodes(graph, &info, edge_file, node_hash);
     add_observed_nodes(graph, &info, observed_node_file, node_hash, observed_node_hash);
