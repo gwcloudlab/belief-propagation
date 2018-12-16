@@ -1,5 +1,5 @@
 #include "belief-propagation-kernels.hpp"
-
+__constant__ struct joint_probability edge_joint_probability[1];
 /**
  * Sets up the current buffer
  * @param message_buffer The message buffer to init
@@ -94,7 +94,6 @@ void combine_viterbi_message_cuda(struct belief * __restrict__ dest, const struc
     if(index < num_vertices && edge_offset < num_edges){
         shared_dest[index] = dest[node_index].data[index];
         shared_src[index] = edge_messages[edge_offset].data[index];
-        __syncthreads();
 
         dest[node_index].data[index] = fmaxf(shared_dest[index], shared_src[index]);
     }
@@ -154,28 +153,22 @@ void read_incoming_messages_kernel(struct belief * __restrict__ message_buffer,
 __device__
 void send_message_for_edge_cuda(const struct belief * __restrict__ message_buffer,
                                 int edge_index, int node_index,
-                                const struct joint_probability * joint_probabilities,
-                                const int *joint_probabilities_dim_x,
-                                const int *joint_probabilities_dim_y,
+                                int num_src, int num_dest,
                                 struct belief * __restrict__ edge_messages,
                                 float * __restrict__ edge_messages_previous,
                                 float * __restrict__ edges_messages_current){
-    int i, j, num_src, num_dest;
+    int i, j;
     __shared__ float partial_sums[BLOCK_SIZE];
     __shared__ float sums[BLOCK_SIZE];
-    __shared__ float s_joint_probability[BLOCK_SIZE];
     __shared__ float s_belief[BLOCK_SIZE];
 
-    num_src = joint_probabilities_dim_x[edge_index];
-    num_dest = joint_probabilities_dim_y[edge_index];
 
     sums[threadIdx.x] = 0.0;
     for(i = 0; i < num_src; ++i){
         partial_sums[threadIdx.x] = 0.0;
         for(j = 0; j < num_dest; ++j){
-            s_joint_probability[threadIdx.x] = joint_probabilities[edge_index].data[i][j];
             s_belief[threadIdx.x] = message_buffer[node_index].data[j];
-            partial_sums[threadIdx.x] += s_joint_probability[threadIdx.x] * s_belief[threadIdx.x];
+            partial_sums[threadIdx.x] += edge_joint_probability->data[i][j] * s_belief[threadIdx.x];
         }
         edge_messages[edge_index].data[i] = partial_sums[threadIdx.x];
         sums[threadIdx.x] += partial_sums[threadIdx.x];
@@ -202,9 +195,8 @@ void send_message_for_edge_cuda(const struct belief * __restrict__ message_buffe
  */
 __global__
 void send_message_for_node_kernel(const struct belief * __restrict__ message_buffer, int current_num_edges,
-                                  const struct joint_probability * joint_probabilities,
-                                          const int * __restrict__ joint_probabilities_dim_x,
-                                          const int * __restrict__ joint_probabilities_dim_y,
+                                          int joint_probabilities_dim_x,
+                                  int joint_probabilities_dim_y,
                                           struct belief * __restrict__ current_edge_messages,
                                   float * __restrict__ current_edge_message_previous,
                                   float * __restrict__ current_edge_message_current,
@@ -227,7 +219,8 @@ void send_message_for_node_kernel(const struct belief * __restrict__ message_buf
         if (edge_index < diff_index) {
             edge_index = src_node_to_edges_edges[edge_index + start_index];
             send_message_for_edge_cuda(message_buffer, edge_index, node_index,
-                    joint_probabilities, joint_probabilities_dim_x, joint_probabilities_dim_y, current_edge_messages, current_edge_message_previous, current_edge_message_current);
+                    joint_probabilities_dim_x, joint_probabilities_dim_y, current_edge_messages,
+                    current_edge_message_previous, current_edge_message_current);
         }
     }
 }
@@ -787,15 +780,11 @@ void check_cuda_kernel_return_code(){
  * @return The actual number of iterations executed
  */
 int loopy_propagate_until_cuda_kernels(Graph_t graph, float convergence, int max_iterations){
-    int i, j, num_iter, num_vertices, num_edges;
+    int i, j, num_iter, num_vertices, num_edges, edge_joint_probability_dim_x, edge_joint_probability_dim_y;
     float * delta;
     float * delta_array;
     float previous_delta, host_delta;
     char is_pow_2;
-
-    struct joint_probability * edges_joint_probabilities;
-    int * edges_joint_probabilities_dim_x;
-    int * edges_joint_probabilities_dim_y;
 
     struct belief * message_buffer;
 
@@ -816,6 +805,8 @@ int loopy_propagate_until_cuda_kernels(Graph_t graph, float convergence, int max
 
     num_vertices = graph->current_num_vertices;
     num_edges = graph->current_num_edges;
+    edge_joint_probability_dim_x = graph->edge_joint_probability_dim_x;
+    edge_joint_probability_dim_y = graph->edge_joint_probability_dim_y;
 
     /*printf("Before=====");
     print_edges(graph);
@@ -825,10 +816,6 @@ int loopy_propagate_until_cuda_kernels(Graph_t graph, float convergence, int max
     is_pow_2 = num_vertices % 2 == 0;
 
     // allocate data
-    CUDA_CHECK_RETURN(cudaMalloc((void **)&edges_joint_probabilities, sizeof(struct joint_probability) * graph->current_num_edges));
-    CUDA_CHECK_RETURN(cudaMalloc((void **)&edges_joint_probabilities_dim_x, sizeof(int) * graph->current_num_edges));
-    CUDA_CHECK_RETURN(cudaMalloc((void **)&edges_joint_probabilities_dim_y, sizeof(int) * graph->current_num_edges));
-
     CUDA_CHECK_RETURN(cudaMalloc((void **)&dest_nodes_to_edges_nodes, sizeof(int) * graph->current_num_vertices));
     CUDA_CHECK_RETURN(cudaMalloc((void **)&dest_nodes_to_edges_edges, sizeof(int) * graph->current_num_edges));
     CUDA_CHECK_RETURN(cudaMalloc((void **)&src_nodes_to_edges_nodes, sizeof(int) * graph->current_num_vertices));
@@ -848,9 +835,6 @@ int loopy_propagate_until_cuda_kernels(Graph_t graph, float convergence, int max
     CUDA_CHECK_RETURN(cudaMalloc((void **)&message_buffer, sizeof(struct belief) * num_vertices));
 
     // copy data
-    CUDA_CHECK_RETURN(cudaMemcpy(edges_joint_probabilities, graph->edges_joint_probabilities, sizeof(struct joint_probability) * graph->current_num_edges, cudaMemcpyHostToDevice ));
-    CUDA_CHECK_RETURN(cudaMemcpy(edges_joint_probabilities_dim_x, graph->edges_joint_probabilities_dim_x, sizeof(int) * graph->current_num_edges, cudaMemcpyHostToDevice ));
-    CUDA_CHECK_RETURN(cudaMemcpy(edges_joint_probabilities_dim_y, graph->edges_joint_probabilities_dim_y, sizeof(int) * graph->current_num_edges, cudaMemcpyHostToDevice ));
 
     CUDA_CHECK_RETURN(cudaMemcpy(current_messages, graph->edges_messages, sizeof(struct belief) * graph->current_num_edges, cudaMemcpyHostToDevice));
     CUDA_CHECK_RETURN(cudaMemcpy(current_messages_size, graph->edges_messages_size, sizeof(int) * graph->current_num_edges, cudaMemcpyHostToDevice));
@@ -898,7 +882,7 @@ int loopy_propagate_until_cuda_kernels(Graph_t graph, float convergence, int max
             check_cuda_kernel_return_code();
             //CUDA_CHECK_RETURN(cudaMemcpy(&host_delta, delta, sizeof(float), cudaMemcpyDeviceToHost));
             send_message_for_node_kernel<<<dimInitGrid, dimInitMessageBuffer>>>(message_buffer, num_edges,
-                    edges_joint_probabilities, edges_joint_probabilities_dim_x, edges_joint_probabilities_dim_y,
+                    edge_joint_probability_dim_x, edge_joint_probability_dim_y,
                     current_messages, current_messages_previous, current_messages_current,
                     src_nodes_to_edges_nodes, src_nodes_to_edges_edges, num_vertices);
             check_cuda_kernel_return_code();
@@ -938,10 +922,6 @@ int loopy_propagate_until_cuda_kernels(Graph_t graph, float convergence, int max
     CUDA_CHECK_RETURN(cudaFree(src_nodes_to_edges_nodes));
     CUDA_CHECK_RETURN(cudaFree(src_nodes_to_edges_edges));
 
-    CUDA_CHECK_RETURN(cudaFree(edges_joint_probabilities));
-    CUDA_CHECK_RETURN(cudaFree(edges_joint_probabilities_dim_x));
-    CUDA_CHECK_RETURN(cudaFree(edges_joint_probabilities_dim_y));
-
     CUDA_CHECK_RETURN(cudaFree(current_messages));
     CUDA_CHECK_RETURN(cudaFree(current_messages_size));
     CUDA_CHECK_RETURN(cudaFree(current_messages_previous));
@@ -971,15 +951,11 @@ int loopy_propagate_until_cuda_kernels(Graph_t graph, float convergence, int max
  * @return The actual number of iterations executed
  */
 int page_rank_until_cuda_kernels(Graph_t graph, float convergence, int max_iterations){
-    int i, j, num_iter, num_vertices, num_edges;
+    int i, j, num_iter, num_vertices, num_edges, edge_joint_probability_dim_x, edge_joint_probability_dim_y;
     float * delta;
     float * delta_array;
     float previous_delta, host_delta;
     char is_pow_2;
-
-    struct joint_probability * edges_joint_probabilities;
-    int * edges_joint_probabilities_dim_x;
-    int * edges_joint_probabilities_dim_y;
 
     struct belief * message_buffer;
 
@@ -1001,6 +977,8 @@ int page_rank_until_cuda_kernels(Graph_t graph, float convergence, int max_itera
 
     num_vertices = graph->current_num_vertices;
     num_edges = graph->current_num_edges;
+    edge_joint_probability_dim_x = graph->edge_joint_probability_dim_x;
+    edge_joint_probability_dim_y = graph->edge_joint_probability_dim_y;
 
     /*printf("Before=====");
     print_edges(graph);
@@ -1010,10 +988,6 @@ int page_rank_until_cuda_kernels(Graph_t graph, float convergence, int max_itera
     is_pow_2 = num_vertices % 2 == 0;
 
     // allocate data
-    CUDA_CHECK_RETURN(cudaMalloc((void **)&edges_joint_probabilities, sizeof(struct joint_probability) * graph->current_num_edges));
-    CUDA_CHECK_RETURN(cudaMalloc((void **)&edges_joint_probabilities_dim_x, sizeof(int) * graph->current_num_edges));
-    CUDA_CHECK_RETURN(cudaMalloc((void **)&edges_joint_probabilities_dim_y, sizeof(int) * graph->current_num_edges));
-
     CUDA_CHECK_RETURN(cudaMalloc((void **)&dest_nodes_to_edges_nodes, sizeof(int) * graph->current_num_vertices));
     CUDA_CHECK_RETURN(cudaMalloc((void **)&dest_nodes_to_edges_edges, sizeof(int) * graph->current_num_edges));
     CUDA_CHECK_RETURN(cudaMalloc((void **)&src_nodes_to_edges_nodes, sizeof(int) * graph->current_num_vertices));
@@ -1033,10 +1007,6 @@ int page_rank_until_cuda_kernels(Graph_t graph, float convergence, int max_itera
     CUDA_CHECK_RETURN(cudaMalloc((void **)&message_buffer, sizeof(struct belief) * num_vertices));
 
     // copy data
-    CUDA_CHECK_RETURN(cudaMemcpy(edges_joint_probabilities, graph->edges_joint_probabilities, sizeof(struct joint_probability) * graph->current_num_edges, cudaMemcpyHostToDevice ));
-    CUDA_CHECK_RETURN(cudaMemcpy(edges_joint_probabilities_dim_x, graph->edges_joint_probabilities_dim_x, sizeof(int) * graph->current_num_edges, cudaMemcpyHostToDevice ));
-    CUDA_CHECK_RETURN(cudaMemcpy(edges_joint_probabilities_dim_y, graph->edges_joint_probabilities_dim_y, sizeof(int) * graph->current_num_edges, cudaMemcpyHostToDevice ));
-
     CUDA_CHECK_RETURN(cudaMemcpy(current_messages, graph->edges_messages, sizeof(struct belief) * graph->current_num_edges, cudaMemcpyHostToDevice));
     CUDA_CHECK_RETURN(cudaMemcpy(current_messages, graph->edges_messages_size, sizeof(int) * graph->current_num_edges, cudaMemcpyHostToDevice));
     CUDA_CHECK_RETURN(cudaMemcpy(current_messages, graph->edges_messages_previous, sizeof(float) * graph->current_num_edges, cudaMemcpyHostToDevice));
@@ -1084,7 +1054,7 @@ int page_rank_until_cuda_kernels(Graph_t graph, float convergence, int max_itera
             check_cuda_kernel_return_code();
             //CUDA_CHECK_RETURN(cudaMemcpy(&host_delta, delta, sizeof(float), cudaMemcpyDeviceToHost));
             send_message_for_node_kernel<<<dimInitGrid, dimInitMessageBuffer>>>(message_buffer, num_edges,
-                    edges_joint_probabilities, edges_joint_probabilities_dim_x, edges_joint_probabilities_dim_y,
+                    edge_joint_probability_dim_x, edge_joint_probability_dim_y,
                     current_messages, current_messages_previous, current_messages_current,
                     src_nodes_to_edges_nodes, src_nodes_to_edges_edges, num_vertices);
             check_cuda_kernel_return_code();
@@ -1120,10 +1090,6 @@ int page_rank_until_cuda_kernels(Graph_t graph, float convergence, int max_itera
     CUDA_CHECK_RETURN(cudaFree(src_nodes_to_edges_nodes));
     CUDA_CHECK_RETURN(cudaFree(src_nodes_to_edges_edges));
 
-    CUDA_CHECK_RETURN(cudaFree(edges_joint_probabilities));
-    CUDA_CHECK_RETURN(cudaFree(edges_joint_probabilities_dim_x));
-    CUDA_CHECK_RETURN(cudaFree(edges_joint_probabilities_dim_y));
-
     CUDA_CHECK_RETURN(cudaFree(current_messages));
     CUDA_CHECK_RETURN(cudaFree(current_messages_previous));
     CUDA_CHECK_RETURN(cudaFree(current_messages_current));
@@ -1152,15 +1118,11 @@ int page_rank_until_cuda_kernels(Graph_t graph, float convergence, int max_itera
  * @return The actual number of iterations executed
  */
 int viterbi_until_cuda_kernels(Graph_t graph, float convergence, int max_iterations){
-    int i, j, num_iter, num_vertices, num_edges;
+    int i, j, num_iter, num_vertices, num_edges, edge_joint_probability_dim_x, edge_joint_probability_dim_y;
     float * delta;
     float * delta_array;
     float previous_delta, host_delta;
     char is_pow_2;
-
-    struct joint_probability * edges_joint_probabilities;
-    int * edges_joint_probabilities_dim_x;
-    int * edges_joint_probabilities_dim_y;
 
     struct belief * message_buffer;
 
@@ -1182,6 +1144,8 @@ int viterbi_until_cuda_kernels(Graph_t graph, float convergence, int max_iterati
 
     num_vertices = graph->current_num_vertices;
     num_edges = graph->current_num_edges;
+    edge_joint_probability_dim_x = graph->edge_joint_probability_dim_x;
+    edge_joint_probability_dim_y = graph->edge_joint_probability_dim_y;
 
     /*printf("Before=====");
     print_edges(graph);
@@ -1191,10 +1155,6 @@ int viterbi_until_cuda_kernels(Graph_t graph, float convergence, int max_iterati
     is_pow_2 = num_vertices % 2 == 0;
 
     // allocate data
-    CUDA_CHECK_RETURN(cudaMalloc((void **)&edges_joint_probabilities, sizeof(struct joint_probability) * graph->current_num_edges));
-    CUDA_CHECK_RETURN(cudaMalloc((void **)&edges_joint_probabilities_dim_x, sizeof(int) * graph->current_num_edges));
-    CUDA_CHECK_RETURN(cudaMalloc((void **)&edges_joint_probabilities_dim_y, sizeof(int) * graph->current_num_edges));
-
     CUDA_CHECK_RETURN(cudaMalloc((void **)&dest_nodes_to_edges_nodes, sizeof(int) * graph->current_num_vertices));
     CUDA_CHECK_RETURN(cudaMalloc((void **)&dest_nodes_to_edges_edges, sizeof(int) * graph->current_num_edges));
     CUDA_CHECK_RETURN(cudaMalloc((void **)&src_nodes_to_edges_nodes, sizeof(int) * graph->current_num_vertices));
@@ -1214,10 +1174,6 @@ int viterbi_until_cuda_kernels(Graph_t graph, float convergence, int max_iterati
     CUDA_CHECK_RETURN(cudaMalloc((void **)&message_buffer, sizeof(struct belief) * num_vertices));
 
     // copy data
-    CUDA_CHECK_RETURN(cudaMemcpy(edges_joint_probabilities, graph->edges_joint_probabilities, sizeof(struct joint_probability) * graph->current_num_edges, cudaMemcpyHostToDevice ));
-    CUDA_CHECK_RETURN(cudaMemcpy(edges_joint_probabilities_dim_x, graph->edges_joint_probabilities_dim_x, sizeof(int) * graph->current_num_edges, cudaMemcpyHostToDevice ));
-    CUDA_CHECK_RETURN(cudaMemcpy(edges_joint_probabilities_dim_y, graph->edges_joint_probabilities_dim_y, sizeof(int) * graph->current_num_edges, cudaMemcpyHostToDevice ));
-
     CUDA_CHECK_RETURN(cudaMemcpy(current_messages, graph->edges_messages, sizeof(struct belief) * graph->current_num_edges, cudaMemcpyHostToDevice));
     CUDA_CHECK_RETURN(cudaMemcpy(current_messages_size, graph->edges_messages_size, sizeof(int) * graph->current_num_edges, cudaMemcpyHostToDevice));
     CUDA_CHECK_RETURN(cudaMemcpy(current_messages_previous, graph->edges_messages_previous, sizeof(float) * graph->current_num_edges, cudaMemcpyHostToDevice));
@@ -1265,7 +1221,7 @@ int viterbi_until_cuda_kernels(Graph_t graph, float convergence, int max_iterati
             check_cuda_kernel_return_code();
             //CUDA_CHECK_RETURN(cudaMemcpy(&host_delta, delta, sizeof(float), cudaMemcpyDeviceToHost));
             send_message_for_node_kernel<<<dimInitGrid, dimInitMessageBuffer>>>(message_buffer, num_edges,
-                    edges_joint_probabilities, edges_joint_probabilities_dim_x, edges_joint_probabilities_dim_y,
+                    edge_joint_probability_dim_x, edge_joint_probability_dim_y,
                     current_messages, current_messages_previous, current_messages_current,
                     src_nodes_to_edges_nodes, src_nodes_to_edges_edges, num_vertices);
             check_cuda_kernel_return_code();
@@ -1299,10 +1255,6 @@ int viterbi_until_cuda_kernels(Graph_t graph, float convergence, int max_iterati
     CUDA_CHECK_RETURN(cudaFree(dest_nodes_to_edges_edges));
     CUDA_CHECK_RETURN(cudaFree(src_nodes_to_edges_nodes));
     CUDA_CHECK_RETURN(cudaFree(src_nodes_to_edges_edges));
-
-    CUDA_CHECK_RETURN(cudaFree(edges_joint_probabilities));
-    CUDA_CHECK_RETURN(cudaFree(edges_joint_probabilities_dim_x));
-    CUDA_CHECK_RETURN(cudaFree(edges_joint_probabilities_dim_y));
 
     CUDA_CHECK_RETURN(cudaFree(current_messages));
     CUDA_CHECK_RETURN(cudaFree(current_messages_size));
@@ -1484,13 +1436,15 @@ void run_test_loopy_belief_propagation_snap_file_kernels(const char * edge_file_
 
 
 void run_test_loopy_belief_propagation_mtx_files_kernels(const char * edges_mtx, const char * nodes_mtx,
+                                                         const struct joint_probability * edge_probability,
+                                                                 int dim_x, int dim_y,
                                                          FILE * out){
     Graph_t graph;
     clock_t start, end;
     double time_elapsed;
     int num_iterations;
 
-    graph = build_graph_from_mtx(edges_mtx, nodes_mtx);
+    graph = build_graph_from_mtx(edges_mtx, nodes_mtx, edge_probability, dim_x, dim_y);
     assert(graph != NULL);
     //print_nodes(graph);
     //print_edges(graph);

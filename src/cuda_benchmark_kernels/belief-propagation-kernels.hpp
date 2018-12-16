@@ -43,12 +43,12 @@ void read_incoming_messages_kernel(struct belief *, const int *, const struct be
 
 __device__
 void send_message_for_edge_cuda(const struct belief *, int, int,
-                                const struct joint_probability *, const int *, const int *,
+                                int, int,
                                 struct belief *, float *, float *);
 
 __global__
 void send_message_for_node_kernel(const struct belief *, int,
-                                  const struct joint_probability *,const int *, const int *,
+                                  int, int,
                                           struct belief *, float *, float *,
                                   const int *, const int *, int);
 
@@ -111,7 +111,7 @@ void test_loopy_belief_propagation_kernels(char *);
 void run_test_loopy_belief_propagation_kernels(struct expression *, const char *, FILE *);
 void run_test_loopy_belief_propagation_xml_file_kernels(const char *, FILE *);
 void run_test_loopy_belief_propagation_snap_file_kernels(const char *, const char *, FILE *);
-void run_test_loopy_belief_propagation_mtx_files_kernels(const char *, const char *, FILE *);
+void run_test_loopy_belief_propagation_mtx_files_kernels(const char *, const char *, const struct joint_probability *, int, int, FILE *);
 
 
 __global__
