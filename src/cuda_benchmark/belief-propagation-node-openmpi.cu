@@ -52,7 +52,7 @@ int main(int argc, char *argv[]) {
     FILE * out = fopen("cuda_benchmark_loopy_node_openmpi.csv", "w");
     fprintf(out, "File Name,Propagation Type,Number of Nodes,Number of Edges,Diameter,Number of Iterations,BP Run Time(s)\n");
     fflush(out);
-/
+
     struct joint_probability edge_joint_probability;
     int dim_x, dim_y;
     set_joint_probability_yahoo_web(&edge_joint_probability, &dim_x, &dim_y);
