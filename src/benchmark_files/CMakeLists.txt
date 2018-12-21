@@ -82,6 +82,8 @@ configure_file(small_page_rank_node.txt small_page_rank_node.txt COPYONLY)
 configure_file(viterbi.xml viterbi.xml COPYONLY)
 configure_file(10_20.bif.edges.mtx 10_20.bif.edges.mtx COPYONLY)
 configure_file(10_20.bif.nodes.mtx 10_20.bif.nodes.mtx COPYONLY)
+configure_file(test_10_beliefs.edges.mtx test_10_beliefs.edges.mtx COPYONLY)
+configure_file(test_10_beliefs.nodes.mtx test_10_beliefs.nodes.mtx COPYONLY)
 
 #configure_file(xml2/10_20.xml xml2/10_20.xml COPYONLY)
 #configure_file(xml2/100_200.xml xml2/100_200.xml COPYONLY)

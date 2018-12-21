@@ -47,10 +47,7 @@ def read_snap_file(read_path, write_edges_path, write_observed_nodes_path, num_b
                         dest = edge_match.group('dest')
                         read_nodes.add(src)
                         read_nodes.add(dest)
-                        joint_probabilities = []
-                        for i in range(num_belief_states):
-                            joint_probabilities += generate_prob_list(num_belief_states)
-                        new_line_data = [src, dest] + joint_probabilities
+                        new_line_data = [src, dest]
                         write_fp.write('\t'.join(new_line_data) + '\n')
     num_observed_nodes = pct_of_observed * num_nodes
     observed_nodes = set(random.sample(read_nodes, int(num_observed_nodes)))

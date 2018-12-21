@@ -18,6 +18,7 @@
 #include "../constants.h"
 
 #include <search.h>
+#include <sys/queue.h>
 
 /**
  * Struct holding the priori probabilities and the size of the probabilities
@@ -27,36 +28,17 @@ struct belief {
 	 * The priori probabilities
 	 */
     float data[MAX_STATES];
-	/**
-	 * The size of the probabilities
-	 */
-    int size;
-	/**
-	 * The previous sum
-	 */
-	float previous;
-	/**
-	 * The current sum
-	 */
-	float current;
 };
 
 /**
  * Struct holding the joint probabilities on the edge
  */
+
 struct joint_probability {
 	/**
 	 * The joint probability table
 	 */
     float data[MAX_STATES][MAX_STATES];
-	/**
-	 * The first dimension of the table
-	 */
-    int dim_x;
-	/**
-	 * The second dimension of the table
-	 */
-    int dim_y;
 };
 
 /**
@@ -100,17 +82,25 @@ struct graph {
 	/**
 	 * Array of joint probabilities indexed by edge
 	 */
-	struct joint_probability * edges_joint_probabilities;
+	struct joint_probability edge_joint_probability;
+	int edge_joint_probability_dim_x;
+	int edge_joint_probability_dim_y;
 
 	/**
 	 * The array of current beliefs
 	 */
 	struct belief * edges_messages;
+	float *edges_messages_current;
+	float *edges_messages_previous;
+	int *edges_messages_size;
 
 	/**
 	 * Array of belief states indexed by node
 	 */
 	struct belief * node_states;
+	float *node_states_current;
+	float *node_states_previous;
+	int *node_states_size;
 
 	/**
 	 * Array of indices in src_nodes_to_edges_edge_list indexed by their source node
@@ -215,6 +205,12 @@ struct graph {
 };
 typedef struct graph* Graph_t;
 
+struct htable_index {
+	int index;
+	TAILQ_ENTRY(htable_index) next_index;
+};
+
+
 /**
  * Entry within the hash table to store the indices and count
  */
@@ -222,20 +218,17 @@ struct htable_entry {
 	/**
 	 * The array of indices
 	 */
-    int indices[MAX_DEGREE];
-	/**
-	 * The acutal size of the array
-	 */
+    TAILQ_HEAD(, htable_index) indices;
     int count;
 };
 
-Graph_t create_graph(int, int);
+Graph_t create_graph(int, int, const struct joint_probability *, int, int);
 
 void graph_add_node(Graph_t, int, const char *);
 void graph_add_and_set_node_state(Graph_t, int, const char *, struct belief *);
 void graph_set_node_state(Graph_t, int, int, struct belief *);
 
-void graph_add_edge(Graph_t, int, int, int, int, struct joint_probability *);
+void graph_add_edge(Graph_t, int, int, int, int);
 
 void set_up_src_nodes_to_edges(Graph_t);
 void set_up_dest_nodes_to_edges(Graph_t);
@@ -246,11 +239,14 @@ void prep_as_page_rank(Graph_t);
 void initialize_node(Graph_t, int, int);
 void node_set_state(Graph_t, int, int, struct belief *);
 
-void init_edge(Graph_t, int, int, int, int, int, struct joint_probability *);
-void send_message(struct belief *, int, struct joint_probability *, struct belief *);
+void init_edge(Graph_t, int, int, int, int);
+void send_message(const struct belief * __restrict__, int, const struct joint_probability * __restrict__, int, int , struct belief *, float *, float *);
 
 void fill_in_node_hash_table(Graph_t);
 long find_node_by_name(char *, Graph_t);
+
+void add_index(struct htable_entry *, int index);
+void delete_indices(struct htable_entry *);
 
 void graph_destroy_htables(Graph_t);
 void graph_destroy(Graph_t);
@@ -300,6 +296,10 @@ void init_work_queue_edges(Graph_t);
 void update_work_queue_nodes(Graph_t, float);
 void update_work_queue_edges(Graph_t, float);
 
-float difference(struct belief *, struct belief *);
+float difference(struct belief *, int, struct belief *, int);
+
+void set_joint_probability_yahoo_web(struct joint_probability *, int *, int *);
+void set_joint_probability_twitter(struct joint_probability *, int *, int *);
+void set_joint_probability_vc(struct joint_probability *, int *, int *);
 
 #endif /* GRAPH_H_ */

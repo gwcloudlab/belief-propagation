@@ -156,11 +156,12 @@ static void add_observed_nodes(Graph_t graph, struct graph_info *info, const cha
     int reti, i, j;
     size_t num_groups;
     struct belief belief;
+    int belief_size;
     int node_index;
 
     node_index = 0;
 
-    belief.size = info->num_belief_states;
+    belief_size = info->num_belief_states;
 
     num_groups = 3;
     groups = (regmatch_t *)malloc(sizeof(regmatch_t) * num_groups);
@@ -195,7 +196,7 @@ static void add_observed_nodes(Graph_t graph, struct graph_info *info, const cha
                 }
                 else{
                     token = strtok(match_buffer, REGEX_WHITESPACE);
-                    for(j = 0; j < belief.size; ++j){
+                    for(j = 0; j < belief_size; ++j){
                         fill_in_probability(&(belief.data[j]), token);
                         token = strtok(NULL, REGEX_WHITESPACE);
                     }
@@ -231,15 +232,14 @@ static void add_edge(Graph_t graph, struct graph_info *info, const char * edge_f
     int src_index, dest_index;
     struct joint_probability joint_probability, inverted_joint_probability;
     char src_to_dest_valid, dest_to_src_valid;
+    int joint_probability_dim_x, joint_probability_dim_y;
 
     src_index = 0;
     dest_index = 0;
 
-    joint_probability.dim_x = info->num_belief_states;
-    joint_probability.dim_y = info->num_belief_states;
+    joint_probability_dim_x = info->num_belief_states;
+    joint_probability_dim_y = info->num_belief_states;
 
-    inverted_joint_probability.dim_y = info->num_belief_states;
-    inverted_joint_probability.dim_x = info->num_belief_states;
 
     num_groups = 4;
     groups = (regmatch_t *) malloc(sizeof(regmatch_t) * num_groups);
@@ -283,8 +283,8 @@ static void add_edge(Graph_t graph, struct graph_info *info, const char * edge_f
                     }
                 } else {
                     token = strtok(match_buffer, REGEX_WHITESPACE);
-                    for(j = 0; j < joint_probability.dim_x; ++j){
-                        for(k = 0; k < joint_probability.dim_y; ++k){
+                    for(j = 0; j < joint_probability_dim_x; ++j){
+                        for(k = 0; k < joint_probability_dim_y; ++k){
                             fill_in_probability(&(joint_probability.data[j][k]), token);
                             fill_in_probability(&(inverted_joint_probability.data[k][j]), token);
                             token = strtok(NULL, REGEX_WHITESPACE);
@@ -293,12 +293,10 @@ static void add_edge(Graph_t graph, struct graph_info *info, const char * edge_f
                 }
             }
             if(src_to_dest_valid == 1) {
-                graph_add_edge(graph, src_index, dest_index, info->num_belief_states, info->num_belief_states,
-                               &joint_probability);
+                graph_add_edge(graph, src_index, dest_index, info->num_belief_states, info->num_belief_states);
             }
             if(dest_to_src_valid == 1){
-                graph_add_edge(graph, dest_index, src_index, info->num_belief_states, info->num_belief_states,
-                               &inverted_joint_probability);
+                graph_add_edge(graph, dest_index, src_index, info->num_belief_states, info->num_belief_states);
             }
         }
     }
@@ -330,7 +328,7 @@ Graph_t parse_graph_from_snap_files(const char * edge_file, const char * observe
     assert(info.num_edges == 5);
     assert(info.num_beliefs == 2);
     assert(info.num_belief_states == 2);*/
-    graph = create_graph(info.num_nodes, info.num_edges);
+    graph = create_graph(info.num_nodes, info.num_edges, NULL, -1, -1);
 
     create_nodes(graph, &info, edge_file, node_hash);
     add_observed_nodes(graph, &info, observed_node_file, node_hash, observed_node_hash);
