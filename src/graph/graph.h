@@ -18,6 +18,7 @@
 #include "../constants.h"
 
 #include <search.h>
+#include <sys/queue.h>
 
 /**
  * Struct holding the priori probabilities and the size of the probabilities
@@ -204,6 +205,12 @@ struct graph {
 };
 typedef struct graph* Graph_t;
 
+struct htable_index {
+	int index;
+	TAILQ_ENTRY(htable_index) next_index;
+};
+
+
 /**
  * Entry within the hash table to store the indices and count
  */
@@ -211,10 +218,7 @@ struct htable_entry {
 	/**
 	 * The array of indices
 	 */
-    int indices[MAX_DEGREE];
-	/**
-	 * The acutal size of the array
-	 */
+    TAILQ_HEAD(, htable_index) indices;
     int count;
 };
 
@@ -240,6 +244,9 @@ void send_message(const struct belief * __restrict__, int, const struct joint_pr
 
 void fill_in_node_hash_table(Graph_t);
 long find_node_by_name(char *, Graph_t);
+
+void add_index(struct htable_entry *, int index);
+void delete_indices(struct htable_entry *);
 
 void graph_destroy_htables(Graph_t);
 void graph_destroy(Graph_t);

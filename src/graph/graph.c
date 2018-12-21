@@ -262,6 +262,7 @@ void graph_add_edge(Graph_t graph, int src_index, int dest_index, int dim_x, int
     hsearch_r(src_e, FIND, &src_ep, graph->src_node_to_edge_table);
     if(src_ep == NULL){
         src_entry = (struct htable_entry *)calloc(sizeof(struct htable_entry), 1);
+        TAILQ_INIT(&(src_entry->indices));
         src_entry->count = 0;
     }
     else{
@@ -269,9 +270,10 @@ void graph_add_edge(Graph_t graph, int src_index, int dest_index, int dim_x, int
     }
     //printf("Src Index: %d\n", src_index);
     assert(src_entry != NULL);
-    assert(src_entry->count < MAX_DEGREE);
+    /*
     src_entry->indices[src_entry->count] = edge_index;
-    src_entry->count += 1;
+    src_entry->count += 1;*/
+    add_index(src_entry, edge_index);
     src_e.data = src_entry;
 
 	sprintf(dest_key, "%d", dest_index);
@@ -280,15 +282,16 @@ void graph_add_edge(Graph_t graph, int src_index, int dest_index, int dim_x, int
     hsearch_r(dest_e, FIND, &dest_ep, graph->dest_node_to_edge_table);
     if(dest_ep == NULL){
         dest_entry = (struct htable_entry *)calloc(sizeof(struct htable_entry), 1);
+        TAILQ_INIT(&(dest_entry->indices));
         dest_entry->count = 0;
     }
     else{
         dest_entry = (struct htable_entry *)dest_ep->data;
     }
     assert(dest_entry != NULL);
-    assert(dest_entry->count < MAX_DEGREE);
-    dest_entry->indices[dest_entry->count] = edge_index;
-    dest_entry->count += 1;
+    /*dest_entry->indices[dest_entry->count] = edge_index;
+    dest_entry->count += 1;*/
+    add_index(dest_entry, edge_index);
     dest_e.data = dest_entry;
 
 
@@ -344,6 +347,22 @@ long find_node_by_name(char * name, Graph_t graph){
 	return i;
 }
 
+void add_index(struct htable_entry * entry, int index) {
+    struct htable_index * index_entry = (struct htable_index *)malloc(sizeof(struct htable_entry));
+    assert(index_entry);
+    index_entry->index = index;
+    TAILQ_INSERT_TAIL(&(entry->indices), index_entry, next_index);
+    entry->count += 1;
+}
+
+void delete_indices(struct htable_entry * entry) {
+    struct htable_index *index;
+    while((index = TAILQ_FIRST(&(entry->indices)))) {
+        TAILQ_REMOVE(&(entry->indices), index, next_index);
+        free(index);
+    }
+}
+
 static void set_up_nodes_to_edges(const int *edges_index, int * nodes_to_edges_nodes_list,
                                   int * nodes_to_edges_edges_list, Graph_t graph){
     int i, j, edge_index, num_vertices, num_edges, current_degree;
@@ -351,6 +370,7 @@ static void set_up_nodes_to_edges(const int *edges_index, int * nodes_to_edges_n
     struct htable_entry *metadata;
     char *search_key;
 	struct hsearch_data *htab;
+	struct htable_index *index;
 
     assert(graph->current_num_vertices == graph->total_num_vertices);
     assert(graph->current_num_edges <= graph->total_num_edges);
@@ -376,14 +396,14 @@ static void set_up_nodes_to_edges(const int *edges_index, int * nodes_to_edges_n
         if(ep == NULL) {
             metadata = (struct htable_entry *)calloc(sizeof(struct htable_entry), 1);
             assert(metadata > 0);
-			metadata->count = 0;
+            metadata->count = 0;
+			TAILQ_INIT(&(metadata->indices));
         }
         else {
             metadata = ep->data;
         }
         // add current edge to list
-        metadata->indices[metadata->count] = j;
-        metadata->count += 1;
+        add_index(metadata, j);
         // ensure we're not going over
         assert(metadata->count < num_edges + 1);
         // insert
@@ -404,16 +424,17 @@ static void set_up_nodes_to_edges(const int *edges_index, int * nodes_to_edges_n
         if(ep > 0) {
             metadata = ep->data;
             assert(metadata);
-            assert(metadata->indices);
+
             assert(metadata->count >= 0);
 
-            for (j = 0; j < metadata->count; ++j) {
-                nodes_to_edges_edges_list[edge_index] = metadata->indices[j];
+            TAILQ_FOREACH(index, &(metadata->indices), next_index) {
+                nodes_to_edges_edges_list[edge_index] = index->index;
                 edge_index += 1;
                 current_degree += 1;
             }
 
             //cleanup
+            delete_indices(metadata);
             free(metadata);
 
             if (current_degree > graph->max_degree) {
@@ -454,8 +475,10 @@ void graph_destroy_htables(Graph_t g) {
             src_e.key = src_key;
             src_e.data = NULL;
             if(hsearch_r(src_e, FIND, &src_ep, g->src_node_to_edge_table) != 0) {
-                if (src_ep != NULL) {
-                    free(src_ep->data);
+                if (src_ep != NULL && src_ep->data != NULL) {
+                    struct htable_entry * metadata = (struct htable_entry *)src_ep->data;
+                    delete_indices(metadata);
+                    free(metadata);
                     src_ep->data = NULL;
                 }
             }
@@ -465,8 +488,11 @@ void graph_destroy_htables(Graph_t g) {
             dest_e.key = dest_key;
             dest_e.data = NULL;
             if(hsearch_r(dest_e, FIND, &dest_ep, g->dest_node_to_edge_table) != 0) {
-                if(dest_ep != NULL){
-                    free(dest_ep->data);
+                if(dest_ep != NULL && dest_ep->data != NULL){
+                    struct htable_entry * metadata = (struct htable_entry *)dest_ep->data;
+                    delete_indices(metadata);
+                    free(metadata);
+                    dest_ep->data = NULL;
                 }
             }
             dest_ep = NULL;
