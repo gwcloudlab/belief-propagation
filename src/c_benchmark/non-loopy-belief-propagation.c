@@ -9,7 +9,7 @@ int main(void) {
 
     struct joint_probability edge_joint_probability;
     int dim_x, dim_y;
-    set_joint_probability_yahoo_web(&edge_joint_probability, &dim_x, &dim_y);
+    set_joint_probability_twitter(&edge_joint_probability, &dim_x, &dim_y);
 
     run_test_belief_propagation_mtx_files("/home/mjt5v/Desktop/belief-network-const-joint-probability/10_nodes_40_edges_2_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/10_nodes_40_edges_2_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
     run_test_belief_propagation_mtx_files("/home/mjt5v/Desktop/belief-network-const-joint-probability/100_nodes_400_edges_2_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/100_nodes_400_edges_2_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
