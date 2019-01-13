@@ -52,7 +52,7 @@ int main(int argc, char *argv[]) {
     FILE * out = fopen("cuda_benchmark_loopy_node_openmpi.csv", "w");
     fprintf(out, "File Name,Propagation Type,Number of Nodes,Number of Edges,Diameter,Number of Iterations,BP Run Time(s)\n");
     fflush(out);
-/
+
     struct joint_probability edge_joint_probability;
     int dim_x, dim_y;
     set_joint_probability_yahoo_web(&edge_joint_probability, &dim_x, &dim_y);
@@ -67,6 +67,7 @@ int main(int argc, char *argv[]) {
     run_test_loopy_belief_propagation_mtx_files_cuda_openmpi("/home/mjt5v/Desktop/belief-network-const-joint-probability/600000_nodes_2400000_edges_2_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/600000_nodes_2400000_edges_2_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out, my_rank, n_ranks, num_devices);
     run_test_loopy_belief_propagation_mtx_files_cuda_openmpi("/home/mjt5v/Desktop/belief-network-const-joint-probability/800000_nodes_3200000_edges_2_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/800000_nodes_3200000_edges_2_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out, my_rank, n_ranks, num_devices);
     run_test_loopy_belief_propagation_mtx_files_cuda_openmpi("/home/mjt5v/Desktop/belief-network-const-joint-probability/1000000_nodes_4000000_edges_2_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/1000000_nodes_4000000_edges_2_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out, my_rank, n_ranks, num_devices);
+    run_test_loopy_belief_propagation_mtx_files_cuda_openmpi("/home/mjt5v/Desktop/belief-network-const-joint-probability/2000000_nodes_8000000_edges_2_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/2000000_nodes_8000000_edges_2_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out, my_rank, n_ranks, num_devices);
 
     //run_test_loopy_belief_propagation_mtx_files_cuda_openmpi("/home/mjt5v/Desktop/belief-network-const-joint-probability/web-it-2004_2_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/web-it-2004_2_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out, my_rank, n_ranks, num_devices);
     run_test_loopy_belief_propagation_mtx_files_cuda_openmpi("/home/mjt5v/Desktop/belief-network-const-joint-probability/soc-delicious_2.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/soc-delicious_2.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out, my_rank, n_ranks, num_devices);
