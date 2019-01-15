@@ -301,5 +301,6 @@ float difference(struct belief *, int, struct belief *, int);
 void set_joint_probability_yahoo_web(struct joint_probability *, int *, int *);
 void set_joint_probability_twitter(struct joint_probability *, int *, int *);
 void set_joint_probability_vc(struct joint_probability *, int *, int *);
+void set_joint_probability_32(struct joint_probability *, int *, int *);
 
 #endif /* GRAPH_H_ */
