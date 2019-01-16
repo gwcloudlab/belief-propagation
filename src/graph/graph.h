@@ -48,20 +48,20 @@ struct graph {
 	/**
 	 * The number of nodes in the graph allocated
 	 */
-	int total_num_vertices;
+	unsigned long total_num_vertices;
 	/**
 	 * The number of edges in the graph allocated
 	 */
-	int total_num_edges;
+	unsigned long total_num_edges;
 
 	/**
 	 * The number of nodes currently added to the graph
 	 */
-	int current_num_vertices;
+	unsigned long current_num_vertices;
 	/**
 	 * The number of edges currently added to the graph
 	 */
-	int current_num_edges;
+	unsigned long current_num_edges;
 	/**
 	 * The maximum degree of any node in the graph
 	 */
@@ -222,7 +222,7 @@ struct htable_entry {
     int count;
 };
 
-Graph_t create_graph(int, int, const struct joint_probability *, int, int);
+Graph_t create_graph(unsigned long, unsigned long, const struct joint_probability *, int, int);
 
 void graph_add_node(Graph_t, int, const char *);
 void graph_add_and_set_node_state(Graph_t, int, const char *, struct belief *);
@@ -301,5 +301,6 @@ float difference(struct belief *, int, struct belief *, int);
 void set_joint_probability_yahoo_web(struct joint_probability *, int *, int *);
 void set_joint_probability_twitter(struct joint_probability *, int *, int *);
 void set_joint_probability_vc(struct joint_probability *, int *, int *);
+void set_joint_probability_32(struct joint_probability *, int *, int *);
 
 #endif /* GRAPH_H_ */

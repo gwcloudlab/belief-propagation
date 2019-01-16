@@ -195,9 +195,9 @@ static void reverse_probability_table(float * probability_table, int num_probabi
  * @param expr The root of the AST
  * @return The count of the nodes
  */
-static int count_nodes(struct expression * expr){
+static unsigned long count_nodes(struct expression * expr){
 	struct expression * next;
-	int count;
+	unsigned long count;
 
 	count = 0;
 
@@ -1240,13 +1240,13 @@ static void reverse_node_names(Graph_t graph){
 Graph_t build_graph(struct expression * root){
 	Graph_t graph;
 
-	int num_nodes = count_nodes(root);
-	int num_edges = count_edges(root);
+	unsigned long num_nodes = count_nodes(root);
+	unsigned long num_edges = count_edges(root);
 
 	assert(num_edges > 0);
 	assert(num_nodes > 0);
 
-	graph = create_graph((int)num_nodes, (int)2 * num_edges, NULL, -1, -1);
+	graph = create_graph(num_nodes, 2 * num_edges, NULL, -1, -1);
 	add_nodes_to_graph(root, graph);
 	reverse_node_names(graph);
 
