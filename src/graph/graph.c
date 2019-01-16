@@ -21,7 +21,7 @@ float fmaxf(float a, float b) {
  * @return An initialized graph
  */
 Graph_t
-create_graph(int num_vertices, int num_edges, const struct joint_probability *joint_probability, int joint_probability_dim_x, int joint_probability_dim_y)
+create_graph(unsigned long num_vertices, unsigned long num_edges, const struct joint_probability *joint_probability, int joint_probability_dim_x, int joint_probability_dim_y)
 {
 	Graph_t g;
 

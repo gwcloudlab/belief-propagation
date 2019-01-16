@@ -7,11 +7,11 @@
 #define READ_CHAR_BUFFER_SIZE 102400
 
 
-static int parse_number_of_nodes(const char *nodes_mtx, regex_t *regex_comment) {
+static unsigned long parse_number_of_nodes(const char *nodes_mtx, regex_t *regex_comment) {
     FILE *fp;
     char buff[READ_CHAR_BUFFER_SIZE];
     int reti;
-    long num_nodes_1, num_nodes_2;
+    unsigned long num_nodes_1, num_nodes_2;
     char *p_end;
 
     num_nodes_1 = 0;
@@ -25,8 +25,8 @@ static int parse_number_of_nodes(const char *nodes_mtx, regex_t *regex_comment) 
     while ( fgets(buff, READ_CHAR_BUFFER_SIZE, fp) != NULL ) {
         reti = regexec(regex_comment, buff, 0, NULL, 0);
         if(reti == REG_NOMATCH) {
-            num_nodes_1 = strtol(buff, &p_end, 10);
-            num_nodes_2 = strtol(p_end, &p_end, 10);
+            num_nodes_1 = strtoul(buff, &p_end, 10);
+            num_nodes_2 = strtoul(p_end, &p_end, 10);
             assert(num_nodes_1 == num_nodes_2);
             assert(num_nodes_1 >= 0);
             break;
@@ -34,14 +34,14 @@ static int parse_number_of_nodes(const char *nodes_mtx, regex_t *regex_comment) 
     }
 
     fclose(fp);
-    return (int)num_nodes_1;
+    return num_nodes_1;
 }
 
 static int parse_number_of_node_states(const char *nodes_mtx, regex_t *regex_comment) {
     FILE *fp;
     char buff[READ_CHAR_BUFFER_SIZE];
     int reti;
-    long node_1, node_2, num_beliefs;
+    unsigned long node_1, node_2, num_beliefs;
     char *p_end, *prev;
     char no_skip = 0;
 
@@ -59,8 +59,8 @@ static int parse_number_of_node_states(const char *nodes_mtx, regex_t *regex_com
             no_skip = 1;
         }
         else if(reti == REG_NOMATCH && no_skip > 0) {
-            node_1 = strtol(buff, &p_end, 10);
-            node_2 = strtol(p_end, &p_end, 10);
+            node_1 = strtoul(buff, &p_end, 10);
+            node_2 = strtoul(p_end, &p_end, 10);
             assert(node_1 == node_2);
             prev = p_end;
             strtof(p_end, &p_end);
@@ -78,11 +78,11 @@ static int parse_number_of_node_states(const char *nodes_mtx, regex_t *regex_com
     return (int)num_beliefs;
 }
 
-static int parse_number_of_edges(const char *edges_mtx, regex_t *regex_comment) {
+static unsigned long parse_number_of_edges(const char *edges_mtx, regex_t *regex_comment) {
     FILE *fp;
     char buff[READ_CHAR_BUFFER_SIZE];
     int reti;
-    long num_cols, num_rows, num_non_zeroes;
+    unsigned long num_cols, num_rows, num_non_zeroes;
     char *p_end;
 
     fp = fopen(edges_mtx, "r");
@@ -96,9 +96,9 @@ static int parse_number_of_edges(const char *edges_mtx, regex_t *regex_comment) 
     while ( fgets(buff, READ_CHAR_BUFFER_SIZE, fp) != NULL ) {
         reti = regexec(regex_comment, buff, 0, NULL, 0);
         if(reti == REG_NOMATCH) {
-            num_cols = strtol(buff, &p_end, 10);
-            num_rows = strtol(p_end, &p_end, 10);
-            num_non_zeroes = strtol(p_end, &p_end, 10);
+            num_cols = strtoul(buff, &p_end, 10);
+            num_rows = strtoul(p_end, &p_end, 10);
+            num_non_zeroes = strtoul(p_end, &p_end, 10);
             assert(num_rows >= 0);
             assert(num_cols >= 0);
             assert(num_non_zeroes >= 0);
@@ -107,7 +107,7 @@ static int parse_number_of_edges(const char *edges_mtx, regex_t *regex_comment) 
     }
 
     fclose(fp);
-    return (int)num_non_zeroes;
+    return num_non_zeroes;
 }
 
 static void add_nodes(Graph_t graph, const char *nodes_mtx, regex_t *comment_regex, int num_states) {
@@ -222,7 +222,8 @@ static void add_edges(Graph_t graph, const char *edges_mtx, regex_t *comment_reg
 Graph_t build_graph_from_mtx(const char *edges_mtx, const char *nodes_mtx, const struct joint_probability * edge_joint_probability, int dim_x, int dim_y) {
     regex_t regex_comment;
     int reti;
-    int num_nodes, num_edges, num_node_states, num_joint_probabilities;
+    unsigned long num_nodes, num_edges;
+    int num_node_states, num_joint_probabilities;
     Graph_t graph;
 
     // compile comment regex

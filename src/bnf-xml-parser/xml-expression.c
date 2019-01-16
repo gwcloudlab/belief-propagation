@@ -123,11 +123,11 @@ static xmlXPathObjectPtr get_subnode_set(xmlDocPtr doc, xmlChar * sub_xpath, xml
  * @param doc The XML document
  * @return The count of graph nodes
  */
-static int count_number_of_nodes(xmlDocPtr doc){
+static unsigned long count_number_of_nodes(xmlDocPtr doc){
     xmlXPathObjectPtr result;
     xmlNodeSetPtr node_set;
 
-    int num_nodes;
+    unsigned long num_nodes;
 
     result = get_node_set(doc, (xmlChar *)"//NETWORK/VARIABLE");
     assert(result);
@@ -135,7 +135,7 @@ static int count_number_of_nodes(xmlDocPtr doc){
     node_set = result->nodesetval;
 
     assert(node_set->nodeNr >= 0);
-    num_nodes = (int)node_set->nodeNr;
+    num_nodes = (unsigned long)node_set->nodeNr;
 
     xmlXPathFreeObject(result);
     return num_nodes;
@@ -146,7 +146,7 @@ static int count_number_of_nodes(xmlDocPtr doc){
  * @param doc The XML document being analyzed
  * @return The count of the edges
  */
-static int count_number_of_edges(xmlDocPtr doc){
+static unsigned long count_number_of_edges(xmlDocPtr doc){
     xmlXPathObjectPtr result;
     xmlNodeSetPtr node_set;
     int num_edges;
@@ -157,7 +157,7 @@ static int count_number_of_edges(xmlDocPtr doc){
     node_set = result->nodesetval;
 
     assert(node_set->nodeNr >= 0);
-    num_edges = (int)node_set->nodeNr;
+    num_edges = (unsigned long)node_set->nodeNr;
 
     xmlXPathFreeObject(result);
     return num_edges;
@@ -548,7 +548,7 @@ Graph_t parse_xml_file(const char * file_name){
     xmlDocPtr  doc;
     xmlParserCtxtPtr context;
     int file_access;
-    int num_nodes, num_edges;
+    unsigned long num_nodes, num_edges;
     Graph_t graph;
 
     // ensure file path exists
@@ -562,7 +562,7 @@ Graph_t parse_xml_file(const char * file_name){
     num_nodes = count_number_of_nodes(doc);
     num_edges = count_number_of_edges(doc);
 
-    graph = create_graph(num_nodes, num_edges * 2, NULL, -1, -1);
+    graph = create_graph(num_nodes, num_edges * 2, NULL, MAX_STATES, MAX_STATES);
     add_nodes_to_graph(doc, graph);
     add_definitions_to_graph(doc, graph);
 
