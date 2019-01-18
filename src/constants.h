@@ -60,7 +60,7 @@
 
 #define MAX_DEGREE 4096
 
-#define CHARS_IN_KEY 20
+#define CHARS_IN_KEY 64
 
 #define READ_SNAP_BUFFER_SIZE 256
 

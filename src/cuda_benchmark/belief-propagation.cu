@@ -29,7 +29,7 @@ int atomic_add_inc(int * __restrict__ ctr) {
 
 
 __device__
-void update_work_queue_nodes_cuda(int * __restrict__ work_queue_nodes, int * __restrict__ num_work_items,
+void update_work_queue_nodes_cuda(size_t * __restrict__ work_queue_nodes, int * __restrict__ num_work_items,
         int * __restrict__ work_queue_scratch, const float * __restrict__ node_states_current,
         const float * __restrict__ node_states_previous, int num_vertices, float precision) {
     int i, index;

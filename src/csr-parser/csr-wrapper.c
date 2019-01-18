@@ -29,7 +29,7 @@ void run_test_belief_propagation_mtx_files(const char *edges_mtx, const char *no
     Graph_t graph;
     clock_t start, end;
     double time_elapsed;
-    int i;
+    size_t i;
 
     // parse files
     graph = build_graph_from_mtx(edges_mtx, nodes_mtx, edge_joint_probability, dim_x, dim_y);
@@ -60,7 +60,7 @@ void run_test_belief_propagation_mtx_files(const char *edges_mtx, const char *no
 
     // output
     time_elapsed = (double)(end - start) / CLOCKS_PER_SEC;
-    fprintf(out, "%s,regular,%d,%d,%d,2,%lf\n", edges_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, time_elapsed);
+    fprintf(out, "%s,regular,%ld,%ld,%d,2,%lf\n", edges_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, time_elapsed);
     fflush(out);
 
     // cleanup
@@ -95,7 +95,7 @@ void run_test_loopy_belief_propagation_mtx_files(const char * edges_mtx, const c
     // output data
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
     //print_nodes(graph);
-    fprintf(out, "%s,loopy,%d,%d,%d,%d,%lf\n", edges_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
+    fprintf(out, "%s,loopy,%ld,%ld,%d,%d,%lf\n", edges_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
     fflush(out);
 
     // cleanup
@@ -130,7 +130,7 @@ void run_test_loopy_belief_propagation_edge_mtx_files(const char * edges_mtx, co
     // output
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
     //print_nodes(graph);
-    fprintf(out, "%s,loopy-edge,%d,%d,%d,%d,%lf\n", edges_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
+    fprintf(out, "%s,loopy-edge,%ld,%ld,%d,%d,%lf\n", edges_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
     fflush(out);
 
     // cleanup
@@ -164,7 +164,7 @@ void run_test_loopy_belief_propagation_mtx_files_acc(const char *edges_mtx, cons
     // output
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
     //print_nodes(graph);
-    fprintf(out, "%s,loopy,%d,%d,%d,%d,%lf\n", edges_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
+    fprintf(out, "%s,loopy,%ld,%ld,%d,%d,%lf\n", edges_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
     fflush(out);
 
     // cleanup
@@ -197,7 +197,7 @@ void run_test_loopy_belief_propagation_edge_mtx_files_acc(const char *edges_mtx,
     // output
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
     //print_nodes(graph);
-    fprintf(out, "%s,loopy-edge,%d,%d,%d,%d,%lf\n", edges_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
+    fprintf(out, "%s,loopy-edge,%ld,%ld,%d,%d,%lf\n", edges_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
     fflush(out);
 
     // cleanup
