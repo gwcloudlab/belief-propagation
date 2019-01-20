@@ -4,11 +4,12 @@
 
 #include "csr-wrapper.h"
 #include "csr-parser.h"
+#include "../../../../../../usr/include/lzma.h"
 #include <assert.h>
 #include <stdio.h>
 #include <time.h>
 
-void test_10_20_file(const char *edges_mtx, const char *nodes_mtx, const struct joint_probability * edge_joint_probability, int dim_x, int dim_y) {
+void test_10_20_file(const char *edges_mtx, const char *nodes_mtx, const struct joint_probability * edge_joint_probability, size_t dim_x, size_t dim_y) {
     Graph_t graph;
 
     graph = build_graph_from_mtx(edges_mtx, nodes_mtx, edge_joint_probability, dim_x, dim_y);
@@ -25,7 +26,7 @@ void test_10_20_file(const char *edges_mtx, const char *nodes_mtx, const struct 
     graph_destroy(graph);
 }
 
-void run_test_belief_propagation_mtx_files(const char *edges_mtx, const char *nodes_mtx, const struct joint_probability * edge_joint_probability, int dim_x, int dim_y, FILE *out) {
+void run_test_belief_propagation_mtx_files(const char *edges_mtx, const char *nodes_mtx, const struct joint_probability * edge_joint_probability, size_t dim_x, size_t dim_y, FILE *out) {
     Graph_t graph;
     clock_t start, end;
     double time_elapsed;
@@ -67,7 +68,7 @@ void run_test_belief_propagation_mtx_files(const char *edges_mtx, const char *no
     graph_destroy(graph);
 }
 
-void run_test_loopy_belief_propagation_mtx_files(const char * edges_mtx, const char * nodes_mtx, const struct joint_probability * edge_joint_probability, int dim_x, int dim_y, FILE *out) {
+void run_test_loopy_belief_propagation_mtx_files(const char * edges_mtx, const char * nodes_mtx, const struct joint_probability * edge_joint_probability, size_t dim_x, size_t dim_y, FILE *out) {
     Graph_t graph;
     clock_t start, end;
     double time_elapsed;
@@ -103,7 +104,7 @@ void run_test_loopy_belief_propagation_mtx_files(const char * edges_mtx, const c
 }
 
 
-void run_test_loopy_belief_propagation_edge_mtx_files(const char * edges_mtx, const char * nodes_mtx, const struct joint_probability * edge_joint_probability, int dim_x, int dim_y, FILE *out) {
+void run_test_loopy_belief_propagation_edge_mtx_files(const char * edges_mtx, const char * nodes_mtx, const struct joint_probability * edge_joint_probability, size_t dim_x, size_t dim_y, FILE *out) {
     Graph_t graph;
     clock_t start, end;
     double time_elapsed;
@@ -137,7 +138,7 @@ void run_test_loopy_belief_propagation_edge_mtx_files(const char * edges_mtx, co
     graph_destroy(graph);
 }
 
-void run_test_loopy_belief_propagation_mtx_files_acc(const char *edges_mtx, const char *nodes_mtx, const struct joint_probability * edge_joint_probability, int dim_x, int dim_y, FILE *out) {
+void run_test_loopy_belief_propagation_mtx_files_acc(const char *edges_mtx, const char *nodes_mtx, const struct joint_probability * edge_joint_probability, size_t dim_x, size_t dim_y, FILE *out) {
     Graph_t graph;
     clock_t start, end;
     double time_elapsed;
@@ -171,7 +172,7 @@ void run_test_loopy_belief_propagation_mtx_files_acc(const char *edges_mtx, cons
     graph_destroy(graph);
 }
 
-void run_test_loopy_belief_propagation_edge_mtx_files_acc(const char *edges_mtx, const char *nodes_mtx, const struct joint_probability * edge_joint_probability, int dim_x, int dim_y, FILE *out) {
+void run_test_loopy_belief_propagation_edge_mtx_files_acc(const char *edges_mtx, const char *nodes_mtx, const struct joint_probability * edge_joint_probability, size_t dim_x, size_t dim_y, FILE *out) {
     Graph_t graph;
     clock_t start, end;
     double time_elapsed;
