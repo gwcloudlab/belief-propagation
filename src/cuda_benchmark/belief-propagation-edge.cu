@@ -6,7 +6,7 @@ int main(void) {
     fflush(out);
 
     struct joint_probability edge_joint_probability;
-    int dim_x, dim_y;
+    size_t dim_x, dim_y;
     set_joint_probability_yahoo_web(&edge_joint_probability, &dim_x, &dim_y);
 
     run_test_loopy_belief_propagation_mtx_files_edge_cuda("/home/mjt5v/Desktop/belief-network-const-joint-probability/10_nodes_40_edges_2_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/10_nodes_40_edges_2_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
@@ -27,7 +27,7 @@ int main(void) {
     run_test_loopy_belief_propagation_mtx_files_edge_cuda("/home/mjt5v/Desktop/belief-network-const-joint-probability/web-Stanford_2.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/web-Stanford_2.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
     run_test_loopy_belief_propagation_mtx_files_edge_cuda("/home/mjt5v/Desktop/belief-network-const-joint-probability/web-it-2004_2_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/web-it-2004_2_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
     run_test_loopy_belief_propagation_mtx_files_edge_cuda("/home/mjt5v/Desktop/belief-network-const-joint-probability/web-wiki-ch-internal.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/web-wiki-ch-internal.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
-    //run_test_loopy_belief_propagation_mtx_files_edge_cuda("/home/mjt5v/Desktop/belief-network-const-joint-probability/soc-twitter-2010_2.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/soc-twitter-2010_2.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
+    run_test_loopy_belief_propagation_mtx_files_edge_cuda("/home/mjt5v/Desktop/belief-network-const-joint-probability/soc-twitter-2010_2.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/soc-twitter-2010_2.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
 
 
     fclose(out);

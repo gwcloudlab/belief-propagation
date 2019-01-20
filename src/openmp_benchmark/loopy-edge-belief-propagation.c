@@ -7,7 +7,7 @@ int main(void) {
     fflush(out);
 
     struct joint_probability edge_joint_probability;
-    int dim_x, dim_y;
+    size_t dim_x, dim_y;
     set_joint_probability_yahoo_web(&edge_joint_probability, &dim_x, &dim_y);
 
 

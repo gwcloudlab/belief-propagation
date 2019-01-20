@@ -2436,7 +2436,7 @@ static void update_work_queue_nodes_acc(size_t * __restrict__ num_work_items_nod
 										const struct belief * __restrict__ node_states,
 										float * __restrict__ node_states_previous, float * __restrict__ node_states_current,
 										size_t num_vertices, float convergence) {
-	size_t current_index, i;
+    unsigned long current_index, i;
 
 	current_index = 0;
 #pragma omp parallel for default(none) shared(current_index, num_work_items_nodes, work_queue_scratch, convergence, work_queue_nodes, node_states, node_states_previous, node_states_current) private(i)
@@ -2447,7 +2447,7 @@ static void update_work_queue_nodes_acc(size_t * __restrict__ num_work_items_nod
 #pragma acc atomic capture
 			{
 				work_queue_scratch[current_index] = work_queue_nodes[i];
-				current_index++;
+				current_index += 1;
 			}
 		}
 	}
@@ -2913,7 +2913,7 @@ static void update_work_queue_edges_acc(size_t * __restrict__ num_work_items_edg
 										const float * __restrict__ previous_state, const float * __restrict__ current_state,
 										size_t num_edges,
 										float convergence) {
-	size_t i, current_index;
+    unsigned long i, current_index;
 
 	current_index = 0;
 
@@ -2925,7 +2925,7 @@ static void update_work_queue_edges_acc(size_t * __restrict__ num_work_items_edg
 #pragma acc atomic capture
 			{
 				work_queue_scratch[current_index] = work_queue_edges[i];
-				current_index++;
+				current_index += 1;
 			}
 		}
 	}
@@ -3172,7 +3172,7 @@ static int viterbi_iterations_edges_acc(size_t num_vertices, size_t num_edges,
     delta = 0.0f;
 
     for(i = 0; i < max_iterations; i+= BATCH_SIZE) {
-#pragma acc data present_or_copy(node_states[0:(num_vertices)], curr_messages[0:(num_edges)], edges_messages_previous[0:(num_edges)], edges_messages_current[0:(num_edges)]) present_or_copyin(dest_node_to_edges_node_list[0:num_vertices], dest_node_to_edges_edge_list[0:num_edges], edge_joint_probability, edges_src_index[0:(num_edges)], node_states_size[0:(num_vertices)])
+#pragma acc data present_or_copy(node_states[0:(num_vertices)], curr_messages[0:(num_edges)], edges_messages_previous[0:(num_edges)], edges_messages_current[0:(num_edges)]) present_or_copyin(dest_node_to_edges_node_list[0:num_vertices], dest_node_to_edges_edge_list[0:num_edges], edge_joint_probability[0:1], edges_src_index[0:(num_edges)], node_states_size[0:(num_vertices)])
         {
             //printf("Current iteration: %d\n", i+1);
             for (j = 0; j < BATCH_SIZE; ++j) {
@@ -3502,7 +3502,7 @@ void update_work_queue_nodes(Graph_t graph, float convergence) {
 #pragma acc atomic capture
             {
                 work_queue_scratch[current_index] = work_queue_nodes[i];
-                current_index++;
+                current_index = current_index + 1l;
             }
 		}
 	}
@@ -3533,7 +3533,7 @@ void update_work_queue_edges(Graph_t graph, float convergence) {
 #pragma acc atomic capture
 			{
 				work_queue_scratch[current_index] = work_queue_edges[i];
-				current_index++;
+				current_index = current_index + 1l;
 			}
 		}
 	}
