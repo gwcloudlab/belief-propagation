@@ -1457,8 +1457,8 @@ void run_test_loopy_belief_propagation_mtx_files_kernels(const char * edges_mtx,
     //print_nodes(graph);
     //print_edges(graph);
 
-    set_up_src_nodes_to_edges(graph);
-    set_up_dest_nodes_to_edges(graph);
+    set_up_src_nodes_to_edges_no_hsearch(graph);
+    set_up_dest_nodes_to_edges_no_hsearch(graph);
     //calculate_diameter(graph);
 
     start = clock();

@@ -446,8 +446,59 @@ static void set_up_nodes_to_edges(const size_t *edges_index, size_t * nodes_to_e
 	free(htab);
 }
 
+static void set_up_nodes_to_edges_no_hsearch(const size_t *edges_index, size_t * nodes_to_edges_nodes_list,
+											 size_t * nodes_to_edges_edges_list, Graph_t graph){
+	struct htable_entry *node_entries = (struct htable_entry *)calloc(graph->current_num_vertices, sizeof(struct htable_entry));
+	assert(node_entries);
+	size_t edge_index = 0;
+	struct htable_index *index;
+
+	// fill in node_entries
+	for(size_t i = 0; i < graph->current_num_edges; ++i) {
+		// search by node index
+		size_t node_index = edges_index[i];
+		assert(node_index < graph->current_num_vertices);
+
+		struct htable_entry *node_entry = &(node_entries[node_index]);
+		if(node_entry->count == 0) {
+			TAILQ_INIT(&node_entry->indices);
+		}
+		add_index(node_entry, i);
+	}
+
+	// fill in array
+	for(size_t i = 0; i < graph->current_num_vertices; ++i) {
+		size_t current_degree = 0;
+
+		nodes_to_edges_nodes_list[i] = edge_index;
+
+		struct htable_entry *node_entry = &(node_entries[i]);
+		assert(node_entry);
+		assert(node_entry->count >= 0);
+
+		TAILQ_FOREACH(index, &(node_entry->indices), next_index) {
+			nodes_to_edges_edges_list[edge_index] = index->index;
+			edge_index += 1;
+			current_degree += 1;
+		}
+
+		delete_indices(node_entry);
+
+		if(current_degree > graph->max_degree) {
+			graph->max_degree = current_degree;
+		}
+	}
+
+	free(node_entries);
+}
+
 void set_up_src_nodes_to_edges(Graph_t graph){
 	set_up_nodes_to_edges(graph->edges_src_index, graph->src_nodes_to_edges_node_list,
+						  graph->src_nodes_to_edges_edge_list, graph);
+}
+
+void set_up_src_nodes_to_edges_no_hsearch(Graph_t graph){
+	set_up_nodes_to_edges_no_hsearch(graph->edges_src_index, graph->src_nodes_to_edges_node_list,
 						  graph->src_nodes_to_edges_edge_list, graph);
 }
 
@@ -457,6 +508,11 @@ void set_up_src_nodes_to_edges(Graph_t graph){
  */
 void set_up_dest_nodes_to_edges(Graph_t graph){
     set_up_nodes_to_edges(graph->edges_dest_index, graph->dest_nodes_to_edges_node_list,
+						  graph->dest_nodes_to_edges_edge_list, graph);
+}
+
+void set_up_dest_nodes_to_edges_no_hsearch(Graph_t graph){
+	set_up_nodes_to_edges_no_hsearch(graph->edges_dest_index, graph->dest_nodes_to_edges_node_list,
 						  graph->dest_nodes_to_edges_edge_list, graph);
 }
 

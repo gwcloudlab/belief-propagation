@@ -82,8 +82,10 @@ void run_test_loopy_belief_propagation_mtx_files(const char * edges_mtx, const c
     //print_edges(graph);
 
     // set up parallel arrays
-    set_up_src_nodes_to_edges(graph);
-    set_up_dest_nodes_to_edges(graph);
+    set_up_src_nodes_to_edges_no_hsearch(graph);
+    set_up_dest_nodes_to_edges_no_hsearch(graph);
+    //print_src_nodes_to_edges(graph);
+    //print_dest_nodes_to_edges(graph);
     //calculate_diameter(graph);
 
     // start loopy BP
@@ -117,8 +119,8 @@ void run_test_loopy_belief_propagation_edge_mtx_files(const char * edges_mtx, co
     //print_edges(graph);
 
     // set up parallel arrays
-    set_up_src_nodes_to_edges(graph);
-    set_up_dest_nodes_to_edges(graph);
+    set_up_src_nodes_to_edges_no_hsearch(graph);
+    set_up_dest_nodes_to_edges_no_hsearch(graph);
     //calculate_diameter(graph);
 
     // start loopy BP
@@ -151,8 +153,8 @@ void run_test_loopy_belief_propagation_mtx_files_acc(const char *edges_mtx, cons
     //print_edges(graph);
 
     // set up parallel arrays
-    set_up_src_nodes_to_edges(graph);
-    set_up_dest_nodes_to_edges(graph);
+    set_up_src_nodes_to_edges_no_hsearch(graph);
+    set_up_dest_nodes_to_edges_no_hsearch(graph);
     //calculate_diameter(graph);
 
     // start loopy bp
@@ -184,8 +186,8 @@ void run_test_loopy_belief_propagation_edge_mtx_files_acc(const char *edges_mtx,
     //print_edges(graph);
 
     // set up parallel arrays
-    set_up_src_nodes_to_edges(graph);
-    set_up_dest_nodes_to_edges(graph);
+    set_up_src_nodes_to_edges_no_hsearch(graph);
+    set_up_dest_nodes_to_edges_no_hsearch(graph);
     //calculate_diameter(graph);
 
     // start loopy BP

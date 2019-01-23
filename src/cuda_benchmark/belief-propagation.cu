@@ -4456,8 +4456,8 @@ void run_test_loopy_belief_propagation_mtx_files_cuda(const char * edge_mtx, con
     //print_nodes(graph);
     //print_edges(graph);
 
-    set_up_src_nodes_to_edges(graph);
-    set_up_dest_nodes_to_edges(graph);
+    set_up_src_nodes_to_edges_no_hsearch(graph);
+    set_up_dest_nodes_to_edges_no_hsearch(graph);
     //calculate_diameter(graph);
 
     start = clock();
@@ -4485,8 +4485,8 @@ void run_test_loopy_belief_propagation_mtx_files_cuda_streaming(const char * edg
     //print_nodes(graph);
     //print_edges(graph);
 
-    set_up_src_nodes_to_edges(graph);
-    set_up_dest_nodes_to_edges(graph);
+    set_up_src_nodes_to_edges_no_hsearch(graph);
+    set_up_dest_nodes_to_edges_no_hsearch(graph);
     //calculate_diameter(graph);
 
     start = clock();
@@ -4514,8 +4514,8 @@ void run_test_loopy_belief_propagation_mtx_files_edge_cuda(const char * edge_mtx
     //print_nodes(graph);
     //print_edges(graph);
 
-    set_up_src_nodes_to_edges(graph);
-    set_up_dest_nodes_to_edges(graph);
+    set_up_src_nodes_to_edges_no_hsearch(graph);
+    set_up_dest_nodes_to_edges_no_hsearch(graph);
     //calculate_diameter(graph);
 
     start = clock();
@@ -4543,8 +4543,8 @@ void run_test_loopy_belief_propagation_mtx_files_edge_cuda_streaming(const char 
     //print_nodes(graph);
     //print_edges(graph);
 
-    set_up_src_nodes_to_edges(graph);
-    set_up_dest_nodes_to_edges(graph);
+    set_up_src_nodes_to_edges_no_hsearch(graph);
+    set_up_dest_nodes_to_edges_no_hsearch(graph);
     //calculate_diameter(graph);
 
     start = clock();
@@ -4594,8 +4594,8 @@ void run_test_loopy_belief_propagation_mtx_files_cuda_openmpi(const char * edge_
         assert(graph != NULL);
         num_vertices = graph->current_num_vertices;
         num_edges = graph->current_num_edges;
-        set_up_dest_nodes_to_edges(graph);
-        set_up_src_nodes_to_edges(graph);
+        set_up_src_nodes_to_edges_no_hsearch(graph);
+        set_up_dest_nodes_to_edges_no_hsearch(graph);
         start = clock();
         init_previous_edge(graph);
     }
@@ -4674,8 +4674,8 @@ void run_test_loopy_belief_propagation_mtx_files_edge_cuda_openmpi(const char *e
         assert(graph != NULL);
         num_vertices = graph->current_num_vertices;
         num_edges = graph->current_num_edges;
-        set_up_dest_nodes_to_edges(graph);
-        set_up_src_nodes_to_edges(graph);
+        set_up_src_nodes_to_edges_no_hsearch(graph);
+        set_up_dest_nodes_to_edges_no_hsearch(graph);
         start = clock();
         init_previous_edge(graph);
     }

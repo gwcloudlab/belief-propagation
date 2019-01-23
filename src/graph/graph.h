@@ -231,7 +231,9 @@ void graph_set_node_state(Graph_t, size_t , size_t , struct belief *);
 void graph_add_edge(Graph_t, size_t , size_t , size_t , size_t);
 
 void set_up_src_nodes_to_edges(Graph_t);
+void set_up_src_nodes_to_edges_no_hsearch(Graph_t);
 void set_up_dest_nodes_to_edges(Graph_t);
+void set_up_dest_nodes_to_edges_no_hsearch(Graph_t);
 void init_levels_to_nodes(Graph_t);
 void calculate_diameter(Graph_t);
 void prep_as_page_rank(Graph_t);
