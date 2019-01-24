@@ -155,6 +155,22 @@ struct graph {
 	 * The diameter of the graph
 	 */
     int diameter;
+    /**
+     * The max in-degree of the graph
+     */
+    int max_in_degree;
+    /**
+     * The average in-degree of the graph
+     */
+	double avg_in_degree;
+	/**
+	 * The max out-degree of the graph
+	 */
+	int max_out_degree;
+	/**
+	 * The average out-degree of the graph
+	 */
+	double avg_out_degree;
 
 	/**
 	 * Bit vector if a node has been visited

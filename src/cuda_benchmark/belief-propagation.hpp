@@ -349,13 +349,13 @@ void run_test_loopy_belief_propagation_xml_file_edge_cuda_streaming(const char *
 void run_test_loopy_belief_propagation_snap_file_cuda(const char *, const char *, FILE *);
 void run_test_loopy_belief_propagation_snap_file_edge_cuda(const char *, const char *, FILE *);
 
-void run_test_loopy_belief_propagation_mtx_files_cuda(const char *, const char *, const struct joint_probability *, int, int, FILE *);
-void run_test_loopy_belief_propagation_mtx_files_cuda_streaming(const char *, const char *, const struct joint_probability *, int, int, FILE *);
-void run_test_loopy_belief_propagation_mtx_files_cuda_openmpi(const char *, const char *, const struct joint_probability *, int, int, FILE *,
+void run_test_loopy_belief_propagation_mtx_files_cuda(const char *, const char *, const struct joint_probability *, size_t, size_t, FILE *);
+void run_test_loopy_belief_propagation_mtx_files_cuda_streaming(const char *, const char *, const struct joint_probability *, size_t, size_t, FILE *);
+void run_test_loopy_belief_propagation_mtx_files_cuda_openmpi(const char *, const char *, const struct joint_probability *, size_t, size_t, FILE *,
         int, int, int);
-void run_test_loopy_belief_propagation_mtx_files_edge_cuda(const char *, const char *, const struct joint_probability *, int, int, FILE *);
-void run_test_loopy_belief_propagation_mtx_files_edge_cuda_streaming(const char *, const char *, const struct joint_probability *, int, int, FILE *);
-void run_test_loopy_belief_propagation_mtx_files_edge_cuda_openmpi(const char *, const char *, const struct joint_probability *, int, int,
+void run_test_loopy_belief_propagation_mtx_files_edge_cuda(const char *, const char *, const struct joint_probability *, size_t, size_t, FILE *);
+void run_test_loopy_belief_propagation_mtx_files_edge_cuda_streaming(const char *, const char *, const struct joint_probability *, size_t, size_t, FILE *);
+void run_test_loopy_belief_propagation_mtx_files_edge_cuda_openmpi(const char *, const char *, const struct joint_probability *, size_t, size_t,
                                                                    FILE *, int , int , int );
 
 

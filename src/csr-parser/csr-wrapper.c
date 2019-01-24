@@ -61,7 +61,7 @@ void run_test_belief_propagation_mtx_files(const char *edges_mtx, const char *no
 
     // output
     time_elapsed = (double)(end - start) / CLOCKS_PER_SEC;
-    fprintf(out, "%s,regular,%ld,%ld,%d,2,%lf\n", edges_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, time_elapsed);
+    fprintf(out, "%s,loopy-edge,%ld,%ld,%d,%d,%lf,%d,%lf,%d,%lf\n", edges_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, graph->max_in_degree, graph->avg_in_degree, graph->max_out_degree, graph->avg_out_degree, 2, time_elapsed);
     fflush(out);
 
     // cleanup
@@ -98,7 +98,7 @@ void run_test_loopy_belief_propagation_mtx_files(const char * edges_mtx, const c
     // output data
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
     //print_nodes(graph);
-    fprintf(out, "%s,loopy,%ld,%ld,%d,%d,%lf\n", edges_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
+    fprintf(out, "%s,loopy,%ld,%ld,%d,%d,%lf,%d,%lf,%d,%lf\n", edges_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, graph->max_in_degree, graph->avg_in_degree, graph->max_out_degree, graph->avg_out_degree, num_iterations+1, time_elapsed);
     fflush(out);
 
     // cleanup
@@ -133,7 +133,7 @@ void run_test_loopy_belief_propagation_edge_mtx_files(const char * edges_mtx, co
     // output
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
     //print_nodes(graph);
-    fprintf(out, "%s,loopy-edge,%ld,%ld,%d,%d,%lf\n", edges_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
+    fprintf(out, "%s,loopy-edge,%ld,%ld,%d,%d,%lf,%d,%lf,%d,%lf\n", edges_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, graph->max_in_degree, graph->avg_in_degree, graph->max_out_degree, graph->avg_out_degree, num_iterations+1, time_elapsed);
     fflush(out);
 
     // cleanup
@@ -167,7 +167,7 @@ void run_test_loopy_belief_propagation_mtx_files_acc(const char *edges_mtx, cons
     // output
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
     //print_nodes(graph);
-    fprintf(out, "%s,loopy,%ld,%ld,%d,%d,%lf\n", edges_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
+    fprintf(out, "%s,loopy,%ld,%ld,%d,%d,%lf,%d,%lf,%d,%lf\n", edges_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, graph->max_in_degree, graph->avg_in_degree, graph->max_out_degree, graph->avg_out_degree, num_iterations+1, time_elapsed);
     fflush(out);
 
     // cleanup
@@ -200,7 +200,7 @@ void run_test_loopy_belief_propagation_edge_mtx_files_acc(const char *edges_mtx,
     // output
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
     //print_nodes(graph);
-    fprintf(out, "%s,loopy-edge,%ld,%ld,%d,%d,%lf\n", edges_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
+    fprintf(out, "%s,loopy-edge,%ld,%ld,%d,%d,%lf,%d,%lf,%d,%lf\n", edges_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, graph->max_in_degree, graph->avg_in_degree, graph->max_out_degree, graph->avg_out_degree, num_iterations+1, time_elapsed);
     fflush(out);
 
     // cleanup

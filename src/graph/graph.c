@@ -97,6 +97,10 @@ create_graph(size_t num_vertices, size_t num_edges, const struct joint_probabili
 	g->current_num_edges = 0;
     g->diameter = -1;
     g->max_degree = 0;
+    g->max_in_degree = 0;
+    g->avg_in_degree = 0.0;
+    g->max_out_degree = 0;
+    g->avg_out_degree = 0.0;
 	return g;
 }
 
@@ -447,10 +451,13 @@ static void set_up_nodes_to_edges(const size_t *edges_index, size_t * nodes_to_e
 }
 
 static void set_up_nodes_to_edges_no_hsearch(const size_t *edges_index, size_t * nodes_to_edges_nodes_list,
-											 size_t * nodes_to_edges_edges_list, Graph_t graph){
+											 size_t * nodes_to_edges_edges_list, Graph_t graph, int *max_degree,
+											 double *avg_degree){
 	struct htable_entry *node_entries = (struct htable_entry *)calloc(graph->current_num_vertices, sizeof(struct htable_entry));
 	assert(node_entries);
 	size_t edge_index = 0;
+	int curr_max_degree = 0;
+	double sum = 0.0;
 	struct htable_index *index;
 
 	// fill in node_entries
@@ -483,11 +490,17 @@ static void set_up_nodes_to_edges_no_hsearch(const size_t *edges_index, size_t *
 		}
 
 		delete_indices(node_entry);
-
+        sum += current_degree;
 		if(current_degree > graph->max_degree) {
 			graph->max_degree = current_degree;
 		}
+		if(current_degree > curr_max_degree) {
+		    curr_max_degree = (int)current_degree;
+		}
+		sum += current_degree;
 	}
+	*avg_degree = sum / graph->current_num_vertices;
+	*max_degree = curr_max_degree;
 
 	free(node_entries);
 }
@@ -499,7 +512,7 @@ void set_up_src_nodes_to_edges(Graph_t graph){
 
 void set_up_src_nodes_to_edges_no_hsearch(Graph_t graph){
 	set_up_nodes_to_edges_no_hsearch(graph->edges_src_index, graph->src_nodes_to_edges_node_list,
-						  graph->src_nodes_to_edges_edge_list, graph);
+						  graph->src_nodes_to_edges_edge_list, graph, &(graph->max_in_degree), &(graph->avg_in_degree));
 }
 
 /**
@@ -513,7 +526,7 @@ void set_up_dest_nodes_to_edges(Graph_t graph){
 
 void set_up_dest_nodes_to_edges_no_hsearch(Graph_t graph){
 	set_up_nodes_to_edges_no_hsearch(graph->edges_dest_index, graph->dest_nodes_to_edges_node_list,
-						  graph->dest_nodes_to_edges_edge_list, graph);
+						  graph->dest_nodes_to_edges_edge_list, graph, &(graph->max_out_degree), &(graph->avg_out_degree));
 }
 
 void graph_destroy_htables(Graph_t g) {

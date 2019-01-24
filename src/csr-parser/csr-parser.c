@@ -219,11 +219,11 @@ static void add_edges(Graph_t graph, const char *edges_mtx, regex_t *comment_reg
     fclose(fp);
 }
 
-Graph_t build_graph_from_mtx(const char *edges_mtx, const char *nodes_mtx, const struct joint_probability * edge_joint_probability, int dim_x, int dim_y) {
+Graph_t build_graph_from_mtx(const char *edges_mtx, const char *nodes_mtx, const struct joint_probability * edge_joint_probability, size_t dim_x, size_t dim_y) {
     regex_t regex_comment;
     int reti;
     size_t num_nodes, num_edges;
-    size_t num_node_states, num_joint_probabilities;
+    size_t num_node_states;
     Graph_t graph;
 
     // compile comment regex

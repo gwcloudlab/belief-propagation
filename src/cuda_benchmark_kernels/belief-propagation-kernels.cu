@@ -1469,7 +1469,7 @@ void run_test_loopy_belief_propagation_mtx_files_kernels(const char * edges_mtx,
 
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
     //print_nodes(graph);
-    fprintf(out, "%s-%s,loopy,%ld,%ld,%d,%d,%lf\n", edges_mtx, nodes_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
+    fprintf(out, "%s-%s,loopy,%ld,%ld,%d,%d,%lf,%d,%lf,%d,%lf\n", edges_mtx, nodes_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, graph->max_in_degree, graph->avg_in_degree, graph->max_out_degree, graph->avg_out_degree, num_iterations+1, time_elapsed);
     fflush(out);
 
     graph_destroy(graph);
