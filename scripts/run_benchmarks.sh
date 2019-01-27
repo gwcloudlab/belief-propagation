@@ -15,7 +15,7 @@ cd "$ROOT_SRC_DIR/cmake-build-release/src/openmp_benchmark"
 
 # openacc benchmark
 cd "$ROOT_SRC_DIR/cmake-build-release/src/openacc_benchmark"
-make clean && make
+# make clean && make
 ./openacc_loopy_edge_benchmark || true
 ./openacc_loopy_node_benchmark || true
 
