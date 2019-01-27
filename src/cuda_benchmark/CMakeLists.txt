@@ -13,7 +13,7 @@ endif()
 set(CMAKE_C_FLAGS_RELEASE "-O3 -march=native")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native")
 set(CUDA_NVCC_FLAGS_DEBUG "-g -G")
-set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -lineinfo -gencode arch=compute_61,code=sm_61 -Xptxas -dlcm=cg")
+set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -lineinfo -gencode arch=compute_61,code=sm_61 -Xptxas -dlcm=cg -use_fast_math")
 #set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -lineinfo -gencode arch=compute_35,code=sm_35 -use_fast_math")
 
 

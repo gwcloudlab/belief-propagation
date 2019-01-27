@@ -107,7 +107,7 @@ void run_test_belief_propagation_xml_file(const char * file_name, FILE * out){
     Graph_t graph;
     clock_t start, end;
     double time_elapsed;
-    int i;
+    size_t i;
 
     // parse the file
     graph = parse_xml_file(file_name);
@@ -142,7 +142,7 @@ void run_test_belief_propagation_xml_file(const char * file_name, FILE * out){
 
     // output
     time_elapsed = (double)(end - start) / CLOCKS_PER_SEC;
-    fprintf(out, "%s,regular,%d,%d,%d,2,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, time_elapsed);
+    fprintf(out, "%s,regular,%ld,%ld,%d,2,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, time_elapsed);
     fflush(out);
 
     // cleanup
@@ -181,7 +181,7 @@ void run_test_loopy_belief_propagation_xml_file(const char * file_name, FILE * o
     // output data
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
     //print_nodes(graph);
-    fprintf(out, "%s,loopy,%d,%d,%d,%d,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
+    fprintf(out, "%s,loopy,%ld,%ld,%d,%d,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
     fflush(out);
 
     // cleanup
@@ -220,7 +220,7 @@ void run_test_loopy_belief_propagation_edge_xml_file(const char * file_name, FIL
     // output
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
     //print_nodes(graph);
-    fprintf(out, "%s,loopy-edge,%d,%d,%d,%d,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
+    fprintf(out, "%s,loopy-edge,%ld,%ld,%d,%d,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
     fflush(out);
 
     // cleanup
@@ -259,7 +259,7 @@ void run_test_loopy_belief_propagation_xml_file_acc(const char * file_name, FILE
     // output
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
     //print_nodes(graph);
-    fprintf(out, "%s,loopy,%d,%d,%d,%d,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
+    fprintf(out, "%s,loopy,%ld,%ld,%d,%d,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
     fflush(out);
 
     // cleanup
@@ -298,7 +298,7 @@ void run_test_loopy_belief_propagation_edge_xml_file_acc(const char * file_name,
     // output
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
     //print_nodes(graph);
-    fprintf(out, "%s,loopy-edge,%d,%d,%d,%d,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
+    fprintf(out, "%s,loopy-edge,%ld,%ld,%d,%d,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
     fflush(out);
 
     // cleanup

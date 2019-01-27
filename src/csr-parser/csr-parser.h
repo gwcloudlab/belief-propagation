@@ -11,6 +11,6 @@
  * Builds a graph from the provided edges and nodes files
  * @return A constructed graph representing the belief network encoded as the CSR
  */
-Graph_t build_graph_from_mtx(const char *, const char *, const struct joint_probability *, int, int);
+Graph_t build_graph_from_mtx(const char *, const char *, const struct joint_probability *, size_t , size_t);
 
 #endif //PROJECT_CSR_PARSER_H
