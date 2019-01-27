@@ -175,7 +175,7 @@ static void add_nodes(Graph_t graph, const char *nodes_mtx, regex_t *comment_reg
     fclose(fp);
 }
 
-static void add_edges(Graph_t graph, const char *edges_mtx, regex_t *comment_regex, int num_states) {
+static void add_edges(Graph_t graph, const char *edges_mtx, regex_t *comment_regex, size_t num_states) {
     FILE *fp;
     char buff[READ_CHAR_BUFFER_SIZE];
     int reti;

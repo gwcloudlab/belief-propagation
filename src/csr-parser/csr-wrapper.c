@@ -37,8 +37,8 @@ void run_test_belief_propagation_mtx_files(const char *edges_mtx, const char *no
     assert(graph != NULL);
 
     // set up parallel arrays
-    set_up_src_nodes_to_edges(graph);
-    set_up_dest_nodes_to_edges(graph);
+    set_up_src_nodes_to_edges_no_hsearch(graph);
+    set_up_dest_nodes_to_edges_no_hsearch(graph);
 
     // start BP
     start = clock();
