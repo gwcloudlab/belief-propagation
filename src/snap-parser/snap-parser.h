@@ -12,19 +12,19 @@ struct graph_info {
     /**
      * The number of nodes
      */
-    int num_nodes;
+    size_t num_nodes;
     /**
      * The number of edges
      */
-    int num_edges;
+    size_t num_edges;
     /**
      * The number of beliefs
      */
-    int num_beliefs;
+    size_t num_beliefs;
     /**
      * The number of states per belief
      */
-    int num_belief_states;
+    size_t num_belief_states;
 };
 
 

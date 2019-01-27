@@ -7,11 +7,11 @@
 #define READ_CHAR_BUFFER_SIZE 102400
 
 
-static unsigned long parse_number_of_nodes(const char *nodes_mtx, regex_t *regex_comment) {
+static size_t parse_number_of_nodes(const char *nodes_mtx, regex_t *regex_comment) {
     FILE *fp;
     char buff[READ_CHAR_BUFFER_SIZE];
     int reti;
-    unsigned long num_nodes_1, num_nodes_2;
+    size_t num_nodes_1, num_nodes_2;
     char *p_end;
 
     num_nodes_1 = 0;
@@ -37,11 +37,11 @@ static unsigned long parse_number_of_nodes(const char *nodes_mtx, regex_t *regex
     return num_nodes_1;
 }
 
-static int parse_number_of_node_states(const char *nodes_mtx, regex_t *regex_comment) {
+static size_t parse_number_of_node_states(const char *nodes_mtx, regex_t *regex_comment) {
     FILE *fp;
     char buff[READ_CHAR_BUFFER_SIZE];
     int reti;
-    unsigned long node_1, node_2, num_beliefs;
+    size_t node_1, node_2, num_beliefs;
     char *p_end, *prev;
     char no_skip = 0;
 
@@ -75,14 +75,14 @@ static int parse_number_of_node_states(const char *nodes_mtx, regex_t *regex_com
 
     fclose(fp);
     assert(num_beliefs <= MAX_STATES);
-    return (int)num_beliefs;
+    return (size_t)num_beliefs;
 }
 
-static unsigned long parse_number_of_edges(const char *edges_mtx, regex_t *regex_comment) {
+static size_t parse_number_of_edges(const char *edges_mtx, regex_t *regex_comment) {
     FILE *fp;
     char buff[READ_CHAR_BUFFER_SIZE];
     int reti;
-    unsigned long num_cols, num_rows, num_non_zeroes;
+    size_t num_cols, num_rows, num_non_zeroes;
     char *p_end;
 
     fp = fopen(edges_mtx, "r");
@@ -110,17 +110,17 @@ static unsigned long parse_number_of_edges(const char *edges_mtx, regex_t *regex
     return num_non_zeroes;
 }
 
-static void add_nodes(Graph_t graph, const char *nodes_mtx, regex_t *comment_regex, int num_states) {
+static void add_nodes(Graph_t graph, const char *nodes_mtx, regex_t *comment_regex, size_t num_states) {
     FILE *fp;
     char buff[READ_CHAR_BUFFER_SIZE];
     char name[READ_CHAR_BUFFER_SIZE];
     char *p_end, *prev;
     int reti;
     char found_header;
-    long node_id_1, node_id_2;
+    size_t node_id_1, node_id_2;
     float prob;
     struct belief curr_belief;
-    int curr_belief_index;
+    size_t curr_belief_index;
 
     found_header = 0;
 
@@ -142,8 +142,8 @@ static void add_nodes(Graph_t graph, const char *nodes_mtx, regex_t *comment_reg
                 found_header = 1;
             }
             else {
-                node_id_1 = strtol(buff, &p_end, 10);
-                node_id_2 = strtol(p_end, &p_end, 10);
+                node_id_1 = strtoul(buff, &p_end, 10);
+                node_id_2 = strtoul(p_end, &p_end, 10);
 
                 assert(node_id_1 == node_id_2);
                 assert(node_id_1 >= 1);
@@ -175,14 +175,14 @@ static void add_nodes(Graph_t graph, const char *nodes_mtx, regex_t *comment_reg
     fclose(fp);
 }
 
-static void add_edges(Graph_t graph, const char *edges_mtx, regex_t *comment_regex, int num_states) {
+static void add_edges(Graph_t graph, const char *edges_mtx, regex_t *comment_regex, size_t num_states) {
     FILE *fp;
     char buff[READ_CHAR_BUFFER_SIZE];
     int reti;
     char found_header;
     char *p_end, *prev;
-    long src_id, dest_id;
-    int src_index, dest_index, x, y;
+    size_t src_id, dest_id;
+    size_t src_index, dest_index, x, y;
     float prob;
 
     found_header = 0;
@@ -202,14 +202,14 @@ static void add_edges(Graph_t graph, const char *edges_mtx, regex_t *comment_reg
                 found_header = 1;
             }
             else {
-                src_id = strtol(buff, &p_end, 10);
-                dest_id = strtol(p_end, &p_end, 10);
+                src_id = strtoul(buff, &p_end, 10);
+                dest_id = strtoul(p_end, &p_end, 10);
 
                 assert(src_id > 0);
                 assert(dest_id > 0);
 
-                src_index = (int)(src_id - 1);
-                dest_index = (int)(dest_id - 1);
+                src_index = (size_t)(src_id - 1);
+                dest_index = (size_t)(dest_id - 1);
 
                 graph_add_edge(graph, src_index, dest_index, num_states, num_states);
             }
@@ -219,11 +219,11 @@ static void add_edges(Graph_t graph, const char *edges_mtx, regex_t *comment_reg
     fclose(fp);
 }
 
-Graph_t build_graph_from_mtx(const char *edges_mtx, const char *nodes_mtx, const struct joint_probability * edge_joint_probability, int dim_x, int dim_y) {
+Graph_t build_graph_from_mtx(const char *edges_mtx, const char *nodes_mtx, const struct joint_probability * edge_joint_probability, size_t dim_x, size_t dim_y) {
     regex_t regex_comment;
     int reti;
-    unsigned long num_nodes, num_edges;
-    int num_node_states, num_joint_probabilities;
+    size_t num_nodes, num_edges;
+    size_t num_node_states;
     Graph_t graph;
 
     // compile comment regex
