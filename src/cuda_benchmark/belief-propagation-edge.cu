@@ -6,7 +6,7 @@ int main(void) {
     fflush(out);
 
     struct joint_probability edge_joint_probability;
-    int dim_x, dim_y;
+    size_t dim_x, dim_y;
     set_joint_probability_twitter(&edge_joint_probability, &dim_x, &dim_y);
 
     run_test_loopy_belief_propagation_mtx_files_edge_cuda("/home/mjt5v/Desktop/belief-network-const-joint-probability/10_nodes_40_edges_3_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/10_nodes_40_edges_3_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);

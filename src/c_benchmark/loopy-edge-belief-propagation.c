@@ -9,7 +9,7 @@ int main(void) {
     struct joint_probability edge_joint_probability;
     size_t dim_x, dim_y;
     set_joint_probability_twitter(&edge_joint_probability, &dim_x, &dim_y);
-
+/*
     run_test_loopy_belief_propagation_edge_mtx_files("/home/mjt5v/Desktop/belief-network-const-joint-probability/10_nodes_40_edges_3_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/10_nodes_40_edges_3_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
     run_test_loopy_belief_propagation_edge_mtx_files("/home/mjt5v/Desktop/belief-network-const-joint-probability/100_nodes_400_edges_3_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/100_nodes_400_edges_3_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
     run_test_loopy_belief_propagation_edge_mtx_files("/home/mjt5v/Desktop/belief-network-const-joint-probability/1000_nodes_4000_edges_3_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/1000_nodes_4000_edges_3_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
@@ -27,7 +27,7 @@ int main(void) {
     run_test_loopy_belief_propagation_edge_mtx_files("/home/mjt5v/Desktop/belief-network-const-joint-probability/soc-google-plus_3.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/soc-google-plus_3.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
     run_test_loopy_belief_propagation_edge_mtx_files("/home/mjt5v/Desktop/belief-network-const-joint-probability/web-Stanford_3.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/web-Stanford_3.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
     run_test_loopy_belief_propagation_edge_mtx_files("/home/mjt5v/Desktop/belief-network-const-joint-probability/web-it-2004_3_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/web-it-2004_3_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
-    run_test_loopy_belief_propagation_edge_mtx_files("/home/mjt5v/Desktop/belief-network-const-joint-probability/web-wiki-ch-internal_3.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/web-wiki-ch-internal_3.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
+    run_test_loopy_belief_propagation_edge_mtx_files("/home/mjt5v/Desktop/belief-network-const-joint-probability/web-wiki-ch-internal_3.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/web-wiki-ch-internal_3.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);*/
     run_test_loopy_belief_propagation_edge_mtx_files("/home/mjt5v/Desktop/belief-network-const-joint-probability/soc-twitter-2010_3.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/soc-twitter-2010_3.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
 
 
