@@ -2025,17 +2025,24 @@ int loopy_propagate_until_cuda_multiple_devices(Graph_t graph, float convergence
                     if(m == k) {
                         continue;
                     }
-                    for(l = thread_data[k].begin_index; l < thread_data[k].end_index && l < graph->current_num_vertices; ++l) {
-                        CUDA_CHECK_RETURN(cudaMemcpy(&(node_states[m][l]), &(node_states[k][l]),
-                                                     sizeof(struct belief),
-                                                     cudaMemcpyDeviceToDevice));
-                        CUDA_CHECK_RETURN(cudaMemcpy(&(node_states_previous[m][l]), &(node_states_previous[k][l]),
-                                                     sizeof(float),
-                                                     cudaMemcpyDeviceToDevice));
-                        CUDA_CHECK_RETURN(cudaMemcpy(&(node_states_current[m][l]), &(node_states_current[k][l]),
-                                                     sizeof(float),
-                                                     cudaMemcpyDeviceToDevice));
+                    l = thread_data[k].begin_index;
+                    if(thread_data[k].end_index > graph->current_num_vertices) {
+                        n = graph->current_num_vertices - l;
                     }
+                    else {
+                        n = thread_data[k].end_index - l;
+                    }
+
+                    CUDA_CHECK_RETURN(cudaMemcpy(&(node_states[m][l]), &(node_states[k][l]),
+                                                 sizeof(struct belief) * n,
+                                                 cudaMemcpyDeviceToDevice));
+                    CUDA_CHECK_RETURN(cudaMemcpy(&(node_states_previous[m][l]), &(node_states_previous[k][l]),
+                                                 sizeof(float) * n,
+                                                 cudaMemcpyDeviceToDevice));
+                    CUDA_CHECK_RETURN(cudaMemcpy(&(node_states_current[m][l]), &(node_states_current[k][l]),
+                                                 sizeof(float) * n,
+                                                 cudaMemcpyDeviceToDevice));
+
                 }
             }
 
@@ -3854,7 +3861,7 @@ int loopy_propagate_until_cuda_edge_streaming(Graph_t graph, float convergence, 
  * @return The actual number of iterations ran
  */
 int loopy_propagate_until_cuda_edge_multiple_devices(Graph_t graph, float convergence, int max_iterations){
-    int num_iter;
+    int num_iter, copy_amount;
     size_t i, j, k, l, m, num_vertices, num_edges, edge_joint_probability_dim_x, edge_joint_probability_dim_y;
     float *delta;
     float *delta_array;
@@ -4160,15 +4167,22 @@ int loopy_propagate_until_cuda_edge_multiple_devices(Graph_t graph, float conver
                     if(m == k) {
                         continue;
                     }
-                    for(l = thread_data[k].begin_index; l < thread_data[k].end_index && l < num_edges; ++l) {
-                        CUDA_CHECK_RETURN(cudaMemcpy(&(current_messages[m][l]), &(current_messages[k][l]),
-                                                     sizeof(belief),
-                                                     cudaMemcpyDeviceToDevice));
-                        CUDA_CHECK_RETURN(cudaMemcpy(&(current_messages_previous[m][l]), &(current_messages[k][l]),
-                                                     sizeof(float), cudaMemcpyDeviceToDevice));
-                        CUDA_CHECK_RETURN(cudaMemcpy(&(current_messages_current[m][l]), &(current_messages[k][l]),
-                                                     sizeof(float), cudaMemcpyDeviceToDevice));
+                    l = thread_data[k].begin_index;
+                    if(thread_data[k].end_index > num_edges) {
+                        copy_amount = num_edges - l;
                     }
+                    else {
+                        copy_amount = thread_data[k].end_index - l;
+                    }
+
+                    CUDA_CHECK_RETURN(cudaMemcpy(&(current_messages[m][l]), &(current_messages[k][l]),
+                                                 sizeof(belief) * copy_amount,
+                                                 cudaMemcpyDeviceToDevice));
+                    CUDA_CHECK_RETURN(cudaMemcpy(&(current_messages_previous[m][l]), &(current_messages[k][l]),
+                                                 sizeof(float) * copy_amount, cudaMemcpyDeviceToDevice));
+                    CUDA_CHECK_RETURN(cudaMemcpy(&(current_messages_current[m][l]), &(current_messages[k][l]),
+                                                 sizeof(float) * copy_amount, cudaMemcpyDeviceToDevice));
+
                 }
 
                 retval = pthread_create(&threads[k], NULL, launch_combine_message_kernel, &thread_data[k]);
