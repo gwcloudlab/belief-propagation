@@ -326,11 +326,13 @@ void update_work_queue_edges_cuda_kernel(size_t *, unsigned long long int *, siz
 
 void test_error();
 
+int loopy_propagate_until_cuda_multiple_devices(Graph_t, float, int);
 int loopy_propagate_until_cuda_streaming(Graph_t, float, int);
 int loopy_propagate_until_cuda_openmpi(Graph_t, float, int, int, int, int);
 int loopy_propagate_until_cuda(Graph_t, float, int);
 int loopy_propagate_until_cuda_edge(Graph_t, float, int);
 int loopy_propagate_until_cuda_edge_streaming(Graph_t, float, int);
+int loopy_propagate_until_cuda_edge_multiple_devices(Graph_t, float, int);
 int loopy_propagate_until_cuda_edge_openmpi(Graph_t, float, int, int, int, int);
 
 
@@ -351,10 +353,12 @@ void run_test_loopy_belief_propagation_snap_file_edge_cuda(const char *, const c
 
 void run_test_loopy_belief_propagation_mtx_files_cuda(const char *, const char *, const struct joint_probability *, size_t, size_t, FILE *);
 void run_test_loopy_belief_propagation_mtx_files_cuda_streaming(const char *, const char *, const struct joint_probability *, size_t, size_t, FILE *);
+void run_test_loopy_belief_propagation_mtx_files_cuda_multiple_devices(const char *, const char *, const struct joint_probability *, size_t, size_t, FILE *);
 void run_test_loopy_belief_propagation_mtx_files_cuda_openmpi(const char *, const char *, const struct joint_probability *, size_t, size_t, FILE *,
         int, int, int);
 void run_test_loopy_belief_propagation_mtx_files_edge_cuda(const char *, const char *, const struct joint_probability *, size_t, size_t, FILE *);
 void run_test_loopy_belief_propagation_mtx_files_edge_cuda_streaming(const char *, const char *, const struct joint_probability *, size_t, size_t, FILE *);
+void run_test_loopy_belief_propagation_mtx_files_edge_cuda_multiple_devices(const char *, const char *, const struct joint_probability *, size_t, size_t, FILE *);
 void run_test_loopy_belief_propagation_mtx_files_edge_cuda_openmpi(const char *, const char *, const struct joint_probability *, size_t, size_t,
                                                                    FILE *, int , int , int );
 
