@@ -4202,35 +4202,6 @@ int loopy_propagate_until_cuda_edge_multiple_devices(Graph_t graph, float conver
 
             // synchronize state
 
-            // first get data back from devices
-            for(k = 0; k < num_devices; ++k) {
-                CUDA_CHECK_RETURN(cudaSetDevice(k));
-                for(m = 0; m < num_devices; ++m) {
-                    if(m == k) {
-                        continue;
-                    }
-                    // update beliefs
-                    for (l = thread_data[k].begin_index; l < thread_data[k].end_index; ++l) {
-                        curr_index = graph->edges_dest_index[l];
-                        if (curr_index < graph->current_num_vertices) {
-                            CUDA_CHECK_RETURN(cudaMemcpy(&(h_node_states[m][curr_index]), &(h_node_states[k][curr_index]), sizeof(struct belief), cudaMemcpyDeviceToDevice));
-                        }
-                    }
-                }
-            }
-
-            CUDA_CHECK_RETURN(cudaSetDevice(0));
-            update_work_queue_cuda_kernel << < edgeCount, BLOCK_SIZE_EDGE_STREAMING >> >
-                                                          (work_queue_edges[0], num_work_items[0], work_queue_scratch[0], current_messages_previous[0], current_messages_current[0], num_edges);
-            test_error();
-
-            // update gpu
-            for(k = 1; k < num_devices; ++k) {
-                CUDA_CHECK_RETURN(cudaSetDevice(k));
-                CUDA_CHECK_RETURN(cudaMemcpy(work_queue_edges[k], work_queue_edges[0], sizeof(size_t) * graph->current_num_edges, cudaMemcpyHostToDevice));
-                CUDA_CHECK_RETURN(cudaMemcpy(num_work_items[k], num_work_items[0], sizeof(unsigned long long int), cudaMemcpyHostToDevice));
-            }
-
             //marginalize_loop_node_edge_kernel<<<nodeCount, BLOCK_SIZE>>>(node_states, num_vars, num_vertices);
             for(k = 0; k < num_devices; ++k) {
                 CUDA_CHECK_RETURN(cudaSetDevice(k));
