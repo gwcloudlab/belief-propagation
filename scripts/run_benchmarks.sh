@@ -15,7 +15,7 @@ cd "$ROOT_SRC_DIR/cmake-build-release/src/openmp_benchmark"
 
 # openacc benchmark
 cd "$ROOT_SRC_DIR/cmake-build-release/src/openacc_benchmark"
-make clean && make
+# make clean && make
 ./openacc_loopy_edge_benchmark || true
 ./openacc_loopy_node_benchmark || true
 
@@ -23,10 +23,12 @@ make clean && make
 cd "$ROOT_SRC_DIR/cmake-build-release/src/cuda_benchmark"
 ./cuda_edge_benchmark || true
 ./cuda_edge_streaming_benchmark || true
-./cuda_edge_openmpi_benchmark || true
+#./cuda_edge_openmpi_benchmark || true
+./cuda_edge_multiple_devices_benchmark || true
 ./cuda_node_benchmark || true
 ./cuda_node_streaming_benchmark || true
-./cuda_node_openmpi_benchmark || true
+#./cuda_node_openmpi_benchmark || true
+./cuda_node_multiple_devices_benchmark || true
 
 # cuda-kernels benchmark
 cd "$ROOT_SRC_DIR/cmake-build-release/src/cuda_benchmark_kernels"
