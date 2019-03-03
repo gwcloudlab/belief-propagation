@@ -12,5 +12,6 @@
  * @return A constructed graph representing the belief network encoded as the CSR
  */
 Graph_t build_graph_from_mtx(const char *, const char *, const struct joint_probability *, size_t , size_t);
+size_t calculate_diameter_from_mtx(const char *, const char *);
 
 #endif //PROJECT_CSR_PARSER_H
