@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <regex.h>
 #include <assert.h>
+#include <sys/param.h>
 #include "csr-parser.h"
 
 #define READ_CHAR_BUFFER_SIZE 102400
@@ -219,6 +220,45 @@ static void add_edges(Graph_t graph, const char *edges_mtx, regex_t *comment_reg
     fclose(fp);
 }
 
+static void add_edge_to_diameter_calc(const char * edges_mtx, size_t * dist, size_t num_nodes, regex_t *comment_regex) {
+    FILE *fp;
+    char buff[READ_CHAR_BUFFER_SIZE];
+    int reti;
+    char found_header;
+    char *p_end, *prev;
+    size_t src_id, dest_id;
+    size_t src_index, dest_index;
+
+    found_header = 0;
+    fp = fopen(edges_mtx, "r");
+    if (fp == NULL) {
+        fprintf(stderr, "Unable to open file: '%s'", edges_mtx);
+        exit(EXIT_FAILURE);
+    }
+
+    while (fgets(buff, READ_CHAR_BUFFER_SIZE, fp) != NULL) {
+        reti = regexec(comment_regex, buff, 0, NULL, 0);
+        if (reti == REG_NOMATCH) {
+            if (found_header == 0) {
+                found_header = 1;
+            } else {
+                src_id = strtoul(buff, &p_end, 10);
+                dest_id = strtoul(p_end, &p_end, 10);
+
+                assert(src_id > 0);
+                assert(dest_id > 0);
+
+                src_index = (size_t) (src_id - 1);
+                dest_index = (size_t) (dest_id - 1);
+
+                dist[src_index * num_nodes + dest_index] = 1;
+            }
+        }
+    }
+
+    fclose(fp);
+}
+
 Graph_t build_graph_from_mtx(const char *edges_mtx, const char *nodes_mtx, const struct joint_probability * edge_joint_probability, size_t dim_x, size_t dim_y) {
     regex_t regex_comment;
     int reti;
@@ -246,5 +286,61 @@ Graph_t build_graph_from_mtx(const char *edges_mtx, const char *nodes_mtx, const
     regfree(&regex_comment);
 
     return graph;
+}
+
+size_t calculate_diameter_from_mtx(const char *edges_mtx, const char *nodes_mtx) {
+    regex_t regex_comment;
+    int reti;
+    size_t num_nodes;
+
+    // compile comment regex
+    reti = regcomp(&regex_comment, "^[[:space:]]*%", 0);
+    if (reti) {
+        perror("Could not compile regex\n");
+        exit(1);
+    }
+
+    num_nodes = parse_number_of_nodes(nodes_mtx, &regex_comment);
+    assert(num_nodes > 0);
+
+    size_t * dist = (size_t *)malloc(sizeof(size_t) * num_nodes * num_nodes);
+    assert(dist);
+    for(size_t i = 0; i < num_nodes; ++i) {
+        for(size_t j = 0; j < num_nodes; ++j) {
+            if(i == j) {
+                dist[i * num_nodes + j] = 0;
+            }
+            else {
+                dist[i * num_nodes + j] = WEIGHT_INFINITY;
+            }
+        }
+    }
+
+    add_edge_to_diameter_calc(edges_mtx, dist, num_nodes, &regex_comment);
+
+    for(size_t k = 0; k < num_nodes; ++k){
+#pragma omp parallel for shared(dist)
+        for(size_t i = 0; i < num_nodes; ++i){
+            for(size_t j = 0; j < num_nodes; ++j){
+                dist[i * num_nodes + j] = MIN(dist[i * num_nodes + k] + dist[k * num_nodes + j], dist[i * num_nodes + j]);
+            }
+        }
+    }
+
+    size_t diameter = dist[00];
+
+    for(size_t i = 0; i < num_nodes; ++i) {
+        for (size_t j = 0; j < num_nodes; ++j) {
+            if (dist[i * num_nodes + j] >= WEIGHT_INFINITY) {
+                continue;
+            }
+            diameter = MAX(diameter, dist[i * num_nodes + j]);
+        }
+    }
+    free(dist);
+
+    regfree(&regex_comment);
+
+    return diameter;
 }
 

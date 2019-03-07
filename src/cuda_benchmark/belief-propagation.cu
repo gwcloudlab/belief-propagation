@@ -3436,8 +3436,8 @@ int loopy_propagate_until_cuda_edge(Graph_t graph, float convergence, int max_it
     dim3 dimReduceGrid(edgeCount, 1, 1);
     int reduceSmemSize = (BLOCK_SIZE <= 32) ? 2 * BLOCK_SIZE * sizeof(float) : BLOCK_SIZE * sizeof(float);
 
-    for(i = 0; i < max_iterations; i+= BATCH_SIZE){
-        for(j = 0; j < BATCH_SIZE; ++j) {
+    for(i = 0; i < max_iterations; i+= BATCH_SIZE_EDGE){
+        for(j = 0; j < BATCH_SIZE_EDGE; ++j) {
             send_message_for_edge_iteration_cuda_work_queue_kernel<<<edgeCount, BLOCK_SIZE >>>(num_edges, edges_src_index,
                     node_states, edge_joint_probability_dim_x, edge_joint_probability_dim_y,
                     current_messages, current_messages_previous, current_messages_current,
@@ -3748,8 +3748,8 @@ int loopy_propagate_until_cuda_edge_streaming(Graph_t graph, float convergence, 
         node_thread_data[i].buffers = NULL;
     }
 
-    for(i = 0; i < max_iterations; i+= BATCH_SIZE){
-        for(j = 0; j < BATCH_SIZE; ++j) {
+    for(i = 0; i < max_iterations; i+= BATCH_SIZE_EDGE){
+        for(j = 0; j < BATCH_SIZE_EDGE; ++j) {
             for(k = 0; k < NUM_THREAD_PARTITIONS; ++k) {
                 retval = pthread_create(&threads[k], NULL, launch_send_message_kernel, &thread_data[k]);
                 if(retval) {
@@ -4137,8 +4137,8 @@ int loopy_propagate_until_cuda_edge_multiple_devices(Graph_t graph, float conver
         node_thread_data[i].buffers = NULL;
     }
 
-    for(i = 0; i < max_iterations; i+= BATCH_SIZE){
-        for(j = 0; j < BATCH_SIZE; ++j) {
+    for(i = 0; i < max_iterations; i+= BATCH_SIZE_EDGE){
+        for(j = 0; j < BATCH_SIZE_EDGE; ++j) {
             for(k = 0; k < num_devices; ++k) {
                 CUDA_CHECK_RETURN(cudaSetDevice(k));
                 retval = pthread_create(&threads[k], NULL, launch_send_message_kernel, &thread_data[k]);
@@ -4653,8 +4653,8 @@ int loopy_propagate_until_cuda_edge_openmpi(Graph_t graph, float convergence, in
         node_thread_data[i].buffers = NULL;
     }
 
-    for(i = 0; i < max_iterations; i+= BATCH_SIZE){
-        for(j = 0; j < BATCH_SIZE; ++j) {
+    for(i = 0; i < max_iterations; i+= BATCH_SIZE_EDGE){
+        for(j = 0; j < BATCH_SIZE_EDGE; ++j) {
             for(k = 0; k < num_devices; ++k) {
                 CUDA_CHECK_RETURN(cudaSetDevice(k));
                 retval = pthread_create(&threads[k], NULL, launch_send_message_kernel, &thread_data[k]);
@@ -5035,8 +5035,8 @@ int page_rank_until_cuda_edge(Graph_t graph, float convergence, int max_iteratio
     dim3 dimReduceGrid(edgeCount, 1, 1);
     int reduceSmemSize = (BLOCK_SIZE <= 32) ? 2 * BLOCK_SIZE * sizeof(float) : BLOCK_SIZE * sizeof(float);
 
-    for(i = 0; i < max_iterations; i+= BATCH_SIZE){
-        for(j = 0; j < BATCH_SIZE; ++j) {
+    for(i = 0; i < max_iterations; i+= BATCH_SIZE_EDGE){
+        for(j = 0; j < BATCH_SIZE_EDGE; ++j) {
             send_message_for_edge_iteration_cuda_kernel<<<edgeCount, BLOCK_SIZE >>>(num_edges, edges_src_index,
                     node_states,
                     edge_joint_probability_dim_x, edge_joint_probability_dim_y,
@@ -5183,8 +5183,8 @@ int viterbi_until_cuda_edge(Graph_t graph, float convergence, int max_iterations
     dim3 dimReduceGrid(edgeCount, 1, 1);
     int reduceSmemSize = (BLOCK_SIZE <= 32) ? 2 * BLOCK_SIZE * sizeof(float) : BLOCK_SIZE * sizeof(float);
 
-    for(i = 0; i < max_iterations; i+= BATCH_SIZE){
-        for(j = 0; j < BATCH_SIZE; ++j) {
+    for(i = 0; i < max_iterations; i+= BATCH_SIZE_EDGE){
+        for(j = 0; j < BATCH_SIZE_EDGE; ++j) {
             send_message_for_edge_iteration_cuda_kernel<<<edgeCount, BLOCK_SIZE >>>(num_edges, edges_src_index,
                     node_states,
                     edge_joint_probability_dim_x, edge_joint_probability_dim_y,
