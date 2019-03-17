@@ -35,7 +35,7 @@ struct node_stream_data {
     size_t num_edges;
     struct belief *buffers;
     struct belief *node_messages;
-    size_t * node_messages_size;
+    size_t node_messages_size;
     size_t edge_joint_probability_dim_x;
     size_t edge_joint_probability_dim_y;
     struct belief *current_edge_messages;
@@ -68,7 +68,7 @@ struct edge_stream_data {
     struct belief *current_edge_messages;
     float *current_edge_messages_previous;
     float *current_edge_messages_current;
-    size_t *current_edge_messages_size;
+    size_t current_edge_messages_size;
 
     size_t *work_queue_edges;
     unsigned long long int *num_work_items;

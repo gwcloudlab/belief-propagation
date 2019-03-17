@@ -92,7 +92,7 @@ struct graph {
 	struct belief * edges_messages;
 	float *edges_messages_current;
 	float *edges_messages_previous;
-	size_t *edges_messages_size;
+	size_t edges_messages_size;
 
 	/**
 	 * Array of belief states indexed by node
@@ -100,7 +100,7 @@ struct graph {
 	struct belief * node_states;
 	float *node_states_current;
 	float *node_states_previous;
-	size_t *node_states_size;
+	size_t node_states_size;
 
 	/**
 	 * Array of indices in src_nodes_to_edges_edge_list indexed by their source node
