@@ -23,7 +23,7 @@
 
 #define BATCH_SIZE 10
 
-#define BATCH_SIZE_EDGE 1
+#define BATCH_SIZE_EDGE 2
 
 #define NUM_ITERATIONS 200
 

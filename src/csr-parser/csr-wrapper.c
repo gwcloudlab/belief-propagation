@@ -89,9 +89,9 @@ void run_test_loopy_belief_propagation_mtx_files(const char * edges_mtx, const c
     //calculate_diameter(graph);
 
     // start loopy BP
-    start = clock();
     init_previous_edge(graph);
 
+    start = clock();
     num_iterations = loopy_propagate_until(graph, PRECISION, NUM_ITERATIONS);
     end = clock();
 
@@ -124,9 +124,9 @@ void run_test_loopy_belief_propagation_edge_mtx_files(const char * edges_mtx, co
     //calculate_diameter(graph);
 
     // start loopy BP
-    start = clock();
     init_previous_edge(graph);
 
+    start = clock();
     num_iterations = loopy_propagate_until_edge(graph, PRECISION, NUM_ITERATIONS);
     end = clock();
 
@@ -158,9 +158,9 @@ void run_test_loopy_belief_propagation_mtx_files_acc(const char *edges_mtx, cons
     //calculate_diameter(graph);
 
     // start loopy bp
-    start = clock();
     init_previous_edge(graph);
 
+    start = clock();
     num_iterations = loopy_propagate_until_acc(graph, PRECISION, NUM_ITERATIONS);
     end = clock();
 
@@ -191,9 +191,9 @@ void run_test_loopy_belief_propagation_edge_mtx_files_acc(const char *edges_mtx,
     //calculate_diameter(graph);
 
     // start loopy BP
-    start = clock();
     init_previous_edge(graph);
 
+    start = clock();
     num_iterations = loopy_propagate_until_edge_acc(graph, PRECISION, NUM_ITERATIONS);
     end = clock();
 

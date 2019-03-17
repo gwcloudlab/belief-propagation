@@ -129,9 +129,10 @@ void combine_message_cuda(struct belief * __restrict__ dest, const struct belief
     const float *messages = edge_messages[offset].data;
 
     for(i = 0; i < length; ++i){
-        if(messages[i] == messages[i]){
+       // if(messages[i] == messages[i]){
+       assert(messages[i] == messages[i]);
             dest->data[i] = buffer[i] * messages[i];
-        }
+        //}
     }
 }
 
@@ -142,9 +143,10 @@ void combine_message_cuda_node_streaming(struct belief * __restrict__ dest, cons
     const float *messages = edge_messages[offset].data;
 
     for(i = 0; i < length; ++i){
-        if(messages[i] == messages[i]){
+        assert(messages[i] == messages[i]);
+        //if(messages[i] == messages[i]){
             dest->data[i] = buffer[i] * messages[i];
-        }
+        //}
     }
 }
 
@@ -155,9 +157,10 @@ void combine_message_cuda_edge_streaming(struct belief * __restrict__ dest, cons
     const float *messages = edge_messages[offset].data;
 
     for(i = 0; i < length; ++i){
-        if(messages[i] == messages[i]){
+        assert(messages[i] == messages[i]);
+        //if(messages[i] == messages[i]){
             dest->data[i] = buffer[i] * messages[i];
-        }
+        //}
     }
 }
 
@@ -168,9 +171,10 @@ void combine_page_rank_message_cuda(struct belief * __restrict__ dest, const str
     const float * messages = edge_messages[offset].data;
 
     for(i = 0; i < length; ++i){
-        if(messages[i] == messages[i]){
+        assert(messages[i] == messages[i]);
+        //if(messages[i] == messages[i]){
             dest->data[i] = buffer[i] + messages[i];
-        }
+        //}
     }
 }
 
@@ -185,9 +189,10 @@ void combine_viterbi_message_cuda(struct belief * __restrict__ dest, const struc
     messages = edge_messages[offset].data;
 
     for(i = 0; i < length; ++i){
-        if(messages[i] == messages[i]){
+        assert(messages[i] == messages[i]);
+        //if(messages[i] == messages[i]){
             dest->data[i] = fmaxf(buffer[i], messages[i]);
-        }
+       // }
     }
 }
 
@@ -5262,9 +5267,9 @@ void run_test_loopy_belief_propagation_cuda(struct expression * expression, cons
     set_up_dest_nodes_to_edges(graph);
     //calculate_diameter(graph);
 
-    start = clock();
     init_previous_edge(graph);
 
+    start = clock();
     num_iterations = loopy_propagate_until_cuda(graph, PRECISION, NUM_ITERATIONS);
     end = clock();
 
@@ -5296,9 +5301,9 @@ void run_test_loopy_belief_propagation_xml_file_cuda(const char * file_name, FIL
     set_up_dest_nodes_to_edges(graph);
     //calculate_diameter(graph);
 
-    start = clock();
     init_previous_edge(graph);
 
+    start = clock();
     num_iterations = loopy_propagate_until_cuda(graph, PRECISION, NUM_ITERATIONS);
     end = clock();
 
@@ -5330,9 +5335,9 @@ void run_test_loopy_belief_propagation_xml_file_cuda_streaming(const char * file
     set_up_dest_nodes_to_edges(graph);
     //calculate_diameter(graph);
 
-    start = clock();
     init_previous_edge(graph);
 
+    start = clock();
     num_iterations = loopy_propagate_until_cuda_streaming(graph, PRECISION, NUM_ITERATIONS);
     end = clock();
 
@@ -5364,9 +5369,9 @@ void run_test_loopy_belief_propagation_xml_file_edge_cuda(const char * file_name
     set_up_dest_nodes_to_edges(graph);
     //calculate_diameter(graph);
 
-    start = clock();
     init_previous_edge(graph);
 
+    start = clock();
     num_iterations = loopy_propagate_until_cuda_edge(graph, PRECISION, NUM_ITERATIONS);
     end = clock();
 
@@ -5398,9 +5403,9 @@ void run_test_loopy_belief_propagation_xml_file_edge_cuda_streaming(const char *
     set_up_dest_nodes_to_edges(graph);
     //calculate_diameter(graph);
 
-    start = clock();
     init_previous_edge(graph);
 
+    start = clock();
     num_iterations = loopy_propagate_until_cuda_edge_streaming(graph, PRECISION, NUM_ITERATIONS);
     end = clock();
 
@@ -5435,9 +5440,9 @@ void run_test_loopy_belief_propagation_snap_file_cuda(const char * edge_file_nam
     set_up_dest_nodes_to_edges(graph);
     //calculate_diameter(graph);
 
-    start = clock();
     init_previous_edge(graph);
 
+    start = clock();
     num_iterations = loopy_propagate_until_cuda(graph, PRECISION, NUM_ITERATIONS);
     end = clock();
 
@@ -5470,9 +5475,9 @@ void run_test_loopy_belief_propagation_snap_file_edge_cuda(const char * edge_fil
     set_up_dest_nodes_to_edges(graph);
     //calculate_diameter(graph);
 
-    start = clock();
     init_previous_edge(graph);
 
+    start = clock();
     num_iterations = loopy_propagate_until_cuda_edge(graph, PRECISION, NUM_ITERATIONS);
     end = clock();
 
@@ -5499,9 +5504,9 @@ void run_test_loopy_belief_propagation_mtx_files_cuda(const char * edge_mtx, con
     set_up_dest_nodes_to_edges_no_hsearch(graph);
     //calculate_diameter(graph);
 
-    start = clock();
     init_previous_edge(graph);
 
+    start = clock();
     num_iterations = loopy_propagate_until_cuda(graph, PRECISION, NUM_ITERATIONS);
     end = clock();
 
@@ -5528,9 +5533,9 @@ void run_test_loopy_belief_propagation_mtx_files_cuda_streaming(const char * edg
     set_up_dest_nodes_to_edges_no_hsearch(graph);
     //calculate_diameter(graph);
 
-    start = clock();
     init_previous_edge(graph);
 
+    start = clock();
     num_iterations = loopy_propagate_until_cuda_streaming(graph, PRECISION, NUM_ITERATIONS);
     end = clock();
 
@@ -5557,9 +5562,10 @@ void run_test_loopy_belief_propagation_mtx_files_cuda_multiple_devices(const cha
     set_up_dest_nodes_to_edges_no_hsearch(graph);
     //calculate_diameter(graph);
 
-    start = clock();
+
     init_previous_edge(graph);
 
+    start = clock();
     num_iterations = loopy_propagate_until_cuda_multiple_devices(graph, PRECISION, NUM_ITERATIONS);
     end = clock();
 
@@ -5586,9 +5592,9 @@ void run_test_loopy_belief_propagation_mtx_files_edge_cuda(const char * edge_mtx
     set_up_dest_nodes_to_edges_no_hsearch(graph);
     //calculate_diameter(graph);
 
-    start = clock();
     init_previous_edge(graph);
 
+    start = clock();
     num_iterations = loopy_propagate_until_cuda_edge(graph, PRECISION, NUM_ITERATIONS);
     end = clock();
 
@@ -5615,9 +5621,9 @@ void run_test_loopy_belief_propagation_mtx_files_edge_cuda_streaming(const char 
     set_up_dest_nodes_to_edges_no_hsearch(graph);
     //calculate_diameter(graph);
 
-    start = clock();
     init_previous_edge(graph);
 
+    start = clock();
     num_iterations = loopy_propagate_until_cuda_edge_streaming(graph, PRECISION, NUM_ITERATIONS);
     end = clock();
 
@@ -5644,9 +5650,9 @@ void run_test_loopy_belief_propagation_mtx_files_edge_cuda_multiple_devices(cons
     set_up_dest_nodes_to_edges_no_hsearch(graph);
     //calculate_diameter(graph);
 
-    start = clock();
     init_previous_edge(graph);
 
+    start = clock();
     num_iterations = loopy_propagate_until_cuda_edge_multiple_devices(graph, PRECISION, NUM_ITERATIONS);
     end = clock();
 
@@ -5694,8 +5700,8 @@ void run_test_loopy_belief_propagation_mtx_files_cuda_openmpi(const char * edge_
         num_edges = graph->current_num_edges;
         set_up_src_nodes_to_edges_no_hsearch(graph);
         set_up_dest_nodes_to_edges_no_hsearch(graph);
-        start = clock();
         init_previous_edge(graph);
+        start = clock();
     }
 
     MPICHECK(MPI_Bcast(&num_vertices, 1, MPI_INT, 0, MPI_COMM_WORLD));
@@ -5775,8 +5781,8 @@ void run_test_loopy_belief_propagation_mtx_files_edge_cuda_openmpi(const char *e
         num_edges = graph->current_num_edges;
         set_up_src_nodes_to_edges_no_hsearch(graph);
         set_up_dest_nodes_to_edges_no_hsearch(graph);
-        start = clock();
         init_previous_edge(graph);
+        start = clock();
     }
 
     MPICHECK(MPI_Bcast(&num_vertices, 1, MPI_INT, 0, MPI_COMM_WORLD));

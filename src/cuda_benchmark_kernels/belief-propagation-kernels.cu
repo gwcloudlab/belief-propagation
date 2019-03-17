@@ -1319,9 +1319,9 @@ void test_loopy_belief_propagation_kernels(char * file_name){
     set_up_src_nodes_to_edges(graph);
     set_up_dest_nodes_to_edges(graph);
 
-    start = clock();
     init_previous_edge(graph);
 
+    start = clock();
     loopy_propagate_until_cuda_kernels(graph, PRECISION, NUM_ITERATIONS);
     end = clock();
 
@@ -1355,9 +1355,10 @@ void run_test_loopy_belief_propagation_kernels(struct expression * expression, c
     set_up_dest_nodes_to_edges(graph);
     //calculate_diameter(graph);
 
-    start = clock();
+
     init_previous_edge(graph);
 
+    start = clock();
     num_iterations = loopy_propagate_until_cuda_kernels(graph, PRECISION, NUM_ITERATIONS);
     end = clock();
 
@@ -1389,9 +1390,9 @@ void run_test_loopy_belief_propagation_xml_file_kernels(const char * file_name, 
     set_up_dest_nodes_to_edges(graph);
     //calculate_diameter(graph);
 
-    start = clock();
     init_previous_edge(graph);
 
+    start = clock();
     num_iterations = loopy_propagate_until_cuda_kernels(graph, PRECISION, NUM_ITERATIONS);
     end = clock();
 
@@ -1427,9 +1428,9 @@ void run_test_loopy_belief_propagation_snap_file_kernels(const char * edge_file_
     set_up_dest_nodes_to_edges(graph);
     //calculate_diameter(graph);
 
-    start = clock();
     init_previous_edge(graph);
 
+    start = clock();
     num_iterations = loopy_propagate_until_cuda_kernels(graph, PRECISION, NUM_ITERATIONS);
     end = clock();
 
@@ -1461,9 +1462,9 @@ void run_test_loopy_belief_propagation_mtx_files_kernels(const char * edges_mtx,
     set_up_dest_nodes_to_edges_no_hsearch(graph);
     //calculate_diameter(graph);
 
-    start = clock();
     init_previous_edge(graph);
 
+    start = clock();
     num_iterations = loopy_propagate_until_cuda_kernels(graph, PRECISION, NUM_ITERATIONS);
     end = clock();
 

@@ -724,9 +724,11 @@ static inline void combine_message(struct belief * __restrict__ dest, const stru
 #pragma omp simd safelen(AVG_STATES)
 #pragma simd vectorlength(AVG_STATES)
 	for(i = 0; i < num_variables; ++i){
-		if(src[offset].data[i] == src[offset].data[i]) { // ensure no nan's
-			dest->data[i] *= src[offset].data[i];
-		}
+		//if(src[offset].data[i] == src[offset].data[i]) { // ensure no nan's
+		assert(src[offset].data[i] == src[offset].data[i]);
+		dest->data[i] *= src[offset].data[i];
+
+		//}
 	}
 }
 
@@ -744,9 +746,10 @@ static inline void combine_page_rank_message(struct belief * __restrict__ dest, 
 #pragma omp simd safelen(AVG_STATES)
 #pragma simd vectorlength(AVG_STATES)
     for(i = 0; i < num_variables; ++i){
-        if(src[offset].data[i] == src[offset].data[i]) { // ensure no nan's
+        assert(src[offset].data[i] == src[offset].data[i]);
+        //if(src[offset].data[i] == src[offset].data[i]) { // ensure no nan's
             dest->data[i] += src[offset].data[i];
-        }
+        //}
     }
 }
 
@@ -764,9 +767,10 @@ static inline void combine_viterbi_message(struct belief * __restrict__ dest, co
 #pragma omp simd safelen(AVG_STATES)
 #pragma simd vectorlength(AVG_STATES)
     for(i = 0; i < num_variables; ++i){
-        if(src[offset].data[i] == src[offset].data[i]) { // ensure no nan's
+        assert(src[offset].data[i] == src[offset].data[i]);
+        //if(src[offset].data[i] == src[offset].data[i]) { // ensure no nan's
             dest->data[i] = fmaxf(dest->data[i], src->data[i]);
-        }
+        //}
     }
 }
 
@@ -1253,6 +1257,8 @@ static void initialize_message_buffer(struct belief * __restrict__ message_buffe
 	size_t j;
 
 	//reset buffer
+#pragma omp simd safelen(AVG_STATES)
+#pragma simd vectorlength(AVG_STATES)
 	for(j = 0; j < num_variables; ++j){
 		message_buffer->data[j] = node_states[node_index].data[j];
 	}
@@ -1907,21 +1913,26 @@ void loopy_propagate_edge_one_iteration(Graph_t graph){
 	num_work_items_edges = graph->num_work_items_edges;
 	work_queue_edges = graph->work_queue_edges;
 
-    #pragma omp parallel for default(none) shared(node_states, edge_joint_probability, current_edge_messages, edges_messages_previous, edges_messages_current, edges_src_index, num_edges, work_queue_edges, num_work_items_edges, edge_joint_probability_dim_x, edge_joint_probability_dim_y) private(src_node_index, i, current_index)
-    for(i = 0; i < num_work_items_edges; ++i){
-		current_index = work_queue_edges[i];
+    #pragma omp parallel default(none) shared(node_states, edge_joint_probability, current_edge_messages, edges_messages_previous, edges_messages_current, edges_src_index, edges_dest_index, num_edges, work_queue_edges, num_work_items_edges, edge_joint_probability_dim_x, edge_joint_probability_dim_y, node_states_size) private(src_node_index, dest_node_index, i, current_index)
+	{
+#pragma omp for
+		for (i = 0; i < num_work_items_edges; ++i) {
+			current_index = work_queue_edges[i];
 
-        src_node_index = edges_src_index[current_index];
-        send_message_for_edge_iteration(node_states, src_node_index, current_index, edge_joint_probability, edge_joint_probability_dim_x, edge_joint_probability_dim_y, current_edge_messages, edges_messages_previous, edges_messages_current);
-    }
+			src_node_index = edges_src_index[current_index];
+			send_message_for_edge_iteration(node_states, src_node_index, current_index, edge_joint_probability,
+											edge_joint_probability_dim_x, edge_joint_probability_dim_y,
+											current_edge_messages, edges_messages_previous, edges_messages_current);
+		}
 
-    #pragma omp parallel for default(none) shared(current_edge_messages, node_states, node_states_size, edges_dest_index, num_edges, work_queue_edges, num_work_items_edges) private(dest_node_index, i, current_index)
-    for(i = 0; i < num_work_items_edges; ++i){
-		current_index = work_queue_edges[i];
+#pragma omp for
+		for (i = 0; i < num_work_items_edges; ++i) {
+			current_index = work_queue_edges[i];
 
-        dest_node_index = edges_dest_index[current_index];
-		combine_loopy_edge(current_index, current_edge_messages, dest_node_index, node_states, node_states_size);
-    }
+			dest_node_index = edges_dest_index[current_index];
+			combine_loopy_edge(current_index, current_edge_messages, dest_node_index, node_states, node_states_size);
+		}
+	}
 	/*
 #pragma omp parallel for default(none) shared(node_states, num_vars, num_nodes) private(i)
 	for(i = 0; i < num_nodes; ++i){
