@@ -41,7 +41,13 @@ void combine_message_cuda(struct belief * __restrict__ dest, const struct belief
         shared_dest[index] = dest[node_index].data[index];
         shared_src[index] = edge_messages[edge_offset].data[index];
 
-        dest[node_index].data[index] = shared_dest[index] * shared_src[index];
+        float value = shared_dest[index] * shared_src[index];
+        if(isnan(value) || isinf(value)) {
+            dest[node_index].data[index] = 0.0f;
+        }
+        else {
+            dest[node_index].data[index] = value;
+        }
     }
 }
 
@@ -67,7 +73,13 @@ void combine_page_rank_message_cuda(struct belief * __restrict__ dest, const str
         shared_dest[index] = dest[node_index].data[index];
         shared_src[index] = edge_messages[edge_offset].data[index];
 
-        dest[node_index].data[index] = shared_dest[index] + shared_src[index];
+        float value = shared_dest[index] + shared_src[index];
+        if(isnan(value) || isinf(value)) {
+            dest[node_index].data[index] = 0.0f;
+        }
+        else {
+            dest[node_index].data[index] = value;
+        }
     }
 }
 
@@ -93,7 +105,13 @@ void combine_viterbi_message_cuda(struct belief * __restrict__ dest, const struc
         shared_dest[index] = dest[node_index].data[index];
         shared_src[index] = edge_messages[edge_offset].data[index];
 
-        dest[node_index].data[index] = fmaxf(shared_dest[index], shared_src[index]);
+        float value = fmaxf(shared_dest[index], shared_src[index]);
+        if(isinf(value) || isnan(value)) {
+            dest[node_index].data[index] = 0.0f;
+        }
+        else {
+            dest[node_index].data[index] = value;
+        }
     }
 }
 
@@ -1419,9 +1437,11 @@ void run_test_loopy_belief_propagation_mtx_files_kernels(const char * edges_mtx,
                                                                  int dim_x, int dim_y,
                                                          FILE * out){
     Graph_t graph;
-    clock_t start, end;
-    double time_elapsed;
+    clock_t start, end, begin;
+    double time_elapsed, total_time_elapsed;
     int num_iterations;
+
+    begin = clock();
 
     graph = build_graph_from_mtx(edges_mtx, nodes_mtx, edge_probability, dim_x, dim_y);
     assert(graph != NULL);
@@ -1439,8 +1459,9 @@ void run_test_loopy_belief_propagation_mtx_files_kernels(const char * edges_mtx,
     end = clock();
 
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
+    total_time_elapsed = (double)(end - begin)/CLOCKS_PER_SEC;
     //print_nodes(graph);
-    fprintf(out, "%s-%s,loopy,%ld,%ld,%d,%d,%lf,%d,%lf,%d,%lf\n", edges_mtx, nodes_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, graph->max_in_degree, graph->avg_in_degree, graph->max_out_degree, graph->avg_out_degree, num_iterations+1, time_elapsed);
+    fprintf(out, "%s-%s,loopy,%ld,%ld,%d,%d,%lf,%d,%lf,%d,%lf,%lf\n", edges_mtx, nodes_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, graph->max_in_degree, graph->avg_in_degree, graph->max_out_degree, graph->avg_out_degree, num_iterations+1, time_elapsed, total_time_elapsed);
     fflush(out);
 
     graph_destroy(graph);

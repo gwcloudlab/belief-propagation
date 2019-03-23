@@ -3,7 +3,7 @@
 
 int main(void) {
     FILE * out = fopen("openacc_benchmark_loopy_node.csv", "w");
-    fprintf(out, "File Name,Propagation Type,Number of Nodes,Number of Edges,Diameter,Max In-degree,Avg In-degree,Max Out-degree,Avg Out-degree,Number of Iterations,BP Run Time(s)\n");
+    fprintf(out, "File Name,Propagation Type,Number of Nodes,Number of Edges,Diameter,Max In-degree,Avg In-degree,Max Out-degree,Avg Out-degree,Number of Iterations,BP Run Time(s),Total Run Time(s)\n");
     fflush(out);
 
     struct joint_probability edge_joint_probability;
@@ -12,7 +12,7 @@ int main(void) {
 
     run_test_loopy_belief_propagation_mtx_files_acc("/home/mjt5v/Desktop/belief-network-const-joint-probability/10_nodes_40_edges_2_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/10_nodes_40_edges_2_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
     run_test_loopy_belief_propagation_mtx_files_acc("/home/mjt5v/Desktop/belief-network-const-joint-probability/100_nodes_400_edges_2_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/100_nodes_400_edges_2_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
-    run_test_loopy_belief_propagation_mtx_files_acc("/home/mjt5v/Desktop/belief-network-const-joint-probability/1000_nodes_4000_edges_2_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/1000_nodes_4000_edges_2_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
+    run_test_loopy_belief_propagation_mtx_files_acc("/home/mjt5v/Desktop/belief-network-const-joint-probability/1000_nodes_4000_edges_2_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/1000_nodes_4000_edges_2_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);*/
     run_test_loopy_belief_propagation_mtx_files_acc("/home/mjt5v/Desktop/belief-network-const-joint-probability/10000_nodes_40000_edges_2_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/10000_nodes_40000_edges_2_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
     run_test_loopy_belief_propagation_mtx_files_acc("/home/mjt5v/Desktop/belief-network-const-joint-probability/100000_nodes_400000_edges_2_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/100000_nodes_400000_edges_2_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
     run_test_loopy_belief_propagation_mtx_files_acc("/home/mjt5v/Desktop/belief-network-const-joint-probability/200000_nodes_800000_edges_2_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/200000_nodes_800000_edges_2_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
@@ -33,7 +33,8 @@ int main(void) {
     run_test_loopy_belief_propagation_mtx_files_acc("/home/mjt5v/Desktop/belief-network-const-joint-probability/tech-p2p_2_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/tech-p2p_2_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
     run_test_loopy_belief_propagation_mtx_files_acc("/home/mjt5v/Desktop/belief-network-const-joint-probability/kron_g500-logn17_2_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/kron_g500-logn17_2_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
     run_test_loopy_belief_propagation_mtx_files_acc("/home/mjt5v/Desktop/belief-network-const-joint-probability/soc-orkut_2_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/soc-orkut_2_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
-    run_test_loopy_belief_propagation_mtx_files_acc("/home/mjt5v/Desktop/belief-network-const-joint-probability/soc-twitter-2010_2.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/soc-twitter-2010_2.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
+    //run_test_loopy_belief_propagation_mtx_files_acc("/home/mjt5v/Desktop/belief-network-const-joint-probability/soc-twitter-2010_2.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/soc-twitter-2010_2.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
+    run_test_loopy_belief_propagation_mtx_files_acc("/home/mjt5v/Desktop/belief-network-const-joint-probability/soc-twitter-2010_2_red.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/soc-twitter-2010_2.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
 
     fclose(out);
     return 0;

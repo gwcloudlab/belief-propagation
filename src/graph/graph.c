@@ -2,7 +2,13 @@
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
+
+#ifdef _OPENACC
+#include "accelmath.h"
+#define INFINITY  __builtin_huge_valf()
+#else
 #include "math.h"
+#endif
 
 #include "graph.h"
 
@@ -232,7 +238,8 @@ void graph_set_node_state(Graph_t g, const size_t node_index, const size_t num_s
  * @param dim_y The second dimension of the edge's joint probability matrix
  * @param joint_probabilities The joint probability matrix
  */
-void graph_add_edge(Graph_t graph, const size_t src_index, const size_t dest_index, const size_t dim_x, const size_t dim_y) {
+void graph_add_edge(Graph_t graph, size_t src_index, size_t dest_index, size_t dim_x, size_t dim_y) {
+	int res;
 	size_t edge_index;
     ENTRY src_e, *src_ep;
     ENTRY dest_e, *dest_ep;
@@ -250,8 +257,10 @@ void graph_add_edge(Graph_t graph, const size_t src_index, const size_t dest_ind
 		assert(graph->src_node_to_edge_table);
         graph->dest_node_to_edge_table = (struct hsearch_data *)calloc(sizeof(struct hsearch_data), 1);
 		assert(graph->dest_node_to_edge_table);
-        assert(hcreate_r((size_t)graph->current_num_vertices, graph->src_node_to_edge_table) != 0);
-        assert(hcreate_r((size_t)graph->current_num_vertices, graph->dest_node_to_edge_table) != 0);
+		res = hcreate_r((size_t)graph->current_num_vertices, graph->src_node_to_edge_table);
+        assert(res != 0);
+		res = hcreate_r((size_t)graph->current_num_vertices, graph->dest_node_to_edge_table);
+        assert(res != 0);
 
         graph->edge_tables_created = 1;
     }
@@ -719,9 +728,14 @@ static inline void combine_message(struct belief * __restrict__ dest, const stru
 #pragma simd vectorlength(AVG_STATES)
 	for(i = 0; i < num_variables; ++i){
 		//if(src[offset].data[i] == src[offset].data[i]) { // ensure no nan's
-		assert(src[offset].data[i] == src[offset].data[i]);
-		dest->data[i] *= src[offset].data[i];
-
+		//assert(src[offset].data[i] == src[offset].data[i]);
+		float value = dest->data[i] * src[offset].data[i];
+		if(isnan(value) || isinf(value)) {
+			dest->data[i] = 0.0f;
+		}
+		else {
+			dest->data[i] = value;
+		}
 		//}
 	}
 }
@@ -740,9 +754,14 @@ static inline void combine_page_rank_message(struct belief * __restrict__ dest, 
 #pragma omp simd safelen(AVG_STATES)
 #pragma simd vectorlength(AVG_STATES)
     for(i = 0; i < num_variables; ++i){
-        assert(src[offset].data[i] == src[offset].data[i]);
         //if(src[offset].data[i] == src[offset].data[i]) { // ensure no nan's
-            dest->data[i] += src[offset].data[i];
+		float value = dest->data[i] + src[offset].data[i];
+		if(isnan(value) || isinf(value)) {
+			dest->data[i] = 0.0f;
+		}
+		else {
+			dest->data[i] = value;
+		}
         //}
     }
 }
@@ -761,9 +780,15 @@ static inline void combine_viterbi_message(struct belief * __restrict__ dest, co
 #pragma omp simd safelen(AVG_STATES)
 #pragma simd vectorlength(AVG_STATES)
     for(i = 0; i < num_variables; ++i){
-        assert(src[offset].data[i] == src[offset].data[i]);
+
         //if(src[offset].data[i] == src[offset].data[i]) { // ensure no nan's
-            dest->data[i] = fmaxf(dest->data[i], src->data[i]);
+        float value = fmaxf(dest->data[i], src->data[i]);
+		if(isnan(value) || isinf(value)){
+			dest->data[i] = 0.0f;
+		}
+		else {
+			dest->data[i] = value;
+		}
         //}
     }
 }
@@ -2491,35 +2516,35 @@ static int loopy_propagate_iterations_acc(size_t num_vertices, size_t num_edges,
 										   size_t num_work_items_nodes,
 										   int max_iterations,
 										   float convergence){
-	size_t j, k, current_index;
+	size_t j, k;
     int i, num_iter;
-	float delta, previous_delta, diff;
+	float delta, previous_delta;
 	struct belief *curr_messages;
 
 	curr_messages = current_messages;
 
-
-	struct belief belief_buffer;
 
 	num_iter = 0;
 
 	previous_delta = -1.0f;
 	delta = 0.0f;
 
-
-    for(i = 0; i < max_iterations; i+= BATCH_SIZE) {
 #pragma acc data present_or_copy(node_states[0:(num_vertices)], node_states_previous[0:(num_vertices)], node_states_current[0:(num_vertices)], curr_messages[0:(num_edges)], messages_current[0:(num_edges)], messages_previous[0:(num_edges)], work_items_nodes[0:(num_work_items_nodes)]) present_or_copyin(dest_node_to_edges_nodes[0:num_vertices], dest_node_to_edges_edges[0:num_edges], src_node_to_edges_nodes[0:num_vertices], src_node_to_edges_edges[0:num_edges], edge_joint_probability[0:1])
-        {
+    {
+        for (i = 0; i < max_iterations; i += BATCH_SIZE) {
             //printf("Current iteration: %d\n", i+1);
             for (j = 0; j < BATCH_SIZE; ++j) {
-#pragma acc kernels
+#pragma acc kernels present(node_states[0:(num_vertices)], src_node_to_edges_nodes[0:(num_vertices)], src_node_to_edges_edges[0:(num_edges)], edge_joint_probability[0:1], messages_previous[0:(num_edges)], messages_current[0:(num_edges)], dest_node_to_edges_nodes[0:(num_vertices)], dest_node_to_edges_edges[0:(num_edges)], curr_messages[0:(num_edges)])
                 for (k = 0; k < num_work_items_nodes; ++k) {
-					current_index = work_items_nodes[k];
+                    size_t current_index = work_items_nodes[k];
+
+                    struct belief belief_buffer;
 
                     initialize_message_buffer(&belief_buffer, node_states, current_index, num_variables);
 
                     //read incoming messages
-                    read_incoming_messages(&belief_buffer, dest_node_to_edges_nodes, dest_node_to_edges_edges, curr_messages, num_edges, num_vertices,
+                    read_incoming_messages(&belief_buffer, dest_node_to_edges_nodes, dest_node_to_edges_edges,
+                                           curr_messages, num_edges, num_vertices,
                                            num_variables, current_index);
 
 /*
@@ -2533,16 +2558,20 @@ static int loopy_propagate_iterations_acc(size_t num_vertices, size_t num_edges,
 
 
                     //send belief
-                    send_message_for_node(src_node_to_edges_nodes, src_node_to_edges_edges, &belief_buffer, num_edges, edge_joint_probability, edge_joint_probability_dim_x, edge_joint_probability_dim_y,
-                                          curr_messages, messages_previous, messages_current, num_vertices, current_index);
+                    send_message_for_node(src_node_to_edges_nodes, src_node_to_edges_edges, &belief_buffer, num_edges,
+                                          edge_joint_probability, edge_joint_probability_dim_x,
+                                          edge_joint_probability_dim_y,
+                                          curr_messages, messages_previous, messages_current, num_vertices,
+                                          current_index);
 
                 }
 
-#pragma acc kernels
+#pragma acc kernels present(node_states[0:num_vertices], curr_messages[0:(num_edges)], dest_node_to_edges_nodes[0:(num_vertices)], dest_node_to_edges_edges[0:(num_edges)])
                 for (k = 0; k < num_work_items_nodes; ++k) {
-					current_index = work_items_nodes[k];
+                    size_t current_index = work_items_nodes[k];
 
-                    marginalize_node_acc(node_states, num_variables, current_index, curr_messages, dest_node_to_edges_nodes, dest_node_to_edges_edges, num_vertices,
+                    marginalize_node_acc(node_states, num_variables, current_index, curr_messages,
+                                         dest_node_to_edges_nodes, dest_node_to_edges_edges, num_vertices,
                                          num_edges);
                 }
             }
@@ -2551,24 +2580,24 @@ static int loopy_propagate_iterations_acc(size_t num_vertices, size_t num_edges,
 
 
             delta = 0.0f;
-#pragma acc kernels
+#pragma acc kernels present(node_states_previous[0:(num_vertices)], node_states_current[0:(num_vertices)])
             for (j = 0; j < num_vertices; ++j) {
-                diff = node_states_previous[j] - node_states_current[j];
+                float diff = node_states_previous[j] - node_states_current[j];
                 if (diff != diff) {
                     diff = 0.0f;
                 }
                 delta += fabsf(diff);
             }
+            if (delta < convergence || fabsf(delta - previous_delta) < convergence) {
+                break;
+            }
+            previous_delta = delta;
+            num_iter += BATCH_SIZE;
         }
-        if(delta < convergence || fabsf(delta - previous_delta) < convergence){
-            break;
+        if (i == max_iterations) {
+            printf("No Convergence: previous: %f vs current: %f\n", previous_delta, delta);
         }
-        previous_delta = delta;
-        num_iter += BATCH_SIZE;
     }
-	if(i == max_iterations) {
-		printf("No Convergence: previous: %f vs current: %f\n", previous_delta, delta);
-	}
 
 
 	return num_iter;
@@ -2969,53 +2998,56 @@ static int loopy_propagate_iterations_edges_acc(size_t num_vertices, size_t num_
 	previous_delta = -1.0f;
 	delta = 0.0f;
 
-	for(i = 0; i < max_iterations; i+= BATCH_SIZE) {
-#pragma acc data present_or_copy(node_states[0:(num_vertices)], curr_messages[0:(num_edges)], edges_messages_previous[0:(num_edges)], edges_messages_current[0:(num_edges)]) present_or_copyin(dest_node_to_edges_node_list[0:num_vertices], dest_node_to_edges_edge_list[0:num_edges], edge_joint_probability[0:1], edges_src_index[0:(num_edges)])
-		{
-			//printf("Current iteration: %d\n", i+1);
-			for (j = 0; j < BATCH_SIZE; ++j) {
-#pragma acc kernels
-				for(k = 0; k < num_edges; ++k){
-					src_node_index = edges_src_index[k];
-					send_message_for_edge_iteration(node_states, src_node_index, k, edge_joint_probability, edge_joint_probability_dim_x, edge_joint_probability_dim_y, curr_messages, edges_messages_previous, edges_messages_current);
-				}
+#pragma acc data present_or_copy(node_states[0:(num_vertices)], curr_messages[0:(num_edges)]) present_or_copyin(dest_node_to_edges_node_list[0:num_vertices], dest_node_to_edges_edge_list[0:num_edges], edge_joint_probability[0:1], edges_src_index[0:(num_edges)], edges_dest_index[0:(num_edges)], edges_messages_previous[0:(num_edges)], edges_messages_current[0:(num_edges)])
+    {
+        for (i = 0; i < max_iterations; i += BATCH_SIZE) {
+            //printf("Current iteration: %d\n", i+1);
+            for (j = 0; j < BATCH_SIZE; ++j) {
+#pragma acc kernels present(node_states[0:(num_vertices)], edge_joint_probability[0:1], curr_messages[0:(num_edges)],  edges_messages_previous[0:(num_edges)], edges_messages_current[0:(num_edges)])
+                for (k = 0; k < num_edges; ++k) {
+                    src_node_index = edges_src_index[k];
+                    send_message_for_edge_iteration(node_states, src_node_index, k, edge_joint_probability,
+                                                    edge_joint_probability_dim_x, edge_joint_probability_dim_y,
+                                                    curr_messages, edges_messages_previous, edges_messages_current);
+                }
 
-#pragma acc kernels
-				for(k = 0; k < num_edges; ++k){
-					dest_node_index = edges_dest_index[k];
-					combine_loopy_edge(i, curr_messages, dest_node_index, node_states, node_states_size);
-				}
-#pragma acc kernels
+#pragma acc kernels present(curr_messages[0:(num_edges)], node_states[0:(num_vertices)], edges_dest_index[0:(num_edges)])
+                for (k = 0; k < num_edges; ++k) {
+                    dest_node_index = edges_dest_index[k];
+                    combine_loopy_edge(i, curr_messages, dest_node_index, node_states, node_states_size);
+                }
                 /*
 				for(k = 0; k < num_vertices; ++k){
 					marginalize_loopy_node_edge(node_states, num_vars[k]);
 				}*/
-				for (k = 0; k < num_vertices; ++k) {
-					marginalize_node_acc(node_states, node_states_size, k, curr_messages, dest_node_to_edges_node_list, dest_node_to_edges_edge_list, num_vertices,
-										 num_edges);
-				}
-			}
+#pragma acc kernels present(node_states[0:(num_vertices)], curr_messages[0:(num_edges)], dest_node_to_edges_node_list[0:(num_vertices)], dest_node_to_edges_edge_list[0:(num_edges)])
+                for (k = 0; k < num_vertices; ++k) {
+                    marginalize_node_acc(node_states, node_states_size, k, curr_messages, dest_node_to_edges_node_list,
+                                         dest_node_to_edges_edge_list, num_vertices,
+                                         num_edges);
+                }
+            }
 
 
-			delta = 0.0f;
-#pragma acc kernels
-			for (j = 0; j < num_edges; ++j) {
+            delta = 0.0f;
+#pragma acc kernels present(edges_messages_previous[0:(num_edges)], edges_messages_current[0:(num_edges)])
+            for (j = 0; j < num_edges; ++j) {
                 diff = edges_messages_previous[j] - edges_messages_current[j];
                 if (diff != diff) {
                     diff = 0.0f;
                 }
                 delta += fabsf(diff);
-			}
-		}
-		if(delta < convergence || fabsf(delta - previous_delta) < convergence){
-			break;
-		}
-		previous_delta = delta;
-		num_iter += BATCH_SIZE;
-	}
-	if(i == max_iterations) {
-		printf("No Convergence: previous: %f vs current: %f\n", previous_delta, delta);
-	}
+            }
+            if (delta < convergence || fabsf(delta - previous_delta) < convergence) {
+                break;
+            }
+            previous_delta = delta;
+            num_iter += BATCH_SIZE;
+        }
+        if (i == max_iterations) {
+            printf("No Convergence: previous: %f vs current: %f\n", previous_delta, delta);
+        }
+    }
 
 
 	return num_iter;

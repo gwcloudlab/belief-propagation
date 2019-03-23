@@ -128,10 +128,16 @@ void combine_message_cuda(struct belief * __restrict__ dest, const struct belief
     const float *messages = edge_messages[offset].data;
 
     for(i = 0; i < length; ++i){
-       // if(messages[i] == messages[i]){
-       assert(messages[i] == messages[i]);
-            dest->data[i] = buffer[i] * messages[i];
-        //}
+       //if(messages[i] == messages[i]){ //ensure no nan's
+       //assert(messages[i] == messages[i]);
+           float value = buffer[i] * messages[i];
+           if(isinf(value) || isnan(value)) {
+               dest->data[i] = 0.0f;
+           }
+           else {
+               dest->data[i] = value;
+           }
+       // }
     }
 }
 
@@ -142,9 +148,15 @@ void combine_message_cuda_node_streaming(struct belief * __restrict__ dest, cons
     const float *messages = edge_messages[offset].data;
 
     for(i = 0; i < length; ++i){
-        assert(messages[i] == messages[i]);
-        //if(messages[i] == messages[i]){
-            dest->data[i] = buffer[i] * messages[i];
+
+        //if(messages[i] == messages[i]){ //ensure no nan's
+            float value = buffer[i] * messages[i];
+            if(isinf(value) || isnan(value)) {
+                dest->data[i] = 0.0f;
+            }
+            else {
+                dest->data[i] = value;
+            }
         //}
     }
 }
@@ -156,9 +168,14 @@ void combine_message_cuda_edge_streaming(struct belief * __restrict__ dest, cons
     const float *messages = edge_messages[offset].data;
 
     for(i = 0; i < length; ++i){
-        assert(messages[i] == messages[i]);
-        //if(messages[i] == messages[i]){
-            dest->data[i] = buffer[i] * messages[i];
+        //if(messages[i] == messages[i]){  //ensure no nan's
+            float value = buffer[i] * messages[i];
+            if(isinf(value) || isnan(value)) {
+                dest->data[i] = 0.0f;
+            }
+            else {
+                dest->data[i] = value;
+            }
         //}
     }
 }
@@ -170,9 +187,15 @@ void combine_page_rank_message_cuda(struct belief * __restrict__ dest, const str
     const float * messages = edge_messages[offset].data;
 
     for(i = 0; i < length; ++i){
-        assert(messages[i] == messages[i]);
+
         //if(messages[i] == messages[i]){
-            dest->data[i] = buffer[i] + messages[i];
+        float value = buffer[i] + messages[i];
+        if(isinf(value) || isnan(value)) {
+            dest->data[i] = 0.0f;
+        }
+        else {
+            dest->data[i] = value;
+        }
         //}
     }
 }
@@ -188,9 +211,15 @@ void combine_viterbi_message_cuda(struct belief * __restrict__ dest, const struc
     messages = edge_messages[offset].data;
 
     for(i = 0; i < length; ++i){
-        assert(messages[i] == messages[i]);
+
         //if(messages[i] == messages[i]){
-            dest->data[i] = fmaxf(buffer[i], messages[i]);
+            float value = fmaxf(buffer[i], messages[i]);
+            if(isinf(value) || isnan(value)) {
+                dest->data[i] = 0.0f;
+            }
+            else {
+                dest->data[i] = value;
+            }
        // }
     }
 }
@@ -5114,9 +5143,11 @@ int viterbi_until_cuda_edge(Graph_t graph, const float convergence, const int ma
  */
 void run_test_loopy_belief_propagation_cuda(struct expression * expression, const char * file_name, FILE * out){
     Graph_t graph;
-    clock_t start, end;
-    double time_elapsed;
+    clock_t begin, start, end;
+    double time_elapsed, total_time_elapsed;
     int num_iterations;
+
+    begin = clock();
 
     graph = build_graph(expression);
     assert(graph != NULL);
@@ -5134,8 +5165,9 @@ void run_test_loopy_belief_propagation_cuda(struct expression * expression, cons
     end = clock();
 
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
+    total_time_elapsed = (double)(end - begin) / CLOCKS_PER_SEC;
     //print_nodes(graph);
-    fprintf(out, "%s,loopy,%ld,%ld,%d,%d,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
+    fprintf(out, "%s,loopy,%ld,%ld,%d,%d,%lf,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed, total_time_elapsed);
     fflush(out);
 
     graph_destroy(graph);
@@ -5148,9 +5180,11 @@ void run_test_loopy_belief_propagation_cuda(struct expression * expression, cons
  */
 void run_test_loopy_belief_propagation_xml_file_cuda(const char * file_name, FILE * out){
     Graph_t graph;
-    clock_t start, end;
-    double time_elapsed;
+    clock_t begin, start, end;
+    double time_elapsed, total_time_elapsed;
     int num_iterations;
+
+    begin = clock();
 
     graph = parse_xml_file(file_name);
     assert(graph != NULL);
@@ -5168,8 +5202,9 @@ void run_test_loopy_belief_propagation_xml_file_cuda(const char * file_name, FIL
     end = clock();
 
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
+    total_time_elapsed = (double)(end - begin) / CLOCKS_PER_SEC;
     //print_nodes(graph);
-    fprintf(out, "%s,loopy,%ld,%ld,%d,%d,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
+    fprintf(out, "%s,loopy,%ld,%ld,%d,%d,%lf,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed, total_time_elapsed);
     fflush(out);
 
     graph_destroy(graph);
@@ -5182,9 +5217,11 @@ void run_test_loopy_belief_propagation_xml_file_cuda(const char * file_name, FIL
  */
 void run_test_loopy_belief_propagation_xml_file_cuda_streaming(const char * file_name, FILE * out){
     Graph_t graph;
-    clock_t start, end;
-    double time_elapsed;
+    clock_t begin, start, end;
+    double time_elapsed, total_time_elapsed;
     int num_iterations;
+
+    begin = clock();
 
     graph = parse_xml_file(file_name);
     assert(graph != NULL);
@@ -5202,8 +5239,9 @@ void run_test_loopy_belief_propagation_xml_file_cuda_streaming(const char * file
     end = clock();
 
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
+    total_time_elapsed = (double)(end - begin)/CLOCKS_PER_SEC;
     //print_nodes(graph);
-    fprintf(out, "%s,loopy-streaming,%ld,%ld,%d,%d,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
+    fprintf(out, "%s,loopy-streaming,%ld,%ld,%d,%d,%lf,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed, total_time_elapsed);
     fflush(out);
 
     graph_destroy(graph);
@@ -5216,9 +5254,11 @@ void run_test_loopy_belief_propagation_xml_file_cuda_streaming(const char * file
  */
 void run_test_loopy_belief_propagation_xml_file_edge_cuda(const char * file_name, FILE * out){
     Graph_t graph;
-    clock_t start, end;
-    double time_elapsed;
+    clock_t begin, start, end;
+    double time_elapsed, total_time_elapsed;
     int num_iterations;
+
+    begin = clock();
 
     graph = parse_xml_file(file_name);
     assert(graph != NULL);
@@ -5236,8 +5276,9 @@ void run_test_loopy_belief_propagation_xml_file_edge_cuda(const char * file_name
     end = clock();
 
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
+    total_time_elapsed = (double)(end - begin)/CLOCKS_PER_SEC;
     //print_nodes(graph);
-    fprintf(out, "%s,loopy-edge,%ld,%ld,%d,%d,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
+    fprintf(out, "%s,loopy-edge,%ld,%ld,%d,%d,%lf,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed, total_time_elapsed);
     fflush(out);
 
     graph_destroy(graph);
@@ -5250,9 +5291,11 @@ void run_test_loopy_belief_propagation_xml_file_edge_cuda(const char * file_name
  */
 void run_test_loopy_belief_propagation_xml_file_edge_cuda_streaming(const char * file_name, FILE * out){
     Graph_t graph;
-    clock_t start, end;
-    double time_elapsed;
+    clock_t begin, start, end;
+    double time_elapsed, total_time_elapsed;
     int num_iterations;
+
+    begin = clock();
 
     graph = parse_xml_file(file_name);
     assert(graph != NULL);
@@ -5270,8 +5313,9 @@ void run_test_loopy_belief_propagation_xml_file_edge_cuda_streaming(const char *
     end = clock();
 
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
+    total_time_elapsed = (double)(end - begin)/CLOCKS_PER_SEC;
     //print_nodes(graph);
-    fprintf(out, "%s,loopy-edge-streaming,%ld,%ld,%d,%d,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
+    fprintf(out, "%s,loopy-edge-streaming,%ld,%ld,%d,%d,%lf,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed, total_time_elapsed);
     fflush(out);
 
     graph_destroy(graph);
@@ -5287,9 +5331,11 @@ void run_test_loopy_belief_propagation_xml_file_edge_cuda_streaming(const char *
  */
 void run_test_loopy_belief_propagation_snap_file_cuda(const char * edge_file_name, const char * node_file_name, FILE * out){
     Graph_t graph;
-    clock_t start, end;
-    double time_elapsed;
+    clock_t begin, start, end;
+    double time_elapsed, total_time_elapsed;
     int num_iterations;
+
+    begin = clock();
 
     graph = parse_graph_from_snap_files(edge_file_name, node_file_name);
     assert(graph != NULL);
@@ -5307,8 +5353,9 @@ void run_test_loopy_belief_propagation_snap_file_cuda(const char * edge_file_nam
     end = clock();
 
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
+    total_time_elapsed = (double)(end - begin)/CLOCKS_PER_SEC;
     //print_nodes(graph);
-    fprintf(out, "%s-%s,loopy,%ld,%ld,%d,%d,%lf\n", edge_file_name, node_file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
+    fprintf(out, "%s-%s,loopy,%ld,%ld,%d,%d,%lf,%lf\n", edge_file_name, node_file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed, total_time_elapsed);
     fflush(out);
 
     graph_destroy(graph);
@@ -5322,9 +5369,11 @@ void run_test_loopy_belief_propagation_snap_file_cuda(const char * edge_file_nam
  */
 void run_test_loopy_belief_propagation_snap_file_edge_cuda(const char * edge_file_name, const char * node_file_name, FILE * out){
     Graph_t graph;
-    clock_t start, end;
-    double time_elapsed;
+    clock_t begin, start, end;
+    double time_elapsed, total_time_elapsed;
     int num_iterations;
+
+    begin = clock();
 
     graph = parse_graph_from_snap_files(edge_file_name, node_file_name);
     assert(graph != NULL);
@@ -5342,8 +5391,9 @@ void run_test_loopy_belief_propagation_snap_file_edge_cuda(const char * edge_fil
     end = clock();
 
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
+    total_time_elapsed = (double)(end - begin)/CLOCKS_PER_SEC;
     //print_nodes(graph);
-    fprintf(out, "%s-%s,loopy-edge,%ld,%ld,%d,%d,%lf\n", edge_file_name, node_file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
+    fprintf(out, "%s-%s,loopy-edge,%ld,%ld,%d,%d,%lf,%lf\n", edge_file_name, node_file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed, total_time_elapsed);
     fflush(out);
 
     graph_destroy(graph);
@@ -5351,9 +5401,11 @@ void run_test_loopy_belief_propagation_snap_file_edge_cuda(const char * edge_fil
 
 void run_test_loopy_belief_propagation_mtx_files_cuda(const char * edge_mtx, const char *node_mtx, const struct joint_probability * edge_prob, size_t num_src, size_t num_dest, FILE * out){
     Graph_t graph;
-    clock_t start, end;
-    double time_elapsed;
+    clock_t begin, start, end;
+    double time_elapsed, total_time_elapsed;
     int num_iterations;
+
+    begin = clock();
 
     graph = build_graph_from_mtx(edge_mtx, node_mtx, edge_prob, num_src, num_dest);
     assert(graph != NULL);
@@ -5371,8 +5423,9 @@ void run_test_loopy_belief_propagation_mtx_files_cuda(const char * edge_mtx, con
     end = clock();
 
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
+    total_time_elapsed = (double)(end - begin)/CLOCKS_PER_SEC;
     //print_nodes(graph);
-    fprintf(out, "%s-%s,loopy,%ld,%ld,%d,%d,%lf,%d,%lf,%d,%lf\n", edge_mtx, node_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, graph->max_in_degree, graph->avg_in_degree, graph->max_out_degree, graph->avg_out_degree, num_iterations+1, time_elapsed);
+    fprintf(out, "%s-%s,loopy,%ld,%ld,%d,%d,%lf,%d,%lf,%d,%lf,%lf\n", edge_mtx, node_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, graph->max_in_degree, graph->avg_in_degree, graph->max_out_degree, graph->avg_out_degree, num_iterations+1, time_elapsed, total_time_elapsed);
     fflush(out);
 
     graph_destroy(graph);
@@ -5380,9 +5433,11 @@ void run_test_loopy_belief_propagation_mtx_files_cuda(const char * edge_mtx, con
 
 void run_test_loopy_belief_propagation_mtx_files_cuda_streaming(const char * edge_mtx, const char *node_mtx, const struct joint_probability * edge_prob, size_t num_src, size_t num_dest, FILE * out){
     Graph_t graph;
-    clock_t start, end;
-    double time_elapsed;
+    clock_t begin, start, end;
+    double time_elapsed, total_time_elapsed;
     int num_iterations;
+
+    begin = clock();
 
     graph = build_graph_from_mtx(edge_mtx, node_mtx, edge_prob, num_src, num_dest);
     assert(graph != NULL);
@@ -5400,8 +5455,9 @@ void run_test_loopy_belief_propagation_mtx_files_cuda_streaming(const char * edg
     end = clock();
 
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
+    total_time_elapsed = (double)(end - begin)/CLOCKS_PER_SEC;
     //print_nodes(graph);
-    fprintf(out, "%s-%s,loopy-streaming,%ld,%ld,%d,%d,%lf,%d,%lf,%d,%lf\n", edge_mtx, node_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, graph->max_in_degree, graph->avg_in_degree, graph->max_out_degree, graph->avg_out_degree, num_iterations+1, time_elapsed);
+    fprintf(out, "%s-%s,loopy-streaming,%ld,%ld,%d,%d,%lf,%d,%lf,%d,%lf,%lf\n", edge_mtx, node_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, graph->max_in_degree, graph->avg_in_degree, graph->max_out_degree, graph->avg_out_degree, num_iterations+1, time_elapsed, total_time_elapsed);
     fflush(out);
 
     graph_destroy(graph);
@@ -5409,9 +5465,11 @@ void run_test_loopy_belief_propagation_mtx_files_cuda_streaming(const char * edg
 
 void run_test_loopy_belief_propagation_mtx_files_cuda_multiple_devices(const char * edge_mtx, const char *node_mtx, const struct joint_probability * edge_prob, size_t num_src, size_t num_dest, FILE * out){
     Graph_t graph;
-    clock_t start, end;
-    double time_elapsed;
+    clock_t begin, start, end;
+    double time_elapsed, total_time_elapsed;
     int num_iterations;
+
+    begin = clock();
 
     graph = build_graph_from_mtx(edge_mtx, node_mtx, edge_prob, num_src, num_dest);
     assert(graph != NULL);
@@ -5430,8 +5488,9 @@ void run_test_loopy_belief_propagation_mtx_files_cuda_multiple_devices(const cha
     end = clock();
 
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
+    total_time_elapsed = (double)(end - begin)/CLOCKS_PER_SEC;
     //print_nodes(graph);
-    fprintf(out, "%s-%s,loopy-multiple-devices,%ld,%ld,%d,%d,%lf,%d,%lf,%d,%lf\n", edge_mtx, node_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, graph->max_in_degree, graph->avg_in_degree, graph->max_out_degree, graph->avg_out_degree, num_iterations+1, time_elapsed);
+    fprintf(out, "%s-%s,loopy-multiple-devices,%ld,%ld,%d,%d,%lf,%d,%lf,%d,%lf,%lf\n", edge_mtx, node_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, graph->max_in_degree, graph->avg_in_degree, graph->max_out_degree, graph->avg_out_degree, num_iterations+1, time_elapsed, total_time_elapsed);
     fflush(out);
 
     graph_destroy(graph);
@@ -5439,9 +5498,11 @@ void run_test_loopy_belief_propagation_mtx_files_cuda_multiple_devices(const cha
 
 void run_test_loopy_belief_propagation_mtx_files_edge_cuda(const char * edge_mtx, const char * node_mtx, const struct joint_probability * edge_prob, size_t num_src, size_t num_dest, FILE * out){
     Graph_t graph;
-    clock_t start, end;
-    double time_elapsed;
+    clock_t begin, start, end;
+    double time_elapsed, total_time_elapsed;
     int num_iterations;
+
+    begin = clock();
 
     graph = build_graph_from_mtx(edge_mtx, node_mtx, edge_prob, num_src, num_dest);
     assert(graph != NULL);
@@ -5459,8 +5520,9 @@ void run_test_loopy_belief_propagation_mtx_files_edge_cuda(const char * edge_mtx
     end = clock();
 
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
+    total_time_elapsed = (double)(end - begin)/CLOCKS_PER_SEC;
     //print_nodes(graph);
-    fprintf(out, "%s-%s,loopy-edge,%ld,%ld,%d,%d,%lf,%d,%lf,%d,%lf\n", edge_mtx, node_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, graph->max_in_degree, graph->avg_in_degree, graph->max_out_degree, graph->avg_out_degree, num_iterations+1, time_elapsed);
+    fprintf(out, "%s-%s,loopy-edge,%ld,%ld,%d,%d,%lf,%d,%lf,%d,%lf,%lf\n", edge_mtx, node_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, graph->max_in_degree, graph->avg_in_degree, graph->max_out_degree, graph->avg_out_degree, num_iterations, time_elapsed, total_time_elapsed);
     fflush(out);
 
     graph_destroy(graph);
@@ -5468,9 +5530,11 @@ void run_test_loopy_belief_propagation_mtx_files_edge_cuda(const char * edge_mtx
 
 void run_test_loopy_belief_propagation_mtx_files_edge_cuda_streaming(const char * edge_mtx, const char * node_mtx, const struct joint_probability * edge_prob, size_t num_src, size_t num_dest, FILE * out){
     Graph_t graph;
-    clock_t start, end;
-    double time_elapsed;
+    clock_t begin, start, end;
+    double time_elapsed, total_time_elapsed;
     int num_iterations;
+
+    begin = clock();
 
     graph = build_graph_from_mtx(edge_mtx, node_mtx, edge_prob, num_src, num_dest);
     assert(graph != NULL);
@@ -5488,8 +5552,9 @@ void run_test_loopy_belief_propagation_mtx_files_edge_cuda_streaming(const char 
     end = clock();
 
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
+    total_time_elapsed = (double)(end - begin)/CLOCKS_PER_SEC;
     //print_nodes(graph);
-    fprintf(out, "%s-%s,loopy-edge-streaming,%ld,%ld,%d,%d,%lf,%d,%lf,%d,%lf\n", edge_mtx, node_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, graph->max_in_degree, graph->avg_in_degree, graph->max_out_degree, graph->avg_out_degree, num_iterations+1, time_elapsed);
+    fprintf(out, "%s-%s,loopy-edge-streaming,%ld,%ld,%d,%d,%lf,%d,%lf,%d,%lf,%lf\n", edge_mtx, node_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, graph->max_in_degree, graph->avg_in_degree, graph->max_out_degree, graph->avg_out_degree, num_iterations, time_elapsed, total_time_elapsed);
     fflush(out);
 
     graph_destroy(graph);
@@ -5497,9 +5562,11 @@ void run_test_loopy_belief_propagation_mtx_files_edge_cuda_streaming(const char 
 
 void run_test_loopy_belief_propagation_mtx_files_edge_cuda_multiple_devices(const char * edge_mtx, const char * node_mtx, const struct joint_probability * edge_prob, size_t num_src, size_t num_dest, FILE * out){
     Graph_t graph;
-    clock_t start, end;
-    double time_elapsed;
+    clock_t begin, start, end;
+    double time_elapsed, total_time_elapsed;
     int num_iterations;
+
+    begin = clock();
 
     graph = build_graph_from_mtx(edge_mtx, node_mtx, edge_prob, num_src, num_dest);
     assert(graph != NULL);
@@ -5517,8 +5584,9 @@ void run_test_loopy_belief_propagation_mtx_files_edge_cuda_multiple_devices(cons
     end = clock();
 
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
+    total_time_elapsed = (double)(end - begin)/CLOCKS_PER_SEC;
     //print_nodes(graph);
-    fprintf(out, "%s-%s,loopy-edge-multiple-devices,%ld,%ld,%d,%d,%lf,%d,%lf,%d,%lf\n", edge_mtx, node_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, graph->max_in_degree, graph->avg_in_degree, graph->max_out_degree, graph->avg_out_degree, num_iterations+1, time_elapsed);
+    fprintf(out, "%s-%s,loopy-edge-multiple-devices,%ld,%ld,%d,%d,%lf,%d,%lf,%d,%lf,%lf\n", edge_mtx, node_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, graph->max_in_degree, graph->avg_in_degree, graph->max_out_degree, graph->avg_out_degree, num_iterations, time_elapsed, total_time_elapsed);
     fflush(out);
 
     graph_destroy(graph);
@@ -5543,11 +5611,14 @@ void run_test_loopy_belief_propagation_mtx_files_cuda_openmpi(const char * edge_
     Graph_t graph = NULL;
     clock_t start;
     clock_t end;
-    double time_elapsed;
+    clock_t begin;
+    double time_elapsed, total_time_elapsed;
     int num_iterations;
     size_t num_vertices, num_edges;
     num_vertices = 0;
     num_edges = 0;
+
+    begin = clock();
 
     // set up structs
     register_belief();
@@ -5561,8 +5632,8 @@ void run_test_loopy_belief_propagation_mtx_files_cuda_openmpi(const char * edge_
         set_up_src_nodes_to_edges_no_hsearch(graph);
         set_up_dest_nodes_to_edges_no_hsearch(graph);
         init_previous_edge(graph);
-        start = clock();
     }
+    start = clock();
 
     MPICHECK(MPI_Bcast(&num_vertices, 1, MPI_INT, 0, MPI_COMM_WORLD));
     MPICHECK(MPI_Bcast(&num_edges, 1, MPI_INT, 0, MPI_COMM_WORLD));
@@ -5605,10 +5676,11 @@ void run_test_loopy_belief_propagation_mtx_files_cuda_openmpi(const char * edge_
     if(my_rank == 0) {
         end = clock();
         time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
+        total_time_elapsed = (double)(end - begin)/CLOCKS_PER_SEC;
 
-        fprintf(out, "%s-%s,loopy-openmpi,%ld,%ld,%d,%d,%lf,%d,%lf,%d,%lf\n", edge_mtx, node_mtx,
+        fprintf(out, "%s-%s,loopy-openmpi,%ld,%ld,%d,%d,%lf,%d,%lf,%d,%lf,%lf\n", edge_mtx, node_mtx,
                 graph->current_num_vertices, graph->current_num_edges, graph->diameter, graph->max_in_degree,
-                graph->avg_in_degree, graph->max_out_degree, graph->avg_out_degree, num_iterations+1, time_elapsed);
+                graph->avg_in_degree, graph->max_out_degree, graph->avg_out_degree, num_iterations+1, time_elapsed, total_time_elapsed);
         fflush(out);
     }
 
@@ -5624,11 +5696,14 @@ void run_test_loopy_belief_propagation_mtx_files_edge_cuda_openmpi(const char *e
     Graph_t graph = NULL;
     clock_t start;
     clock_t end;
-    double time_elapsed;
+    clock_t begin;
+    double time_elapsed, total_time_elapsed;
     int num_iterations;
     size_t num_vertices, num_edges;
     num_vertices = 0;
     num_edges = 0;
+
+    begin = clock();
 
     // set up structs
     register_belief();
@@ -5642,8 +5717,8 @@ void run_test_loopy_belief_propagation_mtx_files_edge_cuda_openmpi(const char *e
         set_up_src_nodes_to_edges_no_hsearch(graph);
         set_up_dest_nodes_to_edges_no_hsearch(graph);
         init_previous_edge(graph);
-        start = clock();
     }
+    start = clock();
 
     MPICHECK(MPI_Bcast(&num_vertices, 1, MPI_INT, 0, MPI_COMM_WORLD));
     MPICHECK(MPI_Bcast(&num_edges, 1, MPI_INT, 0, MPI_COMM_WORLD));
@@ -5686,8 +5761,9 @@ void run_test_loopy_belief_propagation_mtx_files_edge_cuda_openmpi(const char *e
     if(my_rank == 0) {
         end = clock();
         time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
+        total_time_elapsed = (double)(end - begin)/CLOCKS_PER_SEC;
 
-        fprintf(out, "%s-%s,loopy-edge-openmpi,%ld,%ld,%d,%d,%lf,%d,%lf,%d,%lf\n", edge_file_name, node_file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, graph->max_in_degree, graph->avg_in_degree, graph->max_out_degree, graph->avg_out_degree, num_iterations+1, time_elapsed);
+        fprintf(out, "%s-%s,loopy-edge-openmpi,%ld,%ld,%d,%d,%lf,%d,%lf,%d,%lf,%lf\n", edge_file_name, node_file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, graph->max_in_degree, graph->avg_in_degree, graph->max_out_degree, graph->avg_out_degree, num_iterations, time_elapsed, total_time_elapsed);
         fflush(out);
     }
 
