@@ -55,7 +55,7 @@ create_graph(const size_t num_vertices, const size_t num_edges, const struct joi
 
     g->edges_messages = (struct belief *)malloc(sizeof(struct belief) * num_edges);
     assert(g->edges_messages);
-    g->edges_messages_current = (float *)malloc(sizeof(float) * num_edges);
+    g->edges_messages_current = (float *)calloc(num_edges, sizeof(float));
     assert(g->edges_messages_current);
     g->edges_messages_previous = (float *)malloc(sizeof(float) * num_edges);
     assert(g->edges_messages_previous);
@@ -65,7 +65,7 @@ create_graph(const size_t num_vertices, const size_t num_edges, const struct joi
     assert(g->node_states);
     g->node_states_previous = (float *)malloc(sizeof(float) * num_vertices);
     assert(g->node_states_previous);
-    g->node_states_current = (float *)malloc(sizeof(float) * num_vertices);
+    g->node_states_current = (float *)calloc(num_vertices, sizeof(float));
 	assert(g->node_states_current);
 	g->node_states_size = joint_probability_dim_x;
 
@@ -1455,6 +1455,9 @@ static void marginalize_loopy_nodes(Graph_t graph, const struct belief * __restr
 	struct belief *states;
 	struct belief new_belief;
 
+	float * previous_node_states = graph->node_states_previous;
+	float * current_node_states = graph->node_states_current;
+
 	const size_t* dest_nodes_to_edges_nodes = graph->dest_nodes_to_edges_node_list;
 	const size_t* dest_nodes_to_edges_edges = graph->dest_nodes_to_edges_edge_list;
 	const size_t current_num_vertices = graph->current_num_vertices;
@@ -1463,7 +1466,7 @@ static void marginalize_loopy_nodes(Graph_t graph, const struct belief * __restr
 	states = graph->node_states;
 	const size_t num_variables = graph->node_states_size;
 
-#pragma omp parallel for default(none) shared(states, dest_nodes_to_edges_nodes, dest_nodes_to_edges_edges, current_messages) private(i, j, start_index, end_index, edge_index, sum, new_belief)
+#pragma omp parallel for default(none) shared(states, previous_node_states, current_node_states, dest_nodes_to_edges_nodes, dest_nodes_to_edges_edges, current_messages) private(i, j, start_index, end_index, edge_index, sum, new_belief)
 	for(j = 0; j < num_vertices; ++j) {
 
 		for (i = 0; i < num_variables; ++i) {
@@ -1506,6 +1509,9 @@ static void marginalize_loopy_nodes(Graph_t graph, const struct belief * __restr
 		for (i = 0; i < num_variables; ++i) {
             states[j].data[i] /= sum;
 		}
+
+		previous_node_states[j] = current_node_states[j];
+		current_node_states[j] = sum;
 	}
 
 /*
@@ -1659,7 +1665,9 @@ static void combine_loopy_edge(size_t edge_index, const struct belief * __restri
  * @param num_edges The number of edges in the graph
  */
 #pragma acc routine
-static void marginalize_node_acc(struct belief * __restrict__ node_states, const size_t num_variables, const size_t node_index,
+static void marginalize_node_acc(struct belief * __restrict__ node_states,
+		float * previous_states, float * current_states,
+		const size_t num_variables, const size_t node_index,
 								 const struct belief * __restrict__ edge_messages,
 								 const size_t * __restrict__ dest_nodes_to_edges_nodes,
 								 const size_t * __restrict__ dest_nodes_to_edges_edges,
@@ -1702,6 +1710,8 @@ static void marginalize_node_acc(struct belief * __restrict__ node_states, const
 	for(i = 0; i < num_variables; ++i){
         node_states[node_index].data[i] /= sum;
 	}
+	previous_states[node_index] = current_states[node_index];
+	current_states[node_index] = sum;
 }
 
 /**
@@ -2566,11 +2576,11 @@ static int loopy_propagate_iterations_acc(size_t num_vertices, size_t num_edges,
 
                 }
 
-#pragma acc kernels present(node_states[0:num_vertices], curr_messages[0:(num_edges)], dest_node_to_edges_nodes[0:(num_vertices)], dest_node_to_edges_edges[0:(num_edges)])
+#pragma acc kernels present(node_states[0:num_vertices], node_states_previous[0:num_vertices], node_states_current[0:num_vertices], curr_messages[0:(num_edges)], dest_node_to_edges_nodes[0:(num_vertices)], dest_node_to_edges_edges[0:(num_edges)])
                 for (k = 0; k < num_work_items_nodes; ++k) {
                     size_t current_index = work_items_nodes[k];
 
-                    marginalize_node_acc(node_states, num_variables, current_index, curr_messages,
+                    marginalize_node_acc(node_states, node_states_previous, node_states_current, num_variables, current_index, curr_messages,
                                          dest_node_to_edges_nodes, dest_node_to_edges_edges, num_vertices,
                                          num_edges);
                 }
@@ -2580,9 +2590,9 @@ static int loopy_propagate_iterations_acc(size_t num_vertices, size_t num_edges,
 
 
             delta = 0.0f;
-#pragma acc kernels present(node_states_previous[0:(num_vertices)], node_states_current[0:(num_vertices)])
-            for (j = 0; j < num_vertices; ++j) {
-                float diff = node_states_previous[j] - node_states_current[j];
+#pragma acc kernels present(messages_previous[0:(num_edges)], messages_current[0:(num_edges)])
+            for (j = 0; j < num_edges; ++j) {
+                float diff = messages_previous[j] - messages_current[j];
                 if (diff != diff) {
                     diff = 0.0f;
                 }
@@ -2972,6 +2982,8 @@ static void update_work_queue_edges_acc(size_t * __restrict__ num_work_items_edg
  */
 static int loopy_propagate_iterations_edges_acc(size_t num_vertices, size_t num_edges,
 														 struct belief * __restrict__ node_states,
+														 float * __restrict__ node_states_previous,
+														 float * __restrict__ node_states_current,
 														 size_t node_states_size,
 														 struct belief * __restrict__ current_edge_messages,
 														 float * __restrict__ edges_messages_previous,
@@ -2998,7 +3010,7 @@ static int loopy_propagate_iterations_edges_acc(size_t num_vertices, size_t num_
 	previous_delta = -1.0f;
 	delta = 0.0f;
 
-#pragma acc data present_or_copy(node_states[0:(num_vertices)], curr_messages[0:(num_edges)]) present_or_copyin(dest_node_to_edges_node_list[0:num_vertices], dest_node_to_edges_edge_list[0:num_edges], edge_joint_probability[0:1], edges_src_index[0:(num_edges)], edges_dest_index[0:(num_edges)], edges_messages_previous[0:(num_edges)], edges_messages_current[0:(num_edges)])
+#pragma acc data present_or_copy(node_states[0:(num_vertices)], node_states_current[0:(num_vertices)], node_states_previous[0:(num_vertices)], curr_messages[0:(num_edges)]) present_or_copyin(dest_node_to_edges_node_list[0:num_vertices], dest_node_to_edges_edge_list[0:num_edges], edge_joint_probability[0:1], edges_src_index[0:(num_edges)], edges_dest_index[0:(num_edges)], edges_messages_previous[0:(num_edges)], edges_messages_current[0:(num_edges)])
     {
         for (i = 0; i < max_iterations; i += BATCH_SIZE) {
             //printf("Current iteration: %d\n", i+1);
@@ -3020,9 +3032,9 @@ static int loopy_propagate_iterations_edges_acc(size_t num_vertices, size_t num_
 				for(k = 0; k < num_vertices; ++k){
 					marginalize_loopy_node_edge(node_states, num_vars[k]);
 				}*/
-#pragma acc kernels present(node_states[0:(num_vertices)], curr_messages[0:(num_edges)], dest_node_to_edges_node_list[0:(num_vertices)], dest_node_to_edges_edge_list[0:(num_edges)])
+#pragma acc kernels present(node_states[0:(num_vertices)], node_states_current[0:(num_vertices)], node_states_previous[0:(num_vertices)], curr_messages[0:(num_edges)], dest_node_to_edges_node_list[0:(num_vertices)], dest_node_to_edges_edge_list[0:(num_edges)])
                 for (k = 0; k < num_vertices; ++k) {
-                    marginalize_node_acc(node_states, node_states_size, k, curr_messages, dest_node_to_edges_node_list,
+                    marginalize_node_acc(node_states, node_states_previous, node_states_current,  node_states_size, k, curr_messages, dest_node_to_edges_node_list,
                                          dest_node_to_edges_edge_list, num_vertices,
                                          num_edges);
                 }
@@ -3281,6 +3293,8 @@ int loopy_propagate_until_edge_acc(Graph_t graph, float convergence, int max_ite
 */
     iter = loopy_propagate_iterations_edges_acc(graph->current_num_vertices, graph->current_num_edges,
     graph->node_states,
+    graph->node_states_previous,
+    graph->node_states_current,
     graph->node_states_size,
     graph->edges_messages,
     graph->edges_messages_previous,
