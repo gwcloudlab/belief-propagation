@@ -3,7 +3,7 @@
 
 int main(void) {
     FILE * out = fopen("c_benchmark_loopy_edge.csv", "w");
-    fprintf(out, "File Name,Propagation Type,Number of Nodes,Number of Edges,Diameter,Max In-degree,Avg In-degree,Max Out-degree,Avg Out-degree,Number of Iterations,BP Run Time(s),Total Run Time(s)\n");
+    fprintf(out, "File Name,Propagation Type,Number of Nodes,Number of Edges,Diameter,Max In-degree,Avg In-degree,Max Out-degree,Avg Out-degree,Number of Iterations,BP Run Time(s),BP Run Time Per Iteration (s),Total Run Time(s)\n");
     fflush(out);
 
     struct joint_probability edge_joint_probability;

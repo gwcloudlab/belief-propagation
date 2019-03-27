@@ -879,7 +879,7 @@ int loopy_propagate_until_cuda_kernels(Graph_t graph, const float convergence, c
     dim3 dimMessagesBuffer(BLOCK_SIZE_3_D_X, BLOCK_SIZE_3_D_Y, BLOCK_SIZE_3_D_Z);
     dim3 dimMessagesGrid(blockMessageNodeCount, blockMessageDegreeCount, blockMessageStateCount);
 
-    for(i = 0; i < max_iterations; i+= BATCH_SIZE){
+    for(i = BATCH_SIZE; i <= max_iterations; i+= BATCH_SIZE){
         for(j = 0; j < BATCH_SIZE; ++j) {
             init_message_buffer_kernel<<<dimInitGrid, dimInitMessageBuffer>>>(message_buffer, node_states, node_states_size, num_vertices);
             check_cuda_kernel_return_code();
@@ -916,7 +916,12 @@ int loopy_propagate_until_cuda_kernels(Graph_t graph, const float convergence, c
         if(host_delta < convergence || fabs(host_delta - previous_delta) < convergence){
             break;
         }
-        previous_delta = host_delta;
+        if(i < max_iterations - BATCH_SIZE) {
+            previous_delta = host_delta;
+        }
+        if(i >= max_iterations){
+            printf("No Convergence: previous: %f vs current: %f\n", previous_delta, host_delta);
+        }
     }
 
     // copy data back
@@ -1046,7 +1051,7 @@ int page_rank_until_cuda_kernels(Graph_t graph, const float convergence, const i
     dim3 dimMessagesBuffer(BLOCK_SIZE_3_D_X, BLOCK_SIZE_3_D_Y, BLOCK_SIZE_3_D_Z);
     dim3 dimMessagesGrid(blockMessageNodeCount, blockMessageDegreeCount, blockMessageStateCount);
 
-    for(i = 0; i < max_iterations; i+= BATCH_SIZE){
+    for(i = BATCH_SIZE; i <= max_iterations; i+= BATCH_SIZE){
         for(j = 0; j < BATCH_SIZE; ++j) {
             init_message_buffer_kernel<<<dimInitGrid, dimInitMessageBuffer>>>(message_buffer, node_states, node_states_size, num_vertices);
             check_cuda_kernel_return_code();
@@ -1209,7 +1214,7 @@ int viterbi_until_cuda_kernels(Graph_t graph, const float convergence, const int
     dim3 dimMessagesBuffer(BLOCK_SIZE_3_D_X, BLOCK_SIZE_3_D_Y, BLOCK_SIZE_3_D_Z);
     dim3 dimMessagesGrid(blockMessageNodeCount, blockMessageDegreeCount, blockMessageStateCount);
 
-    for(i = 0; i < max_iterations; i+= BATCH_SIZE){
+    for(i = BATCH_SIZE; i <= max_iterations; i+= BATCH_SIZE){
         for(j = 0; j < BATCH_SIZE; ++j) {
             init_message_buffer_kernel<<<dimInitGrid, dimInitMessageBuffer>>>(message_buffer, node_states, node_states_size, num_vertices);
             check_cuda_kernel_return_code();
@@ -1461,7 +1466,7 @@ void run_test_loopy_belief_propagation_mtx_files_kernels(const char * edges_mtx,
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
     total_time_elapsed = (double)(end - begin)/CLOCKS_PER_SEC;
     //print_nodes(graph);
-    fprintf(out, "%s-%s,loopy,%ld,%ld,%d,%d,%lf,%d,%lf,%d,%lf,%lf\n", edges_mtx, nodes_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, graph->max_in_degree, graph->avg_in_degree, graph->max_out_degree, graph->avg_out_degree, num_iterations+1, time_elapsed, total_time_elapsed);
+    fprintf(out, "%s-%s,loopy,%ld,%ld,%d,%d,%lf,%d,%lf,%d,%lf,%lf,%lf\n", edges_mtx, nodes_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, graph->max_in_degree, graph->avg_in_degree, graph->max_out_degree, graph->avg_out_degree, num_iterations, time_elapsed, time_elapsed/num_iterations, total_time_elapsed);
     fflush(out);
 
     graph_destroy(graph);
