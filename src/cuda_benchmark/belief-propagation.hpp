@@ -35,7 +35,9 @@ struct node_stream_data {
     size_t num_edges;
     struct belief *buffers;
     struct belief *node_messages;
-    size_t * node_messages_size;
+    float *node_previous_states;
+    float *node_current_states;
+    size_t node_messages_size;
     size_t edge_joint_probability_dim_x;
     size_t edge_joint_probability_dim_y;
     struct belief *current_edge_messages;
@@ -61,6 +63,8 @@ struct edge_stream_data {
     size_t num_edges;
 
     struct belief *node_states;
+    float *node_previous_states;
+    float *node_current_states;
 
     size_t edge_joint_probability_dim_x;
     size_t edge_joint_probability_dim_y;
@@ -68,7 +72,7 @@ struct edge_stream_data {
     struct belief *current_edge_messages;
     float *current_edge_messages_previous;
     float *current_edge_messages_current;
-    size_t *current_edge_messages_size;
+    size_t current_edge_messages_size;
 
     size_t *work_queue_edges;
     unsigned long long int *num_work_items;
@@ -145,7 +149,7 @@ void send_message_for_node_cuda_streaming(const struct belief *, size_t, const s
                                 size_t, size_t);
 
 __device__
-void marginalize_node(struct belief *, size_t *, size_t,
+void marginalize_node(struct belief *, float *, float *,size_t *, size_t,
                       const struct belief *,
                       const size_t *, const size_t *,
                       size_t, size_t);
@@ -175,13 +179,17 @@ void argmax_node(struct belief *, size_t *, size_t,
                  size_t, size_t);
 
 __global__
-void marginalize_nodes(struct belief *, size_t *, const struct belief *,
+void marginalize_nodes(struct belief *,
+        float *, float *,
+        size_t *, const struct belief *,
                        const size_t *, const size_t *,
                        size_t, size_t);
 
 __global__
 void marginalize_nodes_streaming(size_t, size_t,
-                        struct belief *, size_t *, const struct belief *,
+                        struct belief *,
+                                float *, float *,
+                                size_t *, const struct belief *,
                        const size_t *, const size_t *,
                        size_t, size_t);
 
@@ -228,6 +236,7 @@ __global__
 void marginalize_node_cuda_streaming( size_t, size_t,
                                       const size_t *, const size_t *,
                                       struct belief *,
+                                      float *, float *,
                                       size_t *,
                                       const struct belief *,
                                       const size_t *, const size_t *,

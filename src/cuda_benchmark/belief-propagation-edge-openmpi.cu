@@ -50,7 +50,7 @@ int main(int argc, char *argv[]) {
 
     // start the fun
     FILE * out = fopen("cuda_benchmark_loopy_edge_openmpi.csv", "w");
-    fprintf(out, "File Name,Propagation Type,Number of Nodes,Number of Edges,Diameter,Max In-degree,Avg In-degree,Max Out-degree,Avg Out-degree,Number of Iterations,BP Run Time(s)\n");
+    fprintf(out, "File Name,Propagation Type,Number of Nodes,Number of Edges,Diameter,Max In-degree,Avg In-degree,Max Out-degree,Avg Out-degree,Number of Iterations,BP Run Time(s),BP Run Time Per Iteration (s),Total Run Time(s)\n");
     fflush(out);
 
     struct joint_probability edge_joint_probability;
@@ -81,7 +81,7 @@ int main(int argc, char *argv[]) {
     run_test_loopy_belief_propagation_mtx_files_edge_cuda_openmpi("/home/mjt5v/Desktop/belief-network-const-joint-probability/tech-p2p_3_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/tech-p2p_3_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out, my_rank, n_ranks, num_devices);
     run_test_loopy_belief_propagation_mtx_files_edge_cuda_openmpi("/home/mjt5v/Desktop/belief-network-const-joint-probability/kron_g500-logn17_3_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/kron_g500-logn17_3_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out, my_rank, n_ranks, num_devices);
     run_test_loopy_belief_propagation_mtx_files_edge_cuda_openmpi("/home/mjt5v/Desktop/belief-network-const-joint-probability/soc-orkut_3_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/soc-orkut_2_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out, my_rank, n_ranks, num_devices);
-    run_test_loopy_belief_propagation_mtx_files_edge_cuda_openmpi("/home/mjt5v/Desktop/belief-network-const-joint-probability/soc-twitter-2010_3.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/soc-twitter-2010_3.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out, my_rank, n_ranks, num_devices);
+    run_test_loopy_belief_propagation_mtx_files_edge_cuda_openmpi("/home/mjt5v/Desktop/belief-network-const-joint-probability/soc-twitter-2010_3_red.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/soc-twitter-2010_3.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out, my_rank, n_ranks, num_devices);
 
     MPI_Finalize();
 
