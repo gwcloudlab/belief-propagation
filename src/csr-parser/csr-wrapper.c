@@ -111,6 +111,46 @@ void run_test_loopy_belief_propagation_mtx_files(const char * edges_mtx, const c
     graph_destroy(graph);
 }
 
+void run_test_loopy_belief_propagation_mtx_files_no_work_queue(const char * edges_mtx, const char * nodes_mtx, const struct joint_probability * edge_joint_probability, size_t dim_x, size_t dim_y, FILE *out) {
+    Graph_t graph;
+    clock_t begin, start, end;
+    double time_elapsed, total_time_elapsed;
+    int num_iterations;
+
+    begin = clock();
+
+    // read data
+    graph = build_graph_from_mtx(edges_mtx, nodes_mtx, edge_joint_probability, dim_x, dim_y);
+
+    assert(graph != NULL);
+    //print_nodes(graph);
+    //print_edges(graph);
+
+    // set up parallel arrays
+    set_up_src_nodes_to_edges_no_hsearch(graph);
+    set_up_dest_nodes_to_edges_no_hsearch(graph);
+    //print_src_nodes_to_edges(graph);
+    //print_dest_nodes_to_edges(graph);
+    //calculate_diameter(graph);
+
+    // start loopy BP
+    init_previous_edge(graph);
+
+    start = clock();
+    num_iterations = loopy_progagate_until_no_work_queue(graph, PRECISION, NUM_ITERATIONS);
+    end = clock();
+
+    // output data
+    time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
+    total_time_elapsed = (double)(end - begin)/CLOCKS_PER_SEC;
+    //print_nodes(graph);
+    fprintf(out, "%s,loopy-no-work-queue,%ld,%ld,%d,%d,%lf,%d,%lf,%d,%lf,%lf,%lf\n", edges_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, graph->max_in_degree, graph->avg_in_degree, graph->max_out_degree, graph->avg_out_degree, num_iterations, time_elapsed, time_elapsed/num_iterations, total_time_elapsed);
+    fflush(out);
+
+    // cleanup
+    graph_destroy(graph);
+}
+
 
 void run_test_loopy_belief_propagation_edge_mtx_files(const char * edges_mtx, const char * nodes_mtx, const struct joint_probability * edge_joint_probability, size_t dim_x, size_t dim_y, FILE *out) {
     Graph_t graph;
@@ -148,6 +188,44 @@ void run_test_loopy_belief_propagation_edge_mtx_files(const char * edges_mtx, co
     // cleanup
     graph_destroy(graph);
 }
+
+void run_test_loopy_belief_propagation_edge_mtx_files_no_work_queue(const char * edges_mtx, const char * nodes_mtx, const struct joint_probability * edge_joint_probability, size_t dim_x, size_t dim_y, FILE *out) {
+    Graph_t graph;
+    clock_t begin, start, end;
+    double time_elapsed, total_time_elapsed;
+    int num_iterations;
+
+    begin = clock();
+
+    graph = build_graph_from_mtx(edges_mtx, nodes_mtx, edge_joint_probability, dim_x, dim_y);
+
+    assert(graph != NULL);
+    //print_nodes(graph);
+    //print_edges(graph);
+
+    // set up parallel arrays
+    set_up_src_nodes_to_edges_no_hsearch(graph);
+    set_up_dest_nodes_to_edges_no_hsearch(graph);
+    //calculate_diameter(graph);
+
+    // start loopy BP
+    init_previous_edge(graph);
+
+    start = clock();
+    num_iterations = loopy_propagate_until_edge_no_work_queue(graph, PRECISION, NUM_ITERATIONS);
+    end = clock();
+
+    // output
+    time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
+    total_time_elapsed = (double)(end - begin) / CLOCKS_PER_SEC;
+    //print_nodes(graph);
+    fprintf(out, "%s,loopy-edge-no-work-queue,%ld,%ld,%d,%d,%lf,%d,%lf,%d,%lf,%lf,%lf\n", edges_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, graph->max_in_degree, graph->avg_in_degree, graph->max_out_degree, graph->avg_out_degree, num_iterations, time_elapsed, time_elapsed/num_iterations, total_time_elapsed);
+    fflush(out);
+
+    // cleanup
+    graph_destroy(graph);
+}
+
 
 void run_test_loopy_belief_propagation_mtx_files_acc(const char *edges_mtx, const char *nodes_mtx, const struct joint_probability * edge_joint_probability, size_t dim_x, size_t dim_y, FILE *out) {
     Graph_t graph;

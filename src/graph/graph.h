@@ -276,14 +276,18 @@ void reset_visited(Graph_t);
 
 void init_previous_edge(Graph_t);
 void loopy_propagate_one_iteration(Graph_t);
+void loopy_propagate_one_iteration_no_work_queue(Graph_t);
 void loopy_propagate_edge_one_iteration(Graph_t);
+void loopy_propagate_edge_one_iteration_no_work_queue(Graph_t);
 void page_rank_one_iteration(Graph_t);
 void page_rank_edge_one_iteration(Graph_t);
 void viterbi_one_iteration(Graph_t);
 void viterbi_edge_one_iteration(Graph_t);
 
 int loopy_propagate_until(Graph_t, float, int);
+int loopy_progagate_until_no_work_queue(Graph_t, float, int);
 int loopy_propagate_until_edge(Graph_t, float, int);
+int loopy_propagate_until_edge_no_work_queue(Graph_t, float, int);
 int loopy_propagate_until_acc(Graph_t, float, int);
 int loopy_propagate_until_edge_acc(Graph_t, float, int);
 
