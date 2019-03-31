@@ -218,6 +218,18 @@ void loopy_propagate_main_loop(size_t, size_t,
                                const size_t *, const size_t *);
 
 __global__
+void loopy_propagate_main_loop_no_work_queue(size_t, size_t,
+                            struct belief *,
+                            size_t *,
+                            float *, float *,
+                            const struct joint_probability *,
+                            const size_t *, const size_t *,
+                            struct belief *,
+                            float *, float *,
+                            const size_t *, const size_t *,
+                            const size_t *, const size_t *);
+
+__global__
 void loopy_propagate_init_read_buffer(struct belief *, size_t *, size_t, size_t);
 
 __global__
@@ -338,8 +350,10 @@ void test_error();
 int loopy_propagate_until_cuda_multiple_devices(Graph_t, float, int);
 int loopy_propagate_until_cuda_streaming(Graph_t, float, int);
 int loopy_propagate_until_cuda_openmpi(Graph_t, float, int, int, int, int);
+int loopy_propagate_until_cuda_no_work_queue(Graph_t, float, int);
 int loopy_propagate_until_cuda(Graph_t, float, int);
 int loopy_propagate_until_cuda_edge(Graph_t, float, int);
+int loopy_propagate_until_cuda_edge_no_work_queue(Graph_t, float, int);
 int loopy_propagate_until_cuda_edge_streaming(Graph_t, float, int);
 int loopy_propagate_until_cuda_edge_multiple_devices(Graph_t, float, int);
 int loopy_propagate_until_cuda_edge_openmpi(Graph_t, float, int, int, int, int);
@@ -361,11 +375,13 @@ void run_test_loopy_belief_propagation_snap_file_cuda(const char *, const char *
 void run_test_loopy_belief_propagation_snap_file_edge_cuda(const char *, const char *, FILE *);
 
 void run_test_loopy_belief_propagation_mtx_files_cuda(const char *, const char *, const struct joint_probability *, size_t, size_t, FILE *);
+void run_test_loopy_belief_propagation_mtx_files_cuda_no_work_queue(const char *, const char *, const struct joint_probability *, size_t, size_t, FILE *);
 void run_test_loopy_belief_propagation_mtx_files_cuda_streaming(const char *, const char *, const struct joint_probability *, size_t, size_t, FILE *);
 void run_test_loopy_belief_propagation_mtx_files_cuda_multiple_devices(const char *, const char *, const struct joint_probability *, size_t, size_t, FILE *);
 void run_test_loopy_belief_propagation_mtx_files_cuda_openmpi(const char *, const char *, const struct joint_probability *, size_t, size_t, FILE *,
         int, int, int);
 void run_test_loopy_belief_propagation_mtx_files_edge_cuda(const char *, const char *, const struct joint_probability *, size_t, size_t, FILE *);
+void run_test_loopy_belief_propagation_mtx_files_edge_cuda_no_work_queue(const char *, const char *, const struct joint_probability *, size_t, size_t, FILE *);
 void run_test_loopy_belief_propagation_mtx_files_edge_cuda_streaming(const char *, const char *, const struct joint_probability *, size_t, size_t, FILE *);
 void run_test_loopy_belief_propagation_mtx_files_edge_cuda_multiple_devices(const char *, const char *, const struct joint_probability *, size_t, size_t, FILE *);
 void run_test_loopy_belief_propagation_mtx_files_edge_cuda_openmpi(const char *, const char *, const struct joint_probability *, size_t, size_t,
