@@ -8,10 +8,10 @@ find_package(LibXml2 REQUIRED)
 find_package(OpenACC REQUIRED)
 
 set(CMAKE_VERBOSE_MAKEFILE on)
-set(CMAKE_C_COMPILER /opt/pgi/linux86-64/18.4/bin/pgcc)
+set(CMAKE_C_COMPILER /opt/pgi/linux86-64/18.10/bin/pgcc)
 #set(CMAKE_C_COMPILER ${HOME}/pgi/linux86-64/18.4/bin/pgcc)
-set(CMAKE_C_FLAGS_RELEASE "-O3 -acc -ta=tesla:cc60,cuda9.0")
-set(CMAKE_C_FLAGS_DEBUG  "${CMAKE_C_FLAGS_DEBUG} -acc -Minfo=accel -ta=tesla:cc60,time,cuda9.0 -Msafeptr")
+set(CMAKE_C_FLAGS_RELEASE "-O3 -acc -ta=tesla:cc60,cuda10.0")
+set(CMAKE_C_FLAGS_DEBUG  "-g -acc -Minfo=accel -ta=tesla:cc60,time,cuda10.0 -Msafeptr")
 SET(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS)
 
 #add_executable(openacc_non_loopy_benchmark non-loopy-belief-propagation.c ../bnf-xml-parser/bnf-xml-wrapper.c ../bnf-xml-parser/xml-expression.c ../bnf-parser/bnf-wrapper.c ../bnf-parser/expression.c ../bnf-parser/Lexer.c ../bnf-parser/Parser.c ../graph/graph.c ../snap-parser/snap-parser.c  ../csr-parser/csr-parser.c ../csr-parser/csr-wrapper.c)

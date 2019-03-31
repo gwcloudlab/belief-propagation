@@ -84,7 +84,7 @@ void update_work_queue_edges_cuda(size_t * __restrict__ work_queue_edge, unsigne
  * @param node_index The index of the current belief
   */
 __device__
-void init_message_buffer_cuda(struct belief * __restrict__ buffer, const  struct belief * __restrict__ node_states, size_t num_variables, size_t node_index){
+void init_message_buffer_cuda(struct belief * __restrict__ buffer, const  struct belief * __restrict__ node_states, const size_t num_variables, size_t node_index){
     size_t j;
 
     for(j = 0; j < num_variables; ++j){
@@ -96,19 +96,18 @@ void init_message_buffer_cuda(struct belief * __restrict__ buffer, const  struct
 __global__
 void init_and_read_message_buffer_cuda_streaming(
         size_t begin_index, size_t end_index,
-        struct belief * __restrict__ buffers, const struct belief * __restrict__ node_states, const size_t * __restrict__ node_states_size,
+        struct belief * __restrict__ buffers, const struct belief * __restrict__ node_states, const size_t num_variables,
                                                  const struct belief * __restrict__ previous_messages,
                                                  const size_t * __restrict__ dest_nodes_to_edges_nodes,
                                                  const size_t * __restrict__ dest_nodes_to_edges_edges,
                                                  size_t current_num_edges,
                                                  size_t num_vertices,
         const size_t * __restrict__ work_queue, const unsigned long long int * __restrict__ num_work_queue_items) {
-    size_t i, node_index, num_variables;
+    size_t i, node_index;
 
     for(i = blockIdx.x * blockDim.x + threadIdx.x + begin_index; i < end_index && i < *num_work_queue_items; i += blockDim.x * gridDim.x){
         node_index = work_queue[i];
 
-        num_variables = node_states_size[node_index];
         init_message_buffer_cuda(&(buffers[node_index]), node_states, num_variables, node_index);
         read_incoming_messages_cuda(&(buffers[node_index]), previous_messages, dest_nodes_to_edges_nodes,
                                     dest_nodes_to_edges_edges, current_num_edges, num_vertices, num_variables, node_index);
@@ -123,59 +122,86 @@ void init_and_read_message_buffer_cuda_streaming(
  * @param offset The offset in the incoming messages
  */
 __device__
-void combine_message_cuda(struct belief * __restrict__ dest, const struct belief * __restrict__ edge_messages, size_t length, size_t offset){
+void combine_message_cuda(struct belief * __restrict__ dest, const struct belief * __restrict__ edge_messages, const size_t length, const size_t offset){
     size_t i;
     const float *buffer = dest->data;
     const float *messages = edge_messages[offset].data;
 
     for(i = 0; i < length; ++i){
-        if(messages[i] == messages[i]){
-            dest->data[i] = buffer[i] * messages[i];
-        }
+       //if(messages[i] == messages[i]){ //ensure no nan's
+       //assert(messages[i] == messages[i]);
+           float value = buffer[i] * messages[i];
+           if(isinf(value) || isnan(value)) {
+               dest->data[i] = 0.0f;
+           }
+           else {
+               dest->data[i] = value;
+           }
+       // }
     }
 }
 
 __device__
-void combine_message_cuda_node_streaming(struct belief * __restrict__ dest, const struct belief * __restrict__ edge_messages, size_t length, size_t offset){
+void combine_message_cuda_node_streaming(struct belief * __restrict__ dest, const struct belief * __restrict__ edge_messages, const size_t length, const size_t offset){
     size_t i;
     const float *buffer = dest->data;
     const float *messages = edge_messages[offset].data;
 
     for(i = 0; i < length; ++i){
-        if(messages[i] == messages[i]){
-            dest->data[i] = buffer[i] * messages[i];
-        }
+
+        //if(messages[i] == messages[i]){ //ensure no nan's
+            float value = buffer[i] * messages[i];
+            if(isinf(value) || isnan(value)) {
+                dest->data[i] = 0.0f;
+            }
+            else {
+                dest->data[i] = value;
+            }
+        //}
     }
 }
 
 __device__
-void combine_message_cuda_edge_streaming(struct belief * __restrict__ dest, const struct belief * __restrict__ edge_messages, size_t length, size_t offset){
+void combine_message_cuda_edge_streaming(struct belief * __restrict__ dest, const struct belief * __restrict__ edge_messages, const size_t length, const size_t offset){
     size_t i;
     const float *buffer = dest->data;
     const float *messages = edge_messages[offset].data;
 
     for(i = 0; i < length; ++i){
-        if(messages[i] == messages[i]){
-            dest->data[i] = buffer[i] * messages[i];
-        }
+        //if(messages[i] == messages[i]){  //ensure no nan's
+            float value = buffer[i] * messages[i];
+            if(isinf(value) || isnan(value)) {
+                dest->data[i] = 0.0f;
+            }
+            else {
+                dest->data[i] = value;
+            }
+        //}
     }
 }
 
 __device__
-void combine_page_rank_message_cuda(struct belief * __restrict__ dest, const struct belief * __restrict__ edge_messages, size_t length, size_t offset){
+void combine_page_rank_message_cuda(struct belief * __restrict__ dest, const struct belief * __restrict__ edge_messages, const size_t length, const size_t offset){
     size_t i;
     const float * buffer = dest->data;
     const float * messages = edge_messages[offset].data;
 
     for(i = 0; i < length; ++i){
-        if(messages[i] == messages[i]){
-            dest->data[i] = buffer[i] + messages[i];
+
+        //if(messages[i] == messages[i]){
+        float value = buffer[i] + messages[i];
+        if(isinf(value) || isnan(value)) {
+            dest->data[i] = 0.0f;
         }
+        else {
+            dest->data[i] = value;
+        }
+        //}
     }
 }
 
 __device__
-void combine_viterbi_message_cuda(struct belief * __restrict__ dest, const struct belief * __restrict__ edge_messages, size_t length, size_t offset){
+void combine_viterbi_message_cuda(struct belief * __restrict__ dest, const struct belief * __restrict__ edge_messages, const size_t length, const size_t offset){
     size_t i;
 
     const float *buffer;
@@ -185,9 +211,16 @@ void combine_viterbi_message_cuda(struct belief * __restrict__ dest, const struc
     messages = edge_messages[offset].data;
 
     for(i = 0; i < length; ++i){
-        if(messages[i] == messages[i]){
-            dest->data[i] = fmaxf(buffer[i], messages[i]);
-        }
+
+        //if(messages[i] == messages[i]){
+            float value = fmaxf(buffer[i], messages[i]);
+            if(isinf(value) || isnan(value)) {
+                dest->data[i] = 0.0f;
+            }
+            else {
+                dest->data[i] = value;
+            }
+       // }
     }
 }
 
@@ -206,8 +239,8 @@ void read_incoming_messages_cuda(struct belief * __restrict__ message_buffer,
                                  const struct belief * __restrict__ previous_messages,
                                  const size_t * __restrict__ dest_nodes_to_edges_nodes,
                                  const size_t * __restrict__ dest_nodes_to_edges_edges,
-                                 size_t current_num_edges,
-                            size_t num_vertices, size_t num_variables, size_t idx){
+                                 const size_t current_num_edges,
+                            const size_t num_vertices, const size_t num_variables, const size_t idx){
     size_t start_index, end_index, j, edge_index;
 
     start_index = dest_nodes_to_edges_nodes[idx];
@@ -233,7 +266,7 @@ void read_incoming_messages_cuda(struct belief * __restrict__ message_buffer,
  */
 __device__
 void send_message_for_edge_cuda(const struct belief * __restrict__  buffer, size_t edge_index,
-                                size_t num_src, size_t num_dest,
+                                const size_t num_src, const size_t num_dest,
                                 struct belief * __restrict__ edge_messages,
                                 float * __restrict__ edge_messages_previous,
                                 float * __restrict__ edge_messages_current){
@@ -267,8 +300,8 @@ void send_message_for_edge_cuda(const struct belief * __restrict__  buffer, size
 }
 
 __device__
-void send_message_for_edge_cuda_streaming(const struct belief * __restrict__ buffer, size_t edge_index,
-                            size_t num_src, size_t num_dest,
+void send_message_for_edge_cuda_streaming(const struct belief * __restrict__ buffer, const size_t edge_index,
+                            const size_t num_src, const size_t num_dest,
                                 struct belief * __restrict__ edge_messages,
                                 float * edge_messages_previous,
                                 float * edge_messages_current){
@@ -317,7 +350,7 @@ void send_message_for_node_cuda(const struct belief * __restrict__ message_buffe
                                 float * __restrict__ edge_messages_current,
                                 const size_t * __restrict__ src_nodes_to_edges_nodes,
                                 const size_t * __restrict__ src_nodes_to_edges_edges,
-                                size_t num_vertices, size_t idx){
+                                const size_t num_vertices, const size_t idx){
     size_t start_index, end_index, j, edge_index;
 
     start_index = src_nodes_to_edges_nodes[idx];
@@ -337,13 +370,13 @@ void send_message_for_node_cuda(const struct belief * __restrict__ message_buffe
 
 __device__
 void send_message_for_node_cuda_streaming(const struct belief * __restrict__ message_buffer, size_t current_num_edges,
-                                size_t num_src, size_t num_dest,
+                                const size_t num_src, const size_t num_dest,
                                 struct belief * __restrict__ current_edge_messages,
                                 float * __restrict__ edge_messages_previous,
                                 float * __restrict__ edge_messages_current,
                                 const size_t * __restrict__ src_nodes_to_edges_nodes,
                                 const size_t * __restrict__ src_nodes_to_edges_edges,
-                                size_t num_vertices, size_t idx){
+                                const size_t num_vertices, const size_t idx){
     size_t start_index, end_index, j, edge_index;
 
     start_index = src_nodes_to_edges_nodes[idx];
@@ -367,12 +400,12 @@ void
 send_message_for_node_cuda_streaming_kernel(size_t begin_index, size_t end_index,
                                           const size_t * __restrict__ work_queue, const unsigned long long int * __restrict__ num_work_queue_items,
                                           const struct belief * __restrict__ message_buffers, size_t current_num_edges,
-                                          size_t num_src, size_t num_dest,
+                                          const size_t num_src, const size_t num_dest,
                                           struct belief * __restrict__ current_edge_messages,
                                           float * edge_messages_previous,
                                           float * edge_messages_current,
                                           const size_t * __restrict__ src_nodes_to_edges_nodes, const size_t * __restrict__ src_nodes_to_edges_edges,
-                                          size_t num_vertices) {
+                                          const size_t num_vertices) {
     size_t i, node_index;
 
     for(i = blockIdx.x * blockDim.x + threadIdx.x + begin_index; i < end_index && i < *num_work_queue_items; i += blockDim.x * gridDim.x) {
@@ -398,16 +431,16 @@ send_message_for_node_cuda_streaming_kernel(size_t begin_index, size_t end_index
  * @param num_edges The number of edges in the graph
  */
 __device__
-void marginalize_node(struct belief * __restrict__ node_states, size_t * __restrict__ node_states_size, size_t idx,
+void marginalize_node(struct belief * __restrict__ node_states,
+        float * __restrict__ node_previous_states, float * __restrict__ node_current_states,
+        const size_t num_variables, const size_t idx,
                       const struct belief * __restrict__ current_edges_messages,
                       const size_t * __restrict__ dest_nodes_to_edges_nodes,
                       const size_t * __restrict__ dest_nodes_to_edges_edges,
-                      size_t num_vertices, size_t num_edges){
-    size_t i, num_variables, start_index, end_index, edge_index;
+                      const size_t num_vertices, const size_t num_edges){
+    size_t i, start_index, end_index, edge_index;
     float sum;
     float *new_belief_data, *node_states_data;
-
-    num_variables = node_states_size[idx];
 
     struct belief new_belief;
     new_belief_data = new_belief.data;
@@ -443,18 +476,21 @@ void marginalize_node(struct belief * __restrict__ node_states, size_t * __restr
     for(i = 0; i < num_variables; ++i){
         node_states_data[i] /= sum;
     }
+
+    node_previous_states[idx] = node_current_states[idx];
+    node_current_states[idx] = sum;
 }
 
 __device__
-void marginalize_node_node_streaming(struct belief * __restrict__ node_states, size_t * node_states_size,  size_t idx,
+void marginalize_node_node_streaming(struct belief * __restrict__ node_states,
+        float * __restrict__ previous_node_states, float * __restrict__ current_node_states,
+        const size_t num_variables, const size_t idx,
                       const struct belief * __restrict__ current_edges_messages,
                       const size_t * __restrict__ dest_nodes_to_edges_nodes,
                       const size_t * __restrict__ dest_nodes_to_edges_edges,
-                      size_t num_vertices, size_t num_edges){
-    size_t i, num_variables, start_index, end_index, edge_index;
+                      const size_t num_vertices, const size_t num_edges){
+    size_t i, start_index, end_index, edge_index;
     float sum;
-
-    num_variables = node_states_size[idx];
 
     struct belief new_belief;
 
@@ -490,21 +526,19 @@ void marginalize_node_node_streaming(struct belief * __restrict__ node_states, s
     for(i = 0; i < num_variables; ++i){
         node_states[idx].data[i] /= sum;
     }
+
+    previous_node_states[idx] = current_node_states[idx];
+    current_node_states[idx] = sum;
 }
 
 __device__
-void marginalize_node_edge_streaming(struct belief * __restrict__ node_states, size_t * __restrict__ node_states_size, size_t idx,
+void marginalize_node_edge_streaming(struct belief * __restrict__ node_states, const size_t num_variables, size_t idx,
                       const struct belief * __restrict__ current_edges_messages,
                       const size_t * __restrict__ dest_nodes_to_edges_nodes,
                       const size_t * __restrict__ dest_nodes_to_edges_edges,
                       size_t num_vertices, size_t num_edges){
-    size_t i, num_variables, start_index, end_index, edge_index;
+    size_t i, start_index, end_index, edge_index;
     float sum;
-
-    num_variables = node_states_size[idx];
-    if(num_variables > MAX_STATES) {
-        return;
-    }
 
     struct belief new_belief;
 
@@ -547,16 +581,18 @@ void marginalize_node_cuda_streaming( size_t begin_index, size_t end_index,
                                 const size_t * __restrict__ work_queue,
                                 const unsigned long long int * __restrict__ num_work_queue_items,
                                 struct belief * __restrict__ node_states,
-                                size_t * __restrict__ node_states_size,
+                                float * __restrict__ previous_node_states,
+                                float * __restrict__ current_node_states,
+                                const size_t node_states_size,
                                 const struct belief * __restrict__ current_edges_messages,
                                 const size_t * __restrict__  dest_nodes_to_edges_nodes, const size_t * __restrict__ dest_nodes_to_edges_edges,
-                                size_t num_vertices, size_t num_edges) {
+                                const size_t num_vertices, const size_t num_edges) {
     size_t i, node_index;
 
     for(i = blockIdx.x * blockDim.x + threadIdx.x + begin_index; i < end_index && i < *num_work_queue_items; i += blockDim.x * gridDim.x) {
         node_index = work_queue[i];
 
-        marginalize_node_node_streaming(node_states, node_states_size, node_index, current_edges_messages, dest_nodes_to_edges_nodes,
+        marginalize_node_node_streaming(node_states, previous_node_states, current_node_states, node_states_size, node_index, current_edges_messages, dest_nodes_to_edges_nodes,
                          dest_nodes_to_edges_edges, num_vertices, num_edges);
     }
 }
@@ -573,15 +609,13 @@ void marginalize_node_cuda_streaming( size_t begin_index, size_t end_index,
  * @param num_edges The number of edges in the graph
  */
 __device__
-void marginalize_page_rank_node(struct belief * __restrict__ node_states, size_t * __restrict__ node_states_size, size_t idx,
+void marginalize_page_rank_node(struct belief * __restrict__ node_states, const size_t num_variables, const size_t idx,
                                 const struct belief * __restrict__ current_edges_messages,
                                 const size_t * __restrict__ dest_nodes_to_edges_nodes,
                                 const size_t * __restrict__ dest_nodes_to_edges_edges,
-                                size_t num_vertices, size_t num_edges) {
-    size_t i, num_variables, start_index, end_index, edge_index;
+                                const size_t num_vertices, const size_t num_edges) {
+    size_t i, start_index, end_index, edge_index;
     float factor;
-
-    num_variables = node_states_size[idx];
 
     struct belief new_belief;
 
@@ -622,13 +656,11 @@ void marginalize_page_rank_node(struct belief * __restrict__ node_states, size_t
  * @param num_edges The number of edges in the graph
  */
 __device__
-void argmax_node(struct belief * __restrict__ node_states, size_t * __restrict__ node_states_size,  size_t idx,
+void argmax_node(struct belief * __restrict__ node_states, const size_t num_variables,  size_t idx,
                       const struct belief * __restrict__ current_edges_messages,
                       const size_t * __restrict__ dest_nodes_to_edges_nodes, const size_t * __restrict__ dest_nodes_to_edges_edges,
                       size_t num_vertices, size_t num_edges){
-    size_t i, num_variables, start_index, end_index, edge_index;
-
-    num_variables = node_states_size[idx];
+    size_t i, start_index, end_index, edge_index;
 
     struct belief new_belief;
 
@@ -666,22 +698,24 @@ void argmax_node(struct belief * __restrict__ node_states, size_t * __restrict__
  * @param num_edges The number of edges in the graph
  */
 __global__
-void marginalize_nodes(struct belief * __restrict__ node_states, size_t * __restrict__ node_states_size,
+void marginalize_nodes(struct belief * __restrict__ node_states,
+                        float * __restrict__ node_previous_states, float * __restrict__ node_current_states,
+                        const size_t  num_variables,
                        const struct belief * __restrict__ current_edges_messages,
                        const size_t * __restrict__ dest_nodes_to_edges_nodes,
                        const size_t * __restrict__ dest_nodes_to_edges_edges,
-                       size_t num_vertices, size_t num_edges) {
+                       const size_t num_vertices, const size_t num_edges) {
     size_t idx;
     for(idx = blockIdx.x * blockDim.x + threadIdx.x; idx < num_vertices; idx += blockDim.x * gridDim.x){
-        marginalize_node(node_states, node_states_size, idx, current_edges_messages, dest_nodes_to_edges_nodes, dest_nodes_to_edges_edges, num_vertices, num_edges);
+        marginalize_node(node_states, node_previous_states, node_current_states, num_variables, idx, current_edges_messages, dest_nodes_to_edges_nodes, dest_nodes_to_edges_edges, num_vertices, num_edges);
     }
 }
 
 __global__
-void marginalize_nodes_streaming(size_t begin_index, size_t end_index, struct belief * __restrict__ node_states, size_t * __restrict__ node_states_size,
+void marginalize_nodes_streaming(const size_t begin_index, const size_t end_index, struct belief * __restrict__ node_states, const size_t node_states_size,
                                  const struct belief * __restrict__ current_edges_messages,
                                  const size_t * __restrict__ dest_nodes_to_edges_nodes, const size_t * __restrict__ dest_nodes_to_edges_edges,
-                                 size_t num_vertices, size_t num_edges) {
+                                 const size_t num_vertices, const size_t num_edges) {
     size_t idx;
     for (idx = blockIdx.x * blockDim.x + threadIdx.x + begin_index; idx < end_index && idx < num_vertices; idx += blockDim.x * gridDim.x) {
         marginalize_node_edge_streaming(node_states, node_states_size, idx, current_edges_messages, dest_nodes_to_edges_nodes, dest_nodes_to_edges_edges,
@@ -699,10 +733,10 @@ void marginalize_nodes_streaming(size_t begin_index, size_t end_index, struct be
  * @param num_edges The number of edges in the graph
  */
 __global__
-void marginalize_page_rank_nodes(struct belief * __restrict__ node_states, size_t * node_states_size,
+void marginalize_page_rank_nodes(struct belief * __restrict__ node_states, const size_t node_states_size,
                        const struct belief * __restrict__ current_edges_messages,
                        const size_t * __restrict__ dest_nodes_to_edges_nodes, const size_t * __restrict__ dest_nodes_to_edges_edges,
-                       size_t num_vertices, size_t num_edges) {
+                       const size_t num_vertices, const size_t num_edges) {
     size_t idx;
     for(idx = blockIdx.x * blockDim.x + threadIdx.x; idx < num_vertices; idx += blockDim.x * gridDim.x){
         marginalize_page_rank_node(node_states, node_states_size, idx, current_edges_messages, dest_nodes_to_edges_nodes, dest_nodes_to_edges_edges, num_vertices, num_edges);
@@ -719,10 +753,10 @@ void marginalize_page_rank_nodes(struct belief * __restrict__ node_states, size_
  * @param num_edges The number of edges in the graph
  */
 __global__
-void argmax_nodes(struct belief * __restrict__ node_states, size_t * node_states_size,
+void argmax_nodes(struct belief * __restrict__ node_states, const size_t node_states_size,
                        const struct belief * __restrict__ current_edges_messages,
                        const size_t * __restrict__ dest_nodes_to_edges_nodes, const size_t * __restrict__ dest_nodes_to_edges_edges,
-                       size_t num_vertices, size_t num_edges) {
+                       const size_t num_vertices, const size_t num_edges) {
     size_t idx;
     for(idx = blockIdx.x * blockDim.x + threadIdx.x; idx < num_vertices; idx += blockDim.x * gridDim.x){
         argmax_node(node_states, node_states_size, idx, current_edges_messages, dest_nodes_to_edges_nodes, dest_nodes_to_edges_edges, num_vertices, num_edges);
@@ -745,10 +779,10 @@ void argmax_nodes(struct belief * __restrict__ node_states, size_t * node_states
 __global__
 void loopy_propagate_main_loop(size_t num_vertices, size_t num_edges,
                                struct belief * __restrict__ node_messages,
-                               size_t * __restrict__ node_messages_size,
+                               const size_t num_variables,
                                float * __restrict__ node_messages_previous,
                                float * __restrict__ node_messages_current,
-                               size_t num_src, size_t num_dest,
+                               const size_t num_src, const size_t num_dest,
                                struct belief *current_edge_messages,
                                float * edge_messages_previous,
                                float * edge_messages_current,
@@ -756,13 +790,11 @@ void loopy_propagate_main_loop(size_t num_vertices, size_t num_edges,
                                size_t * __restrict__ work_queue_scratch,
                                const size_t * __restrict__ src_nodes_to_edges_nodes, const size_t * __restrict__ src_nodes_to_edges_edges,
                                const size_t * __restrict__ dest_nodes_to_edges_nodes, const size_t * __restrict__ dest_nodes_to_edges_edges) {
-    size_t i, idx, num_variables;
+    size_t i, idx;
     struct belief new_belief;
 
     for (i = blockIdx.x * blockDim.x + threadIdx.x; i < *num_work_items; i += blockDim.x * gridDim.x) {
         idx = work_queue_nodes[i];
-
-        num_variables = node_messages_size[idx];
 
         init_message_buffer_cuda(&new_belief, node_messages, num_variables, idx);
         __syncthreads();
@@ -774,7 +806,7 @@ void loopy_propagate_main_loop(size_t num_vertices, size_t num_edges,
         send_message_for_node_cuda(&new_belief, num_edges, num_src, num_dest, current_edge_messages, edge_messages_previous, edge_messages_current,
                                    src_nodes_to_edges_nodes, src_nodes_to_edges_edges, num_vertices, idx);
         __syncthreads();
-        marginalize_node(node_messages, node_messages_size, idx, current_edge_messages, dest_nodes_to_edges_nodes,
+        marginalize_node(node_messages,node_messages_previous, node_messages_current, num_variables, idx, current_edge_messages, dest_nodes_to_edges_nodes,
                          dest_nodes_to_edges_edges, num_vertices, num_edges);
 
         __syncthreads();
@@ -803,7 +835,7 @@ void loopy_propagate_main_loop(size_t num_vertices, size_t num_edges,
 __global__
 void page_rank_main_loop(size_t num_vertices, size_t num_edges,
                                struct belief * __restrict__ node_messages,
-                                 size_t * __restrict__ node_messages_size,
+                                 const size_t num_variables,
                                  float * __restrict__ node_messages_previous,
                                  float * __restrict__ node_messages_current,
                                size_t num_src, size_t num_dest,
@@ -812,11 +844,10 @@ void page_rank_main_loop(size_t num_vertices, size_t num_edges,
                          float * edge_messages_current,
                                const size_t * __restrict__ src_nodes_to_edges_nodes, const size_t * __restrict__ src_nodes_to_edges_edges,
                                const size_t * __restrict__ dest_nodes_to_edges_nodes, const size_t * __restrict__ dest_nodes_to_edges_edges){
-    size_t idx, num_variables;
+    size_t idx;
     struct belief new_belief;
 
     for(idx = blockIdx.x * blockDim.x + threadIdx.x; idx < num_vertices; idx += blockDim.x * gridDim.x){
-        num_variables = node_messages_size[idx];
 
         init_message_buffer_cuda(&new_belief, node_messages, num_variables, idx);
         __syncthreads();
@@ -828,7 +859,7 @@ void page_rank_main_loop(size_t num_vertices, size_t num_edges,
                 current_edge_messages, edge_messages_previous, edge_messages_current, src_nodes_to_edges_nodes, src_nodes_to_edges_edges, num_vertices, idx);
         __syncthreads();
 
-        marginalize_page_rank_node(node_messages, node_messages_size, idx, current_edge_messages, dest_nodes_to_edges_nodes, dest_nodes_to_edges_edges, num_vertices, num_edges);
+        marginalize_page_rank_node(node_messages, num_variables, idx, current_edge_messages, dest_nodes_to_edges_nodes, dest_nodes_to_edges_edges, num_vertices, num_edges);
         __syncthreads();
     }
 }
@@ -849,7 +880,7 @@ void page_rank_main_loop(size_t num_vertices, size_t num_edges,
 __global__
 void viterbi_main_loop(size_t num_vertices, size_t num_edges,
                          struct belief * __restrict__ node_messages,
-                       size_t * __restrict__ node_messages_size,
+                       const size_t num_variables,
                        float * __restrict__ node_messages_previous,
                        float * __restrict__ node_messages_current,
                          size_t num_src, size_t num_dest,
@@ -858,11 +889,10 @@ void viterbi_main_loop(size_t num_vertices, size_t num_edges,
                        float * edge_messages_current,
                          const size_t * __restrict__ src_nodes_to_edges_nodes, const size_t * __restrict__ src_nodes_to_edges_edges,
                          const size_t * __restrict__ dest_nodes_to_edges_nodes, const size_t * __restrict__ dest_nodes_to_edges_edges){
-    size_t idx, num_variables;
+    size_t idx;
     struct belief new_belief;
 
     for(idx = blockIdx.x * blockDim.x + threadIdx.x; idx < num_vertices; idx += blockDim.x * gridDim.x){
-        num_variables = node_messages_size[idx];
 
         init_message_buffer_cuda(&new_belief, node_messages, num_variables, idx);
         __syncthreads();
@@ -874,7 +904,7 @@ void viterbi_main_loop(size_t num_vertices, size_t num_edges,
                 src_nodes_to_edges_nodes, src_nodes_to_edges_edges, num_vertices, idx);
         __syncthreads();
 
-        argmax_node(node_messages, node_messages_size, idx, current_edge_messages, dest_nodes_to_edges_nodes, dest_nodes_to_edges_edges, num_vertices, num_edges);
+        argmax_node(node_messages, num_variables, idx, current_edge_messages, dest_nodes_to_edges_nodes, dest_nodes_to_edges_edges, num_vertices, num_edges);
         __syncthreads();
     }
 }
@@ -888,8 +918,8 @@ void viterbi_main_loop(size_t num_vertices, size_t num_edges,
  * @param edge_messages The current message on the edge
  */
 __device__
-void send_message_for_edge_iteration_cuda(const struct belief * __restrict__ buffer, size_t src_index, size_t edge_index,
-                                                 size_t num_src, size_t num_dest,
+void send_message_for_edge_iteration_cuda(const struct belief * __restrict__ buffer, const size_t src_index, const size_t edge_index,
+                                                 const size_t num_src, const size_t num_dest,
                                                          struct belief * __restrict__ edge_messages,
                                                                  float * edge_messages_previous, float * edge_messages_current){
     size_t i, j;
@@ -929,9 +959,9 @@ void send_message_for_edge_iteration_cuda(const struct belief * __restrict__ buf
  * @param current_edge_messages The current belief held on the edge
  */
 __global__
-void send_message_for_edge_iteration_cuda_kernel(size_t num_edges, const size_t * __restrict__ edges_src_index,
+void send_message_for_edge_iteration_cuda_kernel(const size_t num_edges, const size_t * __restrict__ edges_src_index,
                                                  const struct belief * __restrict__ node_states,
-                                                 size_t num_src, size_t num_dest,
+                                                 const size_t num_src, const size_t num_dest,
                                                  struct belief * __restrict__ current_edge_messages,
                                                  float * edge_messages_previous, float * edge_messages_current){
     size_t idx, src_node_index;
@@ -945,9 +975,9 @@ void send_message_for_edge_iteration_cuda_kernel(size_t num_edges, const size_t 
 }
 
 __global__
-void send_message_for_edge_iteration_cuda_work_queue_kernel(size_t num_edges, const size_t * __restrict__ edges_src_index,
+void send_message_for_edge_iteration_cuda_work_queue_kernel(const size_t num_edges, const size_t * __restrict__ edges_src_index,
                                                             const struct belief * __restrict__ node_states,
-                                                            size_t num_src, size_t num_dest,
+                                                            const size_t num_src, const size_t num_dest,
                                                             struct belief * __restrict__ current_edge_messages,
                                                             float * edge_messages_previous, float * edge_messages_current,
                                                             size_t * __restrict__ work_queue_edges, unsigned long long int * __restrict__ num_work_queue_items) {
@@ -963,10 +993,10 @@ void send_message_for_edge_iteration_cuda_work_queue_kernel(size_t num_edges, co
 
 __global__
 void send_message_for_edge_iteration_cuda_work_queue_kernel_streaming(
-                                                            size_t begin_index, size_t end_index,
+                                                            const size_t begin_index, const size_t end_index,
                                                             const size_t * __restrict__ edges_src_index,
                                                             const struct belief * __restrict__ node_states,
-                                                            size_t num_src, size_t num_dest,
+                                                            const size_t num_src, const size_t num_dest,
                                                             struct belief * __restrict__ current_edge_messages,
                                                             float * edge_messages_previous, float * edge_messages_current,
                                                             const size_t * __restrict__ work_queue_edges, const unsigned long long int *  __restrict__ num_work_queue_items) {
@@ -990,15 +1020,14 @@ void send_message_for_edge_iteration_cuda_work_queue_kernel_streaming(
  * @param num_variables The number of states within the belief
  */
 __device__
-void combine_loopy_edge_cuda(size_t edge_index, const struct belief * __restrict__ current_messages, const size_t * current_messages_size, size_t dest_node_index,
+void combine_loopy_edge_cuda(const size_t edge_index, const struct belief * __restrict__ current_messages, const size_t num_variables, const size_t dest_node_index,
                              struct belief * __restrict__ belief){
-    size_t i, num_variables;
+    size_t i;
     unsigned long long int * address_as_uint;
     unsigned long long int old, assumed;
     __shared__ float current_message_value[BLOCK_SIZE], current_belief_value[BLOCK_SIZE];
 
     address_as_uint = (unsigned long long int *)current_messages;
-    num_variables = current_messages_size[edge_index];
     if(num_variables > MAX_STATES || threadIdx.x >= BLOCK_SIZE) {
         return;
     }
@@ -1028,14 +1057,14 @@ void combine_loopy_edge_cuda(size_t edge_index, const struct belief * __restrict
 __global__
 void combine_loopy_edge_cuda_kernel(size_t num_edges, const size_t * __restrict__ edges_dest_index,
                                     const struct belief * __restrict__ current_edge_messages,
-                                            const size_t * current_edge_messages_size,
+                                            const size_t num_variables,
                                             struct belief * __restrict__ node_states){
     size_t idx, dest_node_index;
 
     for(idx = blockIdx.x * blockDim.x + threadIdx.x; idx < num_edges; idx += blockDim.x * gridDim.x){
         dest_node_index = edges_dest_index[idx];
 
-        combine_loopy_edge_cuda(idx, current_edge_messages, current_edge_messages_size, dest_node_index, node_states);
+        combine_loopy_edge_cuda(idx, current_edge_messages, num_variables, dest_node_index, node_states);
     }
 }
 
@@ -1044,7 +1073,7 @@ void combine_loopy_edge_cuda_work_queue_kernel(size_t num_edges, const size_t * 
                                     const belief * current_edge_messages,
                                     const float * __restrict__ current_edge_message_previous,
                                     const float * __restrict__ current_edge_message_current,
-                                            const size_t * __restrict__ current_edge_messages_size,
+                                            const size_t num_variables,
                                             struct belief * __restrict__ node_states,
                                                size_t * __restrict__ work_queue_edges, unsigned long long int * __restrict__ num_work_items,
                                                size_t * __restrict__ work_queue_scratch){
@@ -1055,7 +1084,7 @@ void combine_loopy_edge_cuda_work_queue_kernel(size_t num_edges, const size_t * 
 
         dest_node_index = edges_dest_index[idx];
 
-        combine_loopy_edge_cuda(idx, current_edge_messages, current_edge_messages_size, dest_node_index, node_states);
+        combine_loopy_edge_cuda(idx, current_edge_messages, num_variables, dest_node_index, node_states);
     }
 
     __syncthreads();
@@ -1067,7 +1096,7 @@ __global__
 void combine_loopy_edge_cuda_work_queue_kernel_streaming(size_t begin_index, size_t end_index,
                                                          const size_t * __restrict__ edges_dest_index,
                                                const struct belief * __restrict__ current_edge_messages,
-                                               const size_t * __restrict__ current_edge_messages_size,
+                                               const size_t num_variables,
                                                struct belief * __restrict__ node_states,
                                                const size_t * __restrict__ work_queue_edges, const unsigned long long int * __restrict__ num_work_items,
                                                const size_t * __restrict__ work_queue_scratch){
@@ -1078,7 +1107,7 @@ void combine_loopy_edge_cuda_work_queue_kernel_streaming(size_t begin_index, siz
 
         dest_node_index = edges_dest_index[idx];
 
-        combine_loopy_edge_cuda(idx, current_edge_messages, current_edge_messages_size, dest_node_index, node_states);
+        combine_loopy_edge_cuda(idx, current_edge_messages, num_variables, dest_node_index, node_states);
     }
 }
 
@@ -1088,12 +1117,11 @@ void combine_loopy_edge_cuda_work_queue_kernel_streaming(size_t begin_index, siz
  * @param num_vertices The number of nodes in the graph
  */
 __global__
-void marginalize_loop_node_edge_kernel(struct belief * __restrict__ belief, const size_t * belief_size, size_t num_vertices){
-    size_t i, idx, num_variables;
+void marginalize_loop_node_edge_kernel(struct belief * __restrict__ belief, const size_t num_variables, const size_t num_vertices){
+    size_t i, idx;
     float sum;
 
     for(idx = blockIdx.x * blockDim.x + threadIdx.x; idx < num_vertices; idx += blockDim.x * gridDim.x){
-        num_variables = *belief_size;
         sum = 0.0f;
         for(i = 0; i < num_variables; ++i){
             sum += belief->data[i];
@@ -1135,7 +1163,7 @@ float calculate_local_delta(size_t i, const float * __restrict__ current_message
 __global__
 void calculate_delta(const float * __restrict__ current_messages_previous, const float * __restrict__ current_messages_current,
                      float * __restrict__ delta, float * __restrict__ delta_array,
-                     size_t num_edges){
+                     const size_t num_edges){
     extern __shared__ float shared_delta[];
     size_t tid, idx, i, s;
 
@@ -1220,7 +1248,7 @@ __global__
 void calculate_delta_6(const float * __restrict__ current_messages_previous,
                        const float * __restrict__ current_messages_current,
                        float * __restrict__ delta, float * __restrict__ delta_array,
-                       size_t num_edges, char n_is_pow_2, int warp_size) {
+                       const size_t num_edges, char n_is_pow_2, int warp_size) {
     extern __shared__ float shared_delta[];
 
     size_t offset;
@@ -1328,7 +1356,7 @@ __global__
 void calculate_delta_simple(const float * __restrict__ current_messages_previous,
                             const float * __restrict__ current_messages_current,
                             float * __restrict__ delta, float * __restrict__ delta_array,
-                            size_t num_edges) {
+                            const size_t num_edges) {
     extern __shared__ float shared_delta[];
     size_t tid, idx, i, s;
 
@@ -1363,16 +1391,16 @@ void calculate_delta_simple(const float * __restrict__ current_messages_previous
 }
 
 __global__
-void marginalize_viterbi_beliefs(struct belief * nodes, size_t * nodes_size, size_t num_nodes){
+void marginalize_viterbi_beliefs(struct belief * nodes, const size_t num_variables, const size_t num_nodes){
     size_t idx, i;
     float sum;
 
     for(idx = blockIdx.x * blockDim.x + threadIdx.x; idx < num_nodes; idx += blockDim.x * gridDim.x){
         sum = 0.0f;
-        for(i = 0; i < nodes_size[idx]; ++i){
+        for(i = 0; i < num_variables; ++i){
             sum += nodes[idx].data[i];
         }
-        for(i = 0; i < nodes_size[idx]; ++i){
+        for(i = 0; i < num_variables; ++i){
             nodes[idx].data[i] = nodes[idx].data[i] / sum;
         }
     }
@@ -1398,21 +1426,19 @@ void test_error(){
  * @param max_iterations The number of executions to stop at
  * @return The actual number of iterations ran
  */
-int loopy_propagate_until_cuda(Graph_t graph, float convergence, int max_iterations){
+int loopy_propagate_until_cuda(Graph_t graph, const float convergence, const int max_iterations){
     int num_iter;
-    size_t i, j, num_vertices, num_edges, edge_joint_probability_dim_x, edge_joint_probability_dim_y;
+    size_t i, j;
     float * delta;
     float * delta_array;
     float previous_delta, host_delta;
     char is_pow_2;
 
     struct belief * current_messages;
-    size_t * current_messages_size;
     float * current_messages_previous;
     float * current_messages_current;
 
     struct belief * node_states;
-    size_t * node_states_size;
     float * node_states_previous;
     float * node_states_current;
 
@@ -1433,10 +1459,11 @@ int loopy_propagate_until_cuda(Graph_t graph, float convergence, int max_iterati
     size_t * work_queue_scratch;
     unsigned long long int * num_work_items;
 
-    num_vertices = graph->current_num_vertices;
-    num_edges = graph->current_num_edges;
-    edge_joint_probability_dim_x = graph->edge_joint_probability_dim_x;
-    edge_joint_probability_dim_y = graph->edge_joint_probability_dim_y;
+    const size_t num_vertices = graph->current_num_vertices;
+    const size_t num_edges = graph->current_num_edges;
+    const size_t edge_joint_probability_dim_x = graph->edge_joint_probability_dim_x;
+    const size_t edge_joint_probability_dim_y = graph->edge_joint_probability_dim_y;
+    const size_t node_states_size = graph->node_states_size;
 
     /*printf("Before=====");
     print_edges(graph);
@@ -1452,12 +1479,10 @@ int loopy_propagate_until_cuda(Graph_t graph, float convergence, int max_iterati
     CUDA_CHECK_RETURN(cudaMalloc((void **)&src_node_to_edges_edges, sizeof(size_t) * graph->current_num_edges));
 
     CUDA_CHECK_RETURN(cudaMalloc((void **)&current_messages, sizeof(struct belief) * graph->current_num_edges));
-    CUDA_CHECK_RETURN(cudaMalloc((void **)&current_messages_size, sizeof(size_t) * graph->current_num_edges));
     CUDA_CHECK_RETURN(cudaMalloc((void **)&current_messages_previous, sizeof(float) * graph->current_num_edges));
     CUDA_CHECK_RETURN(cudaMalloc((void **)&current_messages_current, sizeof(float) * graph->current_num_edges));
 
     CUDA_CHECK_RETURN(cudaMalloc((void **)&node_states, sizeof(struct belief) * graph->current_num_vertices));
-    CUDA_CHECK_RETURN(cudaMalloc((void **)&node_states_size, sizeof(size_t) * graph->current_num_vertices));
     CUDA_CHECK_RETURN(cudaMalloc((void **)&node_states_previous, sizeof(float) * graph->current_num_vertices));
     CUDA_CHECK_RETURN(cudaMalloc((void **)&node_states_current, sizeof(float) * graph->current_num_vertices));
 
@@ -1476,12 +1501,10 @@ int loopy_propagate_until_cuda(Graph_t graph, float convergence, int max_iterati
     CUDA_CHECK_RETURN(cudaMemcpyToSymbol(edge_joint_probability, &(graph->edge_joint_probability), sizeof(struct joint_probability)));
 
     CUDA_CHECK_RETURN(cudaMemcpy(current_messages, graph->edges_messages, sizeof(struct belief) * graph->current_num_edges, cudaMemcpyHostToDevice));
-    CUDA_CHECK_RETURN(cudaMemcpy(current_messages_size, graph->edges_messages_size, sizeof(size_t) * graph->current_num_edges, cudaMemcpyHostToDevice));
     CUDA_CHECK_RETURN(cudaMemcpy(current_messages_previous, graph->edges_messages_previous, sizeof(float) * graph->current_num_edges, cudaMemcpyHostToDevice));
     CUDA_CHECK_RETURN(cudaMemcpy(current_messages_current, graph->edges_messages_current, sizeof(float) * graph->current_num_edges, cudaMemcpyHostToDevice));
 
     CUDA_CHECK_RETURN(cudaMemcpy(node_states, graph->node_states, sizeof(struct belief) *  graph->current_num_vertices, cudaMemcpyHostToDevice));
-    CUDA_CHECK_RETURN(cudaMemcpy(node_states_size, graph->node_states_size, sizeof(size_t) *  graph->current_num_vertices, cudaMemcpyHostToDevice));
     CUDA_CHECK_RETURN(cudaMemcpy(node_states_previous, graph->node_states_previous, sizeof(float) *  graph->current_num_vertices, cudaMemcpyHostToDevice));
     CUDA_CHECK_RETURN(cudaMemcpy(node_states_current, graph->node_states_current, sizeof(float) *  graph->current_num_vertices, cudaMemcpyHostToDevice));
 
@@ -1501,7 +1524,7 @@ int loopy_propagate_until_cuda(Graph_t graph, float convergence, int max_iterati
     dim3 dimReduceGrid(edgeCount, 1, 1);
     int reduceSmemSize = (BLOCK_SIZE <= 32) ? 2 * BLOCK_SIZE * sizeof(float) : BLOCK_SIZE * sizeof(float);
 
-    for(i = 0; i < max_iterations; i+= BATCH_SIZE){
+    for(i = BATCH_SIZE; i <= max_iterations; i+= BATCH_SIZE){
         for(j = 0; j < BATCH_SIZE; ++j) {
             loopy_propagate_main_loop << < nodeCount, BLOCK_SIZE >> > (num_vertices, num_edges,
                     node_states, node_states_size,
@@ -1528,7 +1551,12 @@ int loopy_propagate_until_cuda(Graph_t graph, float convergence, int max_iterati
         if(host_delta < convergence || fabs(host_delta - previous_delta) < convergence){
             break;
         }
-        previous_delta = host_delta;
+        if(i < max_iterations - BATCH_SIZE) {
+            previous_delta = host_delta;
+        }
+        if(i >= max_iterations){
+            printf("No Convergence: previous: %f vs current: %f\n", previous_delta, host_delta);
+        }
     }
 
     // copy data back
@@ -1541,12 +1569,10 @@ int loopy_propagate_until_cuda(Graph_t graph, float convergence, int max_iterati
     CUDA_CHECK_RETURN(cudaFree(src_node_to_edges_edges));
 
     CUDA_CHECK_RETURN(cudaFree(current_messages));
-    CUDA_CHECK_RETURN(cudaFree(current_messages_size));
     CUDA_CHECK_RETURN(cudaFree(current_messages_current));
     CUDA_CHECK_RETURN(cudaFree(current_messages_previous));
 
     CUDA_CHECK_RETURN(cudaFree(node_states));
-    CUDA_CHECK_RETURN(cudaFree(node_states_size));
     CUDA_CHECK_RETURN(cudaFree(node_states_previous));
     CUDA_CHECK_RETURN(cudaFree(node_states_current));
 
@@ -1613,7 +1639,9 @@ static void *launch_marginalize_node_kernels(void *data) {
     size_t blockCount = stream_data->streamNodeCount;
 
     marginalize_node_cuda_streaming<<<blockCount, BLOCK_SIZE_NODE_STREAMING, 0, stream_data->stream>>>(stream_data->begin_index, stream_data->end_index,
-    stream_data->work_queue_nodes, stream_data->num_work_items, stream_data->node_messages, stream_data->node_messages_size,
+    stream_data->work_queue_nodes, stream_data->num_work_items, stream_data->node_messages,
+    stream_data->node_previous_states, stream_data->node_current_states,
+    stream_data->node_messages_size,
             stream_data->current_edge_messages, stream_data->dest_nodes_to_edges_nodes,
             stream_data->dest_nodes_to_edges_edges, stream_data->num_vertices, stream_data->num_edges);
 
@@ -1628,9 +1656,9 @@ __global__ void update_work_queue_nodes_cuda_kernel(size_t * work_queue_nodes, u
     update_work_queue_nodes_cuda(work_queue_nodes, num_work_items, work_queue_scratch, node_messages_previous, node_messages_current, num_vertices, PRECISION_ITERATION);
 }
 
-int loopy_propagate_until_cuda_multiple_devices(Graph_t graph, float convergence, int max_iterations){
+int loopy_propagate_until_cuda_multiple_devices(Graph_t graph, const float convergence, const int max_iterations){
     int num_iter;
-    size_t i, j, k, l, m, n, num_vertices, num_edges, edge_joint_probability_dim_x, edge_joint_probability_dim_y, start_index, end_index;
+    size_t i, j, k, l, m, n, start_index, end_index;
     float * delta;
     float * delta_array;
     float previous_delta, host_delta;
@@ -1645,7 +1673,6 @@ int loopy_propagate_until_cuda_multiple_devices(Graph_t graph, float convergence
     float ** h_current_messages_current;
 
     struct belief ** node_states;
-    size_t ** nodes_states_size;
     float ** node_states_previous;
     float ** node_states_current;
 
@@ -1688,10 +1715,12 @@ int loopy_propagate_until_cuda_multiple_devices(Graph_t graph, float convergence
     size_t ** work_queue_scratch;
     unsigned long long int ** num_work_items;
 
-    num_vertices = graph->current_num_vertices;
-    num_edges = graph->current_num_edges;
-    edge_joint_probability_dim_x = graph->edge_joint_probability_dim_x;
-    edge_joint_probability_dim_y = graph->edge_joint_probability_dim_y;
+    const size_t num_vertices = graph->current_num_vertices;
+    const size_t num_edges = graph->current_num_edges;
+    const size_t edge_joint_probability_dim_x = graph->edge_joint_probability_dim_x;
+    const size_t edge_joint_probability_dim_y = graph->edge_joint_probability_dim_y;
+
+    const size_t node_states_size = graph->node_states_size;
 
     /*printf("Before=====");
     print_edges(graph);
@@ -1732,8 +1761,6 @@ int loopy_propagate_until_cuda_multiple_devices(Graph_t graph, float convergence
 
     node_states = (struct belief **)malloc(sizeof(struct belief *) * num_devices);
     assert(node_states);
-    nodes_states_size = (size_t **)malloc(sizeof(size_t *) * num_devices);
-    assert(nodes_states_size);
     node_states_previous = (float **)malloc(sizeof(float *) * num_devices);
     assert(node_states_previous);
     node_states_current = (float **)malloc(sizeof(float *) * num_devices);
@@ -1782,7 +1809,6 @@ int loopy_propagate_until_cuda_multiple_devices(Graph_t graph, float convergence
         CUDA_CHECK_RETURN(cudaMalloc((void **) &(current_messages_previous[k]), sizeof(float) * graph->current_num_edges));
 
         CUDA_CHECK_RETURN(cudaMalloc((void **) &(node_states[k]), sizeof(struct belief) * graph->current_num_vertices));
-        CUDA_CHECK_RETURN(cudaMalloc((void **) &(nodes_states_size[k]), sizeof(size_t) * graph->current_num_vertices));
         CUDA_CHECK_RETURN(cudaMalloc((void **) &(node_states_previous[k]), sizeof(float) * graph->current_num_vertices));
         CUDA_CHECK_RETURN(cudaMalloc((void **) &(node_states_current[k]), sizeof(float) * graph->current_num_vertices));
 
@@ -1822,9 +1848,6 @@ int loopy_propagate_until_cuda_multiple_devices(Graph_t graph, float convergence
 
         CUDA_CHECK_RETURN(
                 cudaMemcpy(node_states[k], graph->node_states, sizeof(struct belief) * graph->current_num_vertices,
-                           cudaMemcpyHostToDevice));
-        CUDA_CHECK_RETURN(
-                cudaMemcpy(nodes_states_size[k], graph->node_states_size, sizeof(size_t) * graph->current_num_vertices,
                            cudaMemcpyHostToDevice));
         CUDA_CHECK_RETURN(
                 cudaMemcpy(node_states_current[k], graph->node_states_current, sizeof(float) * graph->current_num_vertices,
@@ -1883,7 +1906,9 @@ int loopy_propagate_until_cuda_multiple_devices(Graph_t graph, float convergence
         thread_data[i].num_vertices = num_vertices;
         thread_data[i].num_edges = num_edges;
         thread_data[i].node_messages = node_states[i];
-        thread_data[i].node_messages_size = nodes_states_size[i];
+        thread_data[i].node_current_states = node_states_current[i];
+        thread_data[i].node_previous_states = node_states_previous[i];
+        thread_data[i].node_messages_size = node_states_size;
         thread_data[i].current_edge_messages = current_messages[i];
         thread_data[i].current_edge_messages_current = current_messages_current[i];
         thread_data[i].current_edge_messages_previous = current_messages_previous[i];
@@ -1899,7 +1924,7 @@ int loopy_propagate_until_cuda_multiple_devices(Graph_t graph, float convergence
         thread_data[i].stream = streams[i];
     }
 
-    for(i = 0; i < max_iterations; i+= BATCH_SIZE){
+    for(i = BATCH_SIZE; i <= max_iterations; i+= BATCH_SIZE){
         for(j = 0; j < BATCH_SIZE; ++j) {
 
             //init + read data
@@ -2070,7 +2095,12 @@ int loopy_propagate_until_cuda_multiple_devices(Graph_t graph, float convergence
         if(host_delta < convergence || fabs(host_delta - previous_delta) < convergence){
             break;
         }
-        previous_delta = host_delta;
+        if(i < max_iterations - BATCH_SIZE) {
+            previous_delta = host_delta;
+        }
+        if(i >= max_iterations){
+            printf("No Convergence: previous: %f vs current: %f\n", previous_delta, host_delta);
+        }
     }
 
     for(i = 0; i < num_devices; ++i) {
@@ -2104,7 +2134,6 @@ int loopy_propagate_until_cuda_multiple_devices(Graph_t graph, float convergence
         CUDA_CHECK_RETURN(cudaFree(current_messages_previous[i]));
 
         CUDA_CHECK_RETURN(cudaFree(node_states[i]));
-        CUDA_CHECK_RETURN(cudaFree(nodes_states_size[i]));
         CUDA_CHECK_RETURN(cudaFree(node_states_previous[i]));
         CUDA_CHECK_RETURN(cudaFree(node_states_current[i]));
 
@@ -2122,7 +2151,6 @@ int loopy_propagate_until_cuda_multiple_devices(Graph_t graph, float convergence
     CUDA_CHECK_RETURN(cudaFree(delta_array));
 
     free(node_states);
-    free(nodes_states_size);
     free(node_states_current);
 
     free(h_read_buffer);
@@ -2179,21 +2207,19 @@ int loopy_propagate_until_cuda_multiple_devices(Graph_t graph, float convergence
  * @param max_iterations The number of executions to stop at
  * @return The actual number of iterations ran
  */
-int loopy_propagate_until_cuda_streaming(Graph_t graph, float convergence, int max_iterations){
+int loopy_propagate_until_cuda_streaming(Graph_t graph, const float convergence, const int max_iterations){
     int num_iter;
-    size_t i, j, k, num_vertices, num_edges, edge_joint_probability_dim_x, edge_joint_probability_dim_y;
+    size_t i, j, k;
     float * delta;
     float * delta_array;
     float previous_delta, host_delta;
     char is_pow_2;
 
     struct belief * current_messages;
-    size_t * current_messages_size;
     float * current_messages_previous;
     float * current_messages_current;
 
     struct belief * node_states;
-    size_t * node_states_size;
     float * node_states_previous;
     float * node_states_current;
 
@@ -2219,10 +2245,11 @@ int loopy_propagate_until_cuda_streaming(Graph_t graph, float convergence, int m
     size_t * work_queue_scratch;
     unsigned long long int * num_work_items;
 
-    num_vertices = graph->current_num_vertices;
-    num_edges = graph->current_num_edges;
-    edge_joint_probability_dim_x = graph->edge_joint_probability_dim_x;
-    edge_joint_probability_dim_y = graph->edge_joint_probability_dim_y;
+    const size_t num_vertices = graph->current_num_vertices;
+    const size_t num_edges = graph->current_num_edges;
+    const size_t edge_joint_probability_dim_x = graph->edge_joint_probability_dim_x;
+    const size_t edge_joint_probability_dim_y = graph->edge_joint_probability_dim_y;
+    const size_t node_states_size = graph->node_states_size;
 
     /*printf("Before=====");
     print_edges(graph);
@@ -2238,12 +2265,10 @@ int loopy_propagate_until_cuda_streaming(Graph_t graph, float convergence, int m
     CUDA_CHECK_RETURN(cudaMalloc((void **)&src_node_to_edges_edges, sizeof(size_t) * graph->current_num_edges));
 
     CUDA_CHECK_RETURN(cudaMalloc((void **)&current_messages, sizeof(struct belief) * graph->current_num_edges));
-    CUDA_CHECK_RETURN(cudaMalloc((void **)&current_messages_size, sizeof(size_t) * graph->current_num_edges));
     CUDA_CHECK_RETURN(cudaMalloc((void **)&current_messages_previous, sizeof(float) * graph->current_num_edges));
     CUDA_CHECK_RETURN(cudaMalloc((void **)&current_messages_current, sizeof(float) * graph->current_num_edges));
 
     CUDA_CHECK_RETURN(cudaMalloc((void **)&node_states, sizeof(struct belief) * graph->current_num_vertices));
-    CUDA_CHECK_RETURN(cudaMalloc((void **)&node_states_size, sizeof(size_t) * graph->current_num_vertices));
     CUDA_CHECK_RETURN(cudaMalloc((void **)&node_states_previous, sizeof(float) * graph->current_num_vertices));
     CUDA_CHECK_RETURN(cudaMalloc((void **)&node_states_current, sizeof(float) * graph->current_num_vertices));
 
@@ -2262,12 +2287,10 @@ int loopy_propagate_until_cuda_streaming(Graph_t graph, float convergence, int m
     CUDA_CHECK_RETURN(cudaMemcpyToSymbol(edge_joint_probability, &(graph->edge_joint_probability), sizeof(struct joint_probability)));
 
     CUDA_CHECK_RETURN(cudaMemcpy(current_messages, graph->edges_messages, sizeof(struct belief) * graph->current_num_edges, cudaMemcpyHostToDevice));
-    CUDA_CHECK_RETURN(cudaMemcpy(current_messages_size, graph->edges_messages_size, sizeof(size_t) * graph->current_num_edges, cudaMemcpyHostToDevice));
     CUDA_CHECK_RETURN(cudaMemcpy(current_messages_previous, graph->edges_messages_previous, sizeof(float) * graph->current_num_edges, cudaMemcpyHostToDevice));
     CUDA_CHECK_RETURN(cudaMemcpy(current_messages_current, graph->edges_messages_current, sizeof(float) * graph->current_num_edges, cudaMemcpyHostToDevice));
 
     CUDA_CHECK_RETURN(cudaMemcpy(node_states, graph->node_states, sizeof(struct belief) *  graph->current_num_vertices, cudaMemcpyHostToDevice));
-    CUDA_CHECK_RETURN(cudaMemcpy(node_states_size, graph->node_states_size, sizeof(size_t) *  graph->current_num_vertices, cudaMemcpyHostToDevice));
     CUDA_CHECK_RETURN(cudaMemcpy(node_states_previous, graph->node_states_previous, sizeof(float) *  graph->current_num_vertices, cudaMemcpyHostToDevice));
     CUDA_CHECK_RETURN(cudaMemcpy(node_states_current, graph->node_states_current, sizeof(float) *  graph->current_num_vertices, cudaMemcpyHostToDevice));
 
@@ -2309,6 +2332,8 @@ int loopy_propagate_until_cuda_streaming(Graph_t graph, float convergence, int m
         thread_data[i].num_vertices = num_vertices;
         thread_data[i].num_edges = num_edges;
         thread_data[i].node_messages = node_states;
+        thread_data[i].node_current_states = node_states_current;
+        thread_data[i].node_previous_states = node_states_previous;
         thread_data[i].node_messages_size = node_states_size;
         thread_data[i].current_edge_messages = current_messages;
         thread_data[i].current_edge_messages_previous = current_messages_previous;
@@ -2325,7 +2350,7 @@ int loopy_propagate_until_cuda_streaming(Graph_t graph, float convergence, int m
         thread_data[i].stream = streams[i];
     }
 
-    for(i = 0; i < max_iterations; i+= BATCH_SIZE){
+    for(i = BATCH_SIZE; i <= max_iterations; i+= BATCH_SIZE){
         for(j = 0; j < BATCH_SIZE; ++j) {
 
             //init + read data
@@ -2392,7 +2417,12 @@ int loopy_propagate_until_cuda_streaming(Graph_t graph, float convergence, int m
         if(host_delta < convergence || fabs(host_delta - previous_delta) < convergence){
             break;
         }
-        previous_delta = host_delta;
+        if(i < max_iterations - BATCH_SIZE) {
+            previous_delta = host_delta;
+        }
+        if(i >= max_iterations){
+            printf("No Convergence: previous: %f vs current: %f\n", previous_delta, host_delta);
+        }
     }
 
     for(i = 0; i < NUM_THREAD_PARTITIONS; ++i) {
@@ -2409,12 +2439,10 @@ int loopy_propagate_until_cuda_streaming(Graph_t graph, float convergence, int m
     CUDA_CHECK_RETURN(cudaFree(src_node_to_edges_edges));
 
     CUDA_CHECK_RETURN(cudaFree(current_messages));
-    CUDA_CHECK_RETURN(cudaFree(current_messages_size));
     CUDA_CHECK_RETURN(cudaFree(current_messages_previous));
     CUDA_CHECK_RETURN(cudaFree(current_messages_current));
 
     CUDA_CHECK_RETURN(cudaFree(node_states));
-    CUDA_CHECK_RETURN(cudaFree(node_states_size));
     CUDA_CHECK_RETURN(cudaFree(node_states_previous));
     CUDA_CHECK_RETURN(cudaFree(node_states_current));
 
@@ -2443,10 +2471,10 @@ int loopy_propagate_until_cuda_streaming(Graph_t graph, float convergence, int m
  * @param max_iterations The number of executions to stop at
  * @return The actual number of iterations ran
  */
-int loopy_propagate_until_cuda_openmpi(Graph_t graph, float convergence, int max_iterations,
+int loopy_propagate_until_cuda_openmpi(Graph_t graph, const float convergence, const int max_iterations,
         int my_rank, int num_ranks, int num_devices){
     int num_iter;
-    size_t i, j, k, l, num_vertices, num_edges, edge_joint_probability_dim_x, edge_joint_probability_dim_y;
+    size_t i, j, k, l;
     float * delta;
     float * delta_array;
     float previous_delta, host_delta;
@@ -2465,7 +2493,6 @@ int loopy_propagate_until_cuda_openmpi(Graph_t graph, float convergence, int max
     float ** h_current_messages_current;
 
     struct belief ** node_states;
-    size_t ** nodes_states_size;
     float ** node_states_previous;
     float ** node_states_current;
 
@@ -2511,10 +2538,11 @@ int loopy_propagate_until_cuda_openmpi(Graph_t graph, float convergence, int max
     size_t ** work_queue_scratch;
     unsigned long long int ** num_work_items;
 
-    num_vertices = graph->current_num_vertices;
-    num_edges = graph->current_num_edges;
-    edge_joint_probability_dim_x = graph->edge_joint_probability_dim_x;
-    edge_joint_probability_dim_y = graph->edge_joint_probability_dim_y;
+    const size_t num_vertices = graph->current_num_vertices;
+    const size_t num_edges = graph->current_num_edges;
+    const size_t edge_joint_probability_dim_x = graph->edge_joint_probability_dim_x;
+    const size_t edge_joint_probability_dim_y = graph->edge_joint_probability_dim_y;
+    const size_t node_states_size = graph->node_states_size;
 
     /*printf("Before=====");
     print_edges(graph);
@@ -2568,8 +2596,6 @@ int loopy_propagate_until_cuda_openmpi(Graph_t graph, float convergence, int max
 
     node_states = (struct belief **)malloc(sizeof(struct belief *) * num_devices);
     assert(node_states);
-    nodes_states_size = (size_t **)malloc(sizeof(size_t *) * num_devices);
-    assert(nodes_states_size);
     node_states_previous = (float **)malloc(sizeof(float *) * num_devices);
     assert(node_states_previous);
     node_states_current = (float **)malloc(sizeof(float *) * num_devices);
@@ -2618,7 +2644,6 @@ int loopy_propagate_until_cuda_openmpi(Graph_t graph, float convergence, int max
         CUDA_CHECK_RETURN(cudaMalloc((void **) &(current_messages_previous[k]), sizeof(float) * graph->current_num_edges));
 
         CUDA_CHECK_RETURN(cudaMalloc((void **) &(node_states[k]), sizeof(struct belief) * graph->current_num_vertices));
-        CUDA_CHECK_RETURN(cudaMalloc((void **) &(nodes_states_size[k]), sizeof(size_t) * graph->current_num_vertices));
         CUDA_CHECK_RETURN(cudaMalloc((void **) &(node_states_previous[k]), sizeof(float) * graph->current_num_vertices));
         CUDA_CHECK_RETURN(cudaMalloc((void **) &(node_states_current[k]), sizeof(float) * graph->current_num_vertices));
 
@@ -2663,9 +2688,6 @@ int loopy_propagate_until_cuda_openmpi(Graph_t graph, float convergence, int max
         CUDA_CHECK_RETURN(
                 cudaMemcpy(node_states[k], graph->node_states, sizeof(struct belief) * graph->current_num_vertices,
                            cudaMemcpyHostToDevice));
-        CUDA_CHECK_RETURN(
-                cudaMemcpy(nodes_states_size[k], graph->node_states_size, sizeof(size_t) * graph->current_num_vertices,
-                        cudaMemcpyHostToDevice));
         CUDA_CHECK_RETURN(
                 cudaMemcpy(node_states_current[k], graph->node_states_current, sizeof(float) * graph->current_num_vertices,
                         cudaMemcpyHostToDevice)
@@ -2724,7 +2746,9 @@ int loopy_propagate_until_cuda_openmpi(Graph_t graph, float convergence, int max
         thread_data[i].num_vertices = num_vertices;
         thread_data[i].num_edges = num_edges;
         thread_data[i].node_messages = node_states[i];
-        thread_data[i].node_messages_size = nodes_states_size[i];
+        thread_data[i].node_previous_states = node_states_previous[i];
+        thread_data[i].node_current_states = node_states_current[i];
+        thread_data[i].node_messages_size = node_states_size;
         thread_data[i].current_edge_messages = current_messages[i];
         thread_data[i].current_edge_messages_current = current_messages_current[i];
         thread_data[i].current_edge_messages_previous = current_messages_previous[i];
@@ -2740,7 +2764,7 @@ int loopy_propagate_until_cuda_openmpi(Graph_t graph, float convergence, int max
         thread_data[i].stream = streams[i];
     }
 
-    for(i = 0; i < max_iterations; i+= BATCH_SIZE){
+    for(i = BATCH_SIZE; i <= max_iterations; i+= BATCH_SIZE){
         for(j = 0; j < BATCH_SIZE; ++j) {
 
             //init + read data
@@ -2784,7 +2808,7 @@ int loopy_propagate_until_cuda_openmpi(Graph_t graph, float convergence, int max
             for(l = 0; l < graph->current_num_vertices; ++l) {
                 node_difference = 0.0f;
                 for(k = 0; k < num_ranks && node_difference < NODE_DIFFERENCE_THRESHOLD; k++) {
-                    node_difference = difference(&(my_buffer[l]), graph->node_states_size[l], &(recv_read_buffer[k * graph->current_num_vertices + l]), graph->node_states_size[l]);
+                    node_difference = difference(&(my_buffer[l]), graph->node_states_size, &(recv_read_buffer[k * graph->current_num_vertices + l]), graph->node_states_size);
                     if(node_difference >= NODE_DIFFERENCE_THRESHOLD) {
                         memcpy(&(my_buffer), &(read_buffer[k * graph->current_num_vertices + l]), sizeof(struct belief));
                     }
@@ -2824,7 +2848,7 @@ int loopy_propagate_until_cuda_openmpi(Graph_t graph, float convergence, int max
             for(l = 0; l < graph->current_num_edges; ++l) {
                 node_difference = 0.0f;
                 for(k = 0; k < num_devices && node_difference < NODE_DIFFERENCE_THRESHOLD; ++k) {
-                    node_difference = difference(&(h_current_messages[k][l]), graph->edges_messages_size[l], &(graph->edges_messages[l]), graph->edges_messages_size[l]);
+                    node_difference = difference(&(h_current_messages[k][l]), graph->edges_messages_size, &(graph->edges_messages[l]), graph->edges_messages_size);
                     if(node_difference >= NODE_DIFFERENCE_THRESHOLD) {
                         memcpy(&(graph->edges_messages[l]), &(h_current_messages[k][l]), sizeof(struct belief));
                         memcpy(&(graph->edges_messages_current[l]), &(h_current_messages_current[k][l]), sizeof(float));
@@ -2842,7 +2866,7 @@ int loopy_propagate_until_cuda_openmpi(Graph_t graph, float convergence, int max
             for(l = 0; l < graph->current_num_edges; ++l) {
                 node_difference = 0.0f;
                 for(k = 0; k < num_ranks && node_difference < NODE_DIFFERENCE_THRESHOLD; ++k) {
-                    node_difference = difference(&(graph->edges_messages[l]), graph->edges_messages_size[l], &(recv_current_messages[k * graph->current_num_edges + l]), graph->edges_messages_size[l]);
+                    node_difference = difference(&(graph->edges_messages[l]), graph->edges_messages_size, &(recv_current_messages[k * graph->current_num_edges + l]), graph->edges_messages_size);
                     if(node_difference >= NODE_DIFFERENCE_THRESHOLD) {
                         memcpy(&(graph->edges_messages[l]), &(recv_current_messages[k * graph->current_num_edges + l]), sizeof(struct belief));
                         memcpy(&(graph->edges_messages_current[l]), &(recv_current_messages_current[k * graph->current_num_edges + l]), sizeof(float));
@@ -2935,7 +2959,12 @@ int loopy_propagate_until_cuda_openmpi(Graph_t graph, float convergence, int max
         if(host_delta < convergence || fabs(host_delta - previous_delta) < convergence){
             break;
         }
-        previous_delta = host_delta;
+        if(i < max_iterations - BATCH_SIZE) {
+            previous_delta = host_delta;
+        }
+        if(i >= max_iterations){
+            printf("No Convergence: previous: %f vs current: %f\n", previous_delta, host_delta);
+        }
     }
 
     for(i = 0; i < num_devices; ++i) {
@@ -2969,7 +2998,6 @@ int loopy_propagate_until_cuda_openmpi(Graph_t graph, float convergence, int max
         CUDA_CHECK_RETURN(cudaFree(current_messages_previous[i]));
 
         CUDA_CHECK_RETURN(cudaFree(node_states[i]));
-        CUDA_CHECK_RETURN(cudaFree(nodes_states_size[i]));
         CUDA_CHECK_RETURN(cudaFree(node_states_previous[i]));
         CUDA_CHECK_RETURN(cudaFree(node_states_current[i]));
 
@@ -2989,7 +3017,6 @@ int loopy_propagate_until_cuda_openmpi(Graph_t graph, float convergence, int max
     }
 
     free(node_states);
-    free(nodes_states_size);
     free(node_states_current);
 
     free(h_read_buffer);
@@ -3055,9 +3082,9 @@ int loopy_propagate_until_cuda_openmpi(Graph_t graph, float convergence, int max
  * @param max_iterations The number of executions to stop at
  * @return The actual number of iterations ran
  */
-int page_rank_until_cuda(Graph_t graph, float convergence, int max_iterations){
+int page_rank_until_cuda(Graph_t graph, const float convergence, const int max_iterations){
     int num_iter;
-    size_t i, j, num_vertices, num_edges, edge_joint_probability_dim_x, edge_joint_probability_dim_y;
+    size_t i, j;
     float * delta;
     float * delta_array;
     float previous_delta, host_delta;
@@ -3068,7 +3095,6 @@ int page_rank_until_cuda(Graph_t graph, float convergence, int max_iterations){
     float * current_messages_current;
 
     struct belief * node_states;
-    size_t * node_states_size;
     float * node_states_previous;
     float * node_states_current;
 
@@ -3082,10 +3108,11 @@ int page_rank_until_cuda(Graph_t graph, float convergence, int max_iterations){
     size_t * src_node_to_edges_nodes;
     size_t * src_node_to_edges_edges;
 
-    num_vertices = graph->current_num_vertices;
-    num_edges = graph->current_num_edges;
-    edge_joint_probability_dim_x = graph->edge_joint_probability_dim_x;
-    edge_joint_probability_dim_y = graph->edge_joint_probability_dim_y;
+    const size_t num_vertices = graph->current_num_vertices;
+    const size_t num_edges = graph->current_num_edges;
+    const size_t edge_joint_probability_dim_x = graph->edge_joint_probability_dim_x;
+    const size_t edge_joint_probability_dim_y = graph->edge_joint_probability_dim_y;
+    const size_t node_states_size = graph->node_states_size;
 
     /*printf("Before=====");
     print_edges(graph);
@@ -3105,7 +3132,6 @@ int page_rank_until_cuda(Graph_t graph, float convergence, int max_iterations){
     CUDA_CHECK_RETURN(cudaMalloc((void **)&current_messages_current, sizeof(float) * graph->current_num_edges));
 
     CUDA_CHECK_RETURN(cudaMalloc((void **)&node_states, sizeof(struct belief) * graph->current_num_vertices));
-    CUDA_CHECK_RETURN(cudaMalloc((void **)&node_states_size, sizeof(size_t) * graph->current_num_vertices));
     CUDA_CHECK_RETURN(cudaMalloc((void **)&node_states_previous, sizeof(float) * graph->current_num_vertices));
     CUDA_CHECK_RETURN(cudaMalloc((void **)&node_states_current, sizeof(float) * graph->current_num_vertices));
 
@@ -3121,7 +3147,6 @@ int page_rank_until_cuda(Graph_t graph, float convergence, int max_iterations){
     CUDA_CHECK_RETURN(cudaMemcpy(current_messages_previous, graph->edges_messages_previous, sizeof(float) * graph->current_num_edges, cudaMemcpyHostToDevice));
 
     CUDA_CHECK_RETURN(cudaMemcpy(node_states, graph->node_states, sizeof(struct belief) *  graph->current_num_vertices, cudaMemcpyHostToDevice));
-    CUDA_CHECK_RETURN(cudaMemcpy(node_states_size, graph->node_states_size, sizeof(size_t) *  graph->current_num_vertices, cudaMemcpyHostToDevice));
     CUDA_CHECK_RETURN(cudaMemcpy(node_states_previous, graph->node_states_previous, sizeof(float) *  graph->current_num_vertices, cudaMemcpyHostToDevice));
     CUDA_CHECK_RETURN(cudaMemcpy(node_states_current, graph->node_states_current, sizeof(float) *  graph->current_num_vertices, cudaMemcpyHostToDevice));
 
@@ -3138,7 +3163,7 @@ int page_rank_until_cuda(Graph_t graph, float convergence, int max_iterations){
     dim3 dimReduceGrid(edgeCount, 1, 1);
     int reduceSmemSize = (BLOCK_SIZE <= 32) ? 2 * BLOCK_SIZE * sizeof(float) : BLOCK_SIZE * sizeof(float);
 
-    for(i = 0; i < max_iterations; i+= BATCH_SIZE){
+    for(i = BATCH_SIZE; i <= max_iterations; i+= BATCH_SIZE){
         for(j = 0; j < BATCH_SIZE; ++j) {
             page_rank_main_loop<<<nodeCount, BLOCK_SIZE >>>(num_vertices, num_edges,
                     node_states, node_states_size, node_states_previous, node_states_current,
@@ -3158,7 +3183,15 @@ int page_rank_until_cuda(Graph_t graph, float convergence, int max_iterations){
         if(host_delta < convergence || fabs(host_delta - previous_delta) < convergence){
             break;
         }
-        previous_delta = host_delta;
+        if(i < max_iterations - BATCH_SIZE) {
+            previous_delta = host_delta;
+        }
+        if(i < max_iterations - BATCH_SIZE) {
+            previous_delta = host_delta;
+        }
+        if(i >= max_iterations){
+            printf("No Convergence: previous: %f vs current: %f\n", previous_delta, host_delta);
+        }
     }
 
     // copy data back
@@ -3175,7 +3208,6 @@ int page_rank_until_cuda(Graph_t graph, float convergence, int max_iterations){
     CUDA_CHECK_RETURN(cudaFree(current_messages_previous));
 
     CUDA_CHECK_RETURN(cudaFree(node_states));
-    CUDA_CHECK_RETURN(cudaFree(node_states_size));
     CUDA_CHECK_RETURN(cudaFree(node_states_previous));
     CUDA_CHECK_RETURN(cudaFree(node_states_current));
 
@@ -3197,9 +3229,9 @@ int page_rank_until_cuda(Graph_t graph, float convergence, int max_iterations){
  * @param max_iterations The number of executions to stop at
  * @return The actual number of iterations ran
  */
-int viterbi_until_cuda(Graph_t graph, float convergence, int max_iterations){
+int viterbi_until_cuda(Graph_t graph, const float convergence, const int max_iterations){
     int num_iter;
-    size_t i, j, num_vertices, num_edges, edge_joint_probability_dim_x, edge_joint_probability_dim_y;
+    size_t i, j;
     float * delta;
     float * delta_array;
     float previous_delta, host_delta;
@@ -3210,7 +3242,6 @@ int viterbi_until_cuda(Graph_t graph, float convergence, int max_iterations){
     float * current_messages_current;
 
     struct belief * node_states;
-    size_t * node_states_size;
     float * node_states_previous;
     float * node_states_current;
 
@@ -3224,10 +3255,12 @@ int viterbi_until_cuda(Graph_t graph, float convergence, int max_iterations){
     size_t * src_node_to_edges_nodes;
     size_t * src_node_to_edges_edges;
 
-    num_vertices = graph->current_num_vertices;
-    num_edges = graph->current_num_edges;
-    edge_joint_probability_dim_x = graph->edge_joint_probability_dim_x;
-    edge_joint_probability_dim_y = graph->edge_joint_probability_dim_y;
+    const size_t num_vertices = graph->current_num_vertices;
+    const size_t num_edges = graph->current_num_edges;
+    const size_t edge_joint_probability_dim_x = graph->edge_joint_probability_dim_x;
+    const size_t edge_joint_probability_dim_y = graph->edge_joint_probability_dim_y;
+    const size_t node_states_size = graph->node_states_size;
+
 
     /*printf("Before=====");
     print_edges(graph);
@@ -3247,7 +3280,6 @@ int viterbi_until_cuda(Graph_t graph, float convergence, int max_iterations){
     CUDA_CHECK_RETURN(cudaMalloc((void **)&current_messages_current, sizeof(float) * graph->current_num_edges));
 
     CUDA_CHECK_RETURN(cudaMalloc((void **)&node_states, sizeof(struct belief) * graph->current_num_vertices));
-    CUDA_CHECK_RETURN(cudaMalloc((void **)&node_states_size, sizeof(size_t) * graph->current_num_vertices));
     CUDA_CHECK_RETURN(cudaMalloc((void **)&node_states_previous, sizeof(float) * graph->current_num_vertices));
     CUDA_CHECK_RETURN(cudaMalloc((void **)&node_states_current, sizeof(float) * graph->current_num_vertices));
 
@@ -3263,7 +3295,6 @@ int viterbi_until_cuda(Graph_t graph, float convergence, int max_iterations){
     CUDA_CHECK_RETURN(cudaMemcpy(current_messages_current, graph->edges_messages_current, sizeof(float) * graph->current_num_edges, cudaMemcpyHostToDevice));
 
     CUDA_CHECK_RETURN(cudaMemcpy(node_states, graph->node_states, sizeof(struct belief) *  graph->current_num_vertices, cudaMemcpyHostToDevice));
-    CUDA_CHECK_RETURN(cudaMemcpy(node_states_size, graph->node_states_size, sizeof(size_t) * graph->current_num_vertices, cudaMemcpyHostToDevice));
     CUDA_CHECK_RETURN(cudaMemcpy(node_states_previous, graph->node_states_previous, sizeof(float) *  graph->current_num_vertices, cudaMemcpyHostToDevice));
     CUDA_CHECK_RETURN(cudaMemcpy(node_states_current, graph->node_states_current, sizeof(float) *  graph->current_num_vertices, cudaMemcpyHostToDevice));
 
@@ -3280,7 +3311,7 @@ int viterbi_until_cuda(Graph_t graph, float convergence, int max_iterations){
     dim3 dimReduceGrid(edgeCount, 1, 1);
     int reduceSmemSize = (BLOCK_SIZE <= 32) ? 2 * BLOCK_SIZE * sizeof(float) : BLOCK_SIZE * sizeof(float);
 
-    for(i = 0; i < max_iterations; i+= BATCH_SIZE){
+    for(i = BATCH_SIZE; i <= max_iterations; i+= BATCH_SIZE){
         for(j = 0; j < BATCH_SIZE; ++j) {
             viterbi_main_loop<<<nodeCount, BLOCK_SIZE >>>(num_vertices, num_edges,
                     node_states, node_states_size, node_states_previous, node_states_current,
@@ -3301,7 +3332,12 @@ int viterbi_until_cuda(Graph_t graph, float convergence, int max_iterations){
             marginalize_viterbi_beliefs<<<nodeCount, BLOCK_SIZE >>>(node_states, node_states_size, num_vertices);
             break;
         }
-        previous_delta = host_delta;
+        if(i < max_iterations - BATCH_SIZE) {
+            previous_delta = host_delta;
+        }
+        if(i >= max_iterations){
+            printf("No Convergence: previous: %f vs current: %f\n", previous_delta, host_delta);
+        }
     }
 
     // copy data back
@@ -3318,7 +3354,6 @@ int viterbi_until_cuda(Graph_t graph, float convergence, int max_iterations){
     CUDA_CHECK_RETURN(cudaFree(current_messages_current));
 
     CUDA_CHECK_RETURN(cudaFree(node_states));
-    CUDA_CHECK_RETURN(cudaFree(node_states_size));
     CUDA_CHECK_RETURN(cudaFree(node_states_previous));
     CUDA_CHECK_RETURN(cudaFree(node_states_current));
 
@@ -3339,9 +3374,9 @@ int viterbi_until_cuda(Graph_t graph, float convergence, int max_iterations){
  * @param max_iterations The maximum number of iterations to run for
  * @return The actual number of iterations ran
  */
-int loopy_propagate_until_cuda_edge(Graph_t graph, float convergence, int max_iterations){
+int loopy_propagate_until_cuda_edge(Graph_t graph, const float convergence, const int max_iterations){
     int num_iter;
-    size_t i, j, num_vertices, num_edges, edge_joint_probability_dim_x, edge_joint_probability_dim_y;
+    size_t i, j;
     float * delta;
     float * delta_array;
     float previous_delta, host_delta;
@@ -3350,10 +3385,10 @@ int loopy_propagate_until_cuda_edge(Graph_t graph, float convergence, int max_it
     struct belief * current_messages;
     float * current_messages_previous;
     float * current_messages_current;
-    size_t * current_messages_size;
 
     struct belief * node_states;
-    size_t * node_states_size;
+    float * node_previous_states;
+    float * node_current_states;
 
     size_t * edges_src_index;
     size_t * edges_dest_index;
@@ -3371,10 +3406,12 @@ int loopy_propagate_until_cuda_edge(Graph_t graph, float convergence, int max_it
 
     //struct cudaChannelFormatDesc channel_desc_unsigned_int = cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindUnsigned);
 
-    num_vertices = graph->current_num_vertices;
-    num_edges = graph->current_num_edges;
-    edge_joint_probability_dim_x = graph->edge_joint_probability_dim_x;
-    edge_joint_probability_dim_y = graph->edge_joint_probability_dim_y;
+    const size_t num_vertices = graph->current_num_vertices;
+    const size_t num_edges = graph->current_num_edges;
+    const size_t edge_joint_probability_dim_x = graph->edge_joint_probability_dim_x;
+    const size_t edge_joint_probability_dim_y = graph->edge_joint_probability_dim_y;
+    const size_t current_messages_size = graph->edges_messages_size;
+    const size_t node_states_size = graph->node_states_size;
 
     /*printf("Before=====");
     print_edges(graph);
@@ -3388,12 +3425,12 @@ int loopy_propagate_until_cuda_edge(Graph_t graph, float convergence, int max_it
     CUDA_CHECK_RETURN(cudaMalloc((void **)&edges_dest_index, sizeof(size_t) * graph->current_num_edges));
 
     CUDA_CHECK_RETURN(cudaMalloc((void **)&node_states, sizeof(struct belief) * graph->current_num_vertices));
-    CUDA_CHECK_RETURN(cudaMalloc((void **)&node_states_size, sizeof(size_t) * graph->current_num_vertices));
+    CUDA_CHECK_RETURN(cudaMalloc((void **)&node_previous_states, sizeof(float) * graph->current_num_vertices));
+    CUDA_CHECK_RETURN(cudaMalloc((void **)&node_current_states, sizeof(float) * graph->current_num_vertices));
 
     CUDA_CHECK_RETURN(cudaMalloc((void **)&current_messages, sizeof(struct belief) * graph->current_num_edges));
     CUDA_CHECK_RETURN(cudaMalloc((void **)&current_messages_previous, sizeof(float) * graph->current_num_edges));
     CUDA_CHECK_RETURN(cudaMalloc((void **)&current_messages_current, sizeof(float) * graph->current_num_edges));
-    CUDA_CHECK_RETURN(cudaMalloc((void **)&current_messages_size, sizeof(size_t) * graph->current_num_edges));
 
     CUDA_CHECK_RETURN(cudaMalloc((void **)&dest_nodes_to_edges_nodes, sizeof(size_t) * graph->current_num_vertices));
     CUDA_CHECK_RETURN(cudaMalloc((void **)&dest_nodes_to_edges_edges, sizeof(size_t) * graph->current_num_edges));
@@ -3411,10 +3448,10 @@ int loopy_propagate_until_cuda_edge(Graph_t graph, float convergence, int max_it
     CUDA_CHECK_RETURN(cudaMemcpyToSymbol(edge_joint_probability, &(graph->edge_joint_probability), sizeof(struct joint_probability)));
 
     CUDA_CHECK_RETURN(cudaMemcpy(node_states, graph->node_states, sizeof(struct belief) * graph->current_num_vertices, cudaMemcpyHostToDevice));
-    CUDA_CHECK_RETURN(cudaMemcpy(node_states_size, graph->node_states_size, sizeof(size_t) * graph->current_num_vertices, cudaMemcpyHostToDevice));
+    CUDA_CHECK_RETURN(cudaMemcpy(node_previous_states, graph->node_states_previous, sizeof(float) * graph->current_num_vertices, cudaMemcpyHostToDevice));
+    CUDA_CHECK_RETURN(cudaMemcpy(node_current_states, graph->node_states_current, sizeof(float) * graph->current_num_vertices, cudaMemcpyHostToDevice));
 
     CUDA_CHECK_RETURN(cudaMemcpy(current_messages, graph->edges_messages, sizeof(struct belief) * graph->current_num_edges, cudaMemcpyHostToDevice));
-    CUDA_CHECK_RETURN(cudaMemcpy(current_messages_size, graph->edges_messages_size, sizeof(size_t) * graph->current_num_edges, cudaMemcpyHostToDevice));
     CUDA_CHECK_RETURN(cudaMemcpy(current_messages_previous, graph->edges_messages_previous, sizeof(float) * graph->current_num_edges, cudaMemcpyHostToDevice));
     CUDA_CHECK_RETURN(cudaMemcpy(current_messages_current, graph->edges_messages_current, sizeof(float) * graph->current_num_edges, cudaMemcpyHostToDevice));
 
@@ -3436,7 +3473,7 @@ int loopy_propagate_until_cuda_edge(Graph_t graph, float convergence, int max_it
     dim3 dimReduceGrid(edgeCount, 1, 1);
     int reduceSmemSize = (BLOCK_SIZE <= 32) ? 2 * BLOCK_SIZE * sizeof(float) : BLOCK_SIZE * sizeof(float);
 
-    for(i = 0; i < max_iterations; i+= BATCH_SIZE_EDGE){
+    for(i = BATCH_SIZE_EDGE; i <= max_iterations; i+= BATCH_SIZE_EDGE){
         for(j = 0; j < BATCH_SIZE_EDGE; ++j) {
             send_message_for_edge_iteration_cuda_work_queue_kernel<<<edgeCount, BLOCK_SIZE >>>(num_edges, edges_src_index,
                     node_states, edge_joint_probability_dim_x, edge_joint_probability_dim_y,
@@ -3450,7 +3487,7 @@ int loopy_propagate_until_cuda_edge(Graph_t graph, float convergence, int max_it
             //marginalize_loop_node_edge_kernel<<<nodeCount, BLOCK_SIZE>>>(node_states, num_vars, num_vertices);
             num_iter++;
         }
-        marginalize_nodes<<<nodeCount, BLOCK_SIZE>>>(node_states, node_states_size,
+        marginalize_nodes<<<nodeCount, BLOCK_SIZE>>>(node_states, node_previous_states, node_current_states, node_states_size,
                 current_messages,
                 dest_nodes_to_edges_nodes, dest_nodes_to_edges_edges, num_vertices, num_edges);
         test_error();
@@ -3464,7 +3501,12 @@ int loopy_propagate_until_cuda_edge(Graph_t graph, float convergence, int max_it
         if(host_delta < convergence || fabs(host_delta - previous_delta) < convergence){
             break;
         }
-        previous_delta = host_delta;
+        if(i < max_iterations - BATCH_SIZE_EDGE) {
+            previous_delta = host_delta;
+        }
+        if(i >= max_iterations){
+            printf("No Convergence: previous: %f vs current: %f\n", previous_delta, host_delta);
+        }
     }
 
     // copy data back
@@ -3474,10 +3516,10 @@ int loopy_propagate_until_cuda_edge(Graph_t graph, float convergence, int max_it
     CUDA_CHECK_RETURN(cudaFree(current_messages));
     CUDA_CHECK_RETURN(cudaFree(current_messages_current));
     CUDA_CHECK_RETURN(cudaFree(current_messages_previous));
-    CUDA_CHECK_RETURN(cudaFree(current_messages_size));
 
     CUDA_CHECK_RETURN(cudaFree(node_states));
-    CUDA_CHECK_RETURN(cudaFree(node_states_size));
+    CUDA_CHECK_RETURN(cudaFree(node_previous_states));
+    CUDA_CHECK_RETURN(cudaFree(node_current_states));
 
     CUDA_CHECK_RETURN(cudaFree(edges_src_index));
     CUDA_CHECK_RETURN(cudaFree(edges_dest_index));
@@ -3553,14 +3595,14 @@ static void* launch_marginalize_streaming_kernel(void * data) {
 
 __global__
 void update_work_queue_cuda_kernel(size_t * work_queue_edges, unsigned long long int * num_work_items, size_t* work_queue_scratch,
-                                   float *current_messages_previous, float *current_messages_current, size_t num_edges) {
+                                   float *current_messages_previous, float *current_messages_current, const size_t num_edges) {
     update_work_queue_edges_cuda(work_queue_edges, num_work_items, work_queue_scratch,
             current_messages_previous, current_messages_current, num_edges, PRECISION_ITERATION);
 }
 
 __global__
 void update_work_queue_edges_cuda_kernel(size_t * work_queue_edges, unsigned long long int * num_work_items, size_t * work_queue_scratch,
-        float *current_edge_messages_previous, float *current_edge_messages_current, size_t num_edges) {
+        float *current_edge_messages_previous, float *current_edge_messages_current, const size_t num_edges) {
     update_work_queue_edges_cuda(work_queue_edges, num_work_items, work_queue_scratch,
             current_edge_messages_previous, current_edge_messages_current, num_edges, PRECISION_ITERATION);
 }
@@ -3572,9 +3614,9 @@ void update_work_queue_edges_cuda_kernel(size_t * work_queue_edges, unsigned lon
  * @param max_iterations The maximum number of iterations to run for
  * @return The actual number of iterations ran
  */
-int loopy_propagate_until_cuda_edge_streaming(Graph_t graph, float convergence, int max_iterations){
+int loopy_propagate_until_cuda_edge_streaming(Graph_t graph, const float convergence, const int max_iterations){
     int num_iter;
-    size_t i, j, k, num_vertices, num_edges, edge_joint_probability_dim_x, edge_joint_probability_dim_y;
+    size_t i, j, k;
     float * delta;
     float * delta_array;
     float previous_delta, host_delta;
@@ -3583,10 +3625,8 @@ int loopy_propagate_until_cuda_edge_streaming(Graph_t graph, float convergence, 
     struct belief * current_messages;
     float * current_messages_previous;
     float * current_messages_current;
-    size_t * current_messages_size;
 
     struct belief * node_states;
-    size_t * node_states_size;
 
     size_t * edges_src_index;
     size_t * edges_dest_index;
@@ -3606,10 +3646,12 @@ int loopy_propagate_until_cuda_edge_streaming(Graph_t graph, float convergence, 
 
     //struct cudaChannelFormatDesc channel_desc_unsigned_int = cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindUnsigned);
 
-    num_vertices = graph->current_num_vertices;
-    num_edges = graph->current_num_edges;
-    edge_joint_probability_dim_x = graph->edge_joint_probability_dim_x;
-    edge_joint_probability_dim_y = graph->edge_joint_probability_dim_y;
+    const size_t num_vertices = graph->current_num_vertices;
+    const size_t num_edges = graph->current_num_edges;
+    const size_t edge_joint_probability_dim_x = graph->edge_joint_probability_dim_x;
+    const size_t edge_joint_probability_dim_y = graph->edge_joint_probability_dim_y;
+    const size_t current_messages_size = graph->edges_messages_size;
+    const size_t node_states_size = graph->node_states_size;
 
     /*printf("Before=====");
     print_edges(graph);
@@ -3628,12 +3670,10 @@ int loopy_propagate_until_cuda_edge_streaming(Graph_t graph, float convergence, 
     CUDA_CHECK_RETURN(cudaMalloc((void **)&edges_dest_index, sizeof(size_t) * graph->current_num_edges));
 
     CUDA_CHECK_RETURN(cudaMalloc((void **)&node_states, sizeof(struct belief) * graph->current_num_vertices));
-    CUDA_CHECK_RETURN(cudaMalloc((void **)&node_states_size, sizeof(size_t) * graph->current_num_vertices));
 
     CUDA_CHECK_RETURN(cudaMalloc((void **)&current_messages, sizeof(struct belief) * graph->current_num_edges));
     CUDA_CHECK_RETURN(cudaMalloc((void **)&current_messages_previous, sizeof(float) * graph->current_num_edges));
     CUDA_CHECK_RETURN(cudaMalloc((void **)&current_messages_current, sizeof(float) * graph->current_num_edges));
-    CUDA_CHECK_RETURN(cudaMalloc((void **)&current_messages_size, sizeof(size_t) * graph->current_num_edges));
 
     CUDA_CHECK_RETURN(cudaMalloc((void **)&dest_nodes_to_edges_nodes, sizeof(size_t) * graph->current_num_vertices));
     CUDA_CHECK_RETURN(cudaMalloc((void **)&dest_nodes_to_edges_edges, sizeof(size_t) * graph->current_num_edges));
@@ -3651,10 +3691,8 @@ int loopy_propagate_until_cuda_edge_streaming(Graph_t graph, float convergence, 
     CUDA_CHECK_RETURN(cudaMemcpyToSymbol(edge_joint_probability, &(graph->edge_joint_probability), sizeof(struct joint_probability)));
 
     CUDA_CHECK_RETURN(cudaMemcpy(node_states, graph->node_states, sizeof(struct belief) * graph->current_num_vertices, cudaMemcpyHostToDevice));
-    CUDA_CHECK_RETURN(cudaMemcpy(node_states_size, graph->node_states_size, sizeof(size_t) * graph->current_num_vertices, cudaMemcpyHostToDevice));
 
     CUDA_CHECK_RETURN(cudaMemcpy(current_messages, graph->edges_messages, sizeof(struct belief) * graph->current_num_edges, cudaMemcpyHostToDevice));
-    CUDA_CHECK_RETURN(cudaMemcpy(current_messages_size, graph->edges_messages_size, sizeof(size_t) * graph->current_num_edges, cudaMemcpyHostToDevice));
     CUDA_CHECK_RETURN(cudaMemcpy(current_messages_previous, graph->edges_messages_previous, sizeof(float) * graph->current_num_edges, cudaMemcpyHostToDevice));
     CUDA_CHECK_RETURN(cudaMemcpy(current_messages_current, graph->edges_messages_current, sizeof(float) * graph->current_num_edges, cudaMemcpyHostToDevice));
 
@@ -3748,7 +3786,7 @@ int loopy_propagate_until_cuda_edge_streaming(Graph_t graph, float convergence, 
         node_thread_data[i].buffers = NULL;
     }
 
-    for(i = 0; i < max_iterations; i+= BATCH_SIZE_EDGE){
+    for(i = BATCH_SIZE_EDGE; i <= max_iterations; i+= BATCH_SIZE_EDGE){
         for(j = 0; j < BATCH_SIZE_EDGE; ++j) {
             for(k = 0; k < NUM_THREAD_PARTITIONS; ++k) {
                 retval = pthread_create(&threads[k], NULL, launch_send_message_kernel, &thread_data[k]);
@@ -3814,7 +3852,12 @@ int loopy_propagate_until_cuda_edge_streaming(Graph_t graph, float convergence, 
         if(host_delta < convergence || fabs(host_delta - previous_delta) < convergence){
             break;
         }
-        previous_delta = host_delta;
+        if(i < max_iterations - BATCH_SIZE_EDGE) {
+            previous_delta = host_delta;
+        }
+        if(i >= max_iterations){
+            printf("No Convergence: previous: %f vs current: %f\n", previous_delta, host_delta);
+        }
     }
 
     for(k = 0; k < NUM_THREAD_PARTITIONS; ++k) {
@@ -3826,12 +3869,10 @@ int loopy_propagate_until_cuda_edge_streaming(Graph_t graph, float convergence, 
     CUDA_CHECK_RETURN(cudaMemcpy(graph->edges_messages, current_messages, sizeof(struct belief) * num_edges, cudaMemcpyDeviceToHost));
 
     CUDA_CHECK_RETURN(cudaFree(current_messages));
-    CUDA_CHECK_RETURN(cudaFree(current_messages_size));
     CUDA_CHECK_RETURN(cudaFree(current_messages_previous));
     CUDA_CHECK_RETURN(cudaFree(current_messages_current));
 
     CUDA_CHECK_RETURN(cudaFree(node_states));
-    CUDA_CHECK_RETURN(cudaFree(node_states_size));
 
     CUDA_CHECK_RETURN(cudaFree(edges_src_index));
     CUDA_CHECK_RETURN(cudaFree(edges_dest_index));
@@ -3862,7 +3903,7 @@ int loopy_propagate_until_cuda_edge_streaming(Graph_t graph, float convergence, 
  */
 int loopy_propagate_until_cuda_edge_multiple_devices(Graph_t graph, float convergence, int max_iterations){
     int num_iter, copy_amount;
-    size_t i, j, k, l, m, num_vertices, num_edges, edge_joint_probability_dim_x, edge_joint_probability_dim_y;
+    size_t i, j, k, l, m;
     float *delta;
     float *delta_array;
     float previous_delta, host_delta;
@@ -3871,20 +3912,14 @@ int loopy_propagate_until_cuda_edge_multiple_devices(Graph_t graph, float conver
     struct belief ** current_messages;
     float ** current_messages_previous;
     float ** current_messages_current;
-    size_t ** current_messages_size;
 
     struct belief ** h_current_messages;
     float ** h_current_messages_previous;
     float ** h_current_messages_current;
-    size_t ** h_current_messages_size;
 
     struct belief ** node_states;
-    size_t ** node_states_size;
 
     struct belief ** h_node_states;
-    size_t ** h_node_states_size;
-
-//    size_t ** h_recv_node_states_size;
 
     size_t ** edges_src_index;
     size_t ** edges_dest_index;
@@ -3908,8 +3943,6 @@ int loopy_propagate_until_cuda_edge_multiple_devices(Graph_t graph, float conver
 
     current_messages = (struct belief **)malloc(num_devices * sizeof(struct belief *));
     assert(current_messages);
-    current_messages_size = (size_t **)malloc(num_devices * sizeof(size_t *));
-    assert(current_messages_size);
     current_messages_previous = (float **)malloc(num_devices * sizeof(float *));
     assert(current_messages_previous);
     current_messages_current = (float **)malloc(num_devices * sizeof(float *));
@@ -3917,8 +3950,6 @@ int loopy_propagate_until_cuda_edge_multiple_devices(Graph_t graph, float conver
 
     h_current_messages = (struct belief **)malloc(num_devices * sizeof(struct belief *));
     assert(h_current_messages);
-    h_current_messages_size = (size_t **)malloc(num_devices * sizeof(size_t *));
-    assert(h_current_messages_size);
     h_current_messages_previous = (float **)malloc(num_devices * sizeof(float *));
     assert(h_current_messages_previous);
     h_current_messages_current = (float **)malloc(num_devices * sizeof(float *));
@@ -3926,13 +3957,9 @@ int loopy_propagate_until_cuda_edge_multiple_devices(Graph_t graph, float conver
 
     node_states = (struct belief **)malloc(num_devices * sizeof(struct belief *));
     assert(node_states);
-    node_states_size = (size_t **)malloc(num_devices * sizeof(size_t *));
-    assert(node_states_size);
 
     h_node_states = (struct belief **)malloc(num_devices * sizeof(struct belief *));
     assert(h_node_states);
-    h_node_states_size = (size_t **)malloc(num_devices * sizeof(size_t *));
-    assert(h_node_states_size);
 
     edges_src_index = (size_t **)malloc(num_devices * sizeof(size_t *));
     assert(edges_src_index);
@@ -3963,10 +3990,12 @@ int loopy_propagate_until_cuda_edge_multiple_devices(Graph_t graph, float conver
 
     //struct cudaChannelFormatDesc channel_desc_unsigned_int = cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindUnsigned);
 
-    num_vertices = graph->current_num_vertices;
-    num_edges = graph->current_num_edges;
-    edge_joint_probability_dim_x = graph->edge_joint_probability_dim_x;
-    edge_joint_probability_dim_y = graph->edge_joint_probability_dim_y;
+    const size_t num_vertices = graph->current_num_vertices;
+    const size_t num_edges = graph->current_num_edges;
+    const size_t edge_joint_probability_dim_x = graph->edge_joint_probability_dim_x;
+    const size_t edge_joint_probability_dim_y = graph->edge_joint_probability_dim_y;
+    const size_t current_messages_size = graph->edges_messages_size;
+    const size_t node_states_size = graph->node_states_size;
 
     /*printf("Before=====");
     print_edges(graph);
@@ -3993,10 +4022,8 @@ int loopy_propagate_until_cuda_edge_multiple_devices(Graph_t graph, float conver
         CUDA_CHECK_RETURN(cudaMalloc((void **) &edges_dest_index[k], sizeof(size_t) * graph->current_num_edges));
 
         CUDA_CHECK_RETURN(cudaMalloc((void **) &node_states[k], sizeof(struct belief) * graph->current_num_vertices));
-        CUDA_CHECK_RETURN(cudaMalloc((void **) &node_states_size[k], sizeof(size_t) * graph->current_num_vertices));
 
         CUDA_CHECK_RETURN(cudaMalloc((void **) &current_messages[k], sizeof(struct belief) * graph->current_num_edges));
-        CUDA_CHECK_RETURN(cudaMalloc((void **) &current_messages_size[k], sizeof(size_t) * graph->current_num_edges));
         CUDA_CHECK_RETURN(cudaMalloc((void **) &current_messages_previous[k], sizeof(float) * graph->current_num_edges));
         CUDA_CHECK_RETURN(cudaMalloc((void **) &current_messages_current[k], sizeof(float) * graph->current_num_edges));
 
@@ -4008,10 +4035,8 @@ int loopy_propagate_until_cuda_edge_multiple_devices(Graph_t graph, float conver
         CUDA_CHECK_RETURN(cudaMalloc((void **) &num_work_items[k], sizeof(unsigned long long int)));
 
         CUDA_CHECK_RETURN(cudaHostAlloc((void **) &h_node_states[k], sizeof(struct belief) * num_vertices, cudaHostAllocDefault));
-        CUDA_CHECK_RETURN(cudaHostAlloc((void **) &h_node_states_size[k], sizeof(size_t) * num_vertices, cudaHostAllocDefault));
 
         CUDA_CHECK_RETURN(cudaHostAlloc((void **) &h_current_messages[k], sizeof(struct belief) * num_edges, cudaHostAllocDefault));
-        CUDA_CHECK_RETURN(cudaHostAlloc((void **) &h_current_messages_size[k], sizeof(size_t) * num_edges, cudaHostAllocDefault));
         CUDA_CHECK_RETURN(cudaHostAlloc((void **) &h_current_messages_previous[k], sizeof(float) * num_edges, cudaHostAllocDefault));
         CUDA_CHECK_RETURN(cudaHostAlloc((void **) &h_current_messages_current[k], sizeof(float) * num_edges, cudaHostAllocDefault));
 
@@ -4023,13 +4048,7 @@ int loopy_propagate_until_cuda_edge_multiple_devices(Graph_t graph, float conver
                 cudaMemcpy(node_states[k], graph->node_states, sizeof(struct belief) * graph->current_num_vertices,
                            cudaMemcpyHostToDevice));
         CUDA_CHECK_RETURN(
-                cudaMemcpy(node_states[k], graph->node_states_size, sizeof(size_t) * graph->current_num_vertices,
-                           cudaMemcpyHostToDevice));
-        CUDA_CHECK_RETURN(
                 cudaMemcpy(current_messages[k], graph->edges_messages, sizeof(struct belief) * graph->current_num_edges,
-                           cudaMemcpyHostToDevice));
-        CUDA_CHECK_RETURN(
-                cudaMemcpy(current_messages_size[k], graph->edges_messages_size, sizeof(size_t) * graph->current_num_edges,
                            cudaMemcpyHostToDevice));
         CUDA_CHECK_RETURN(
                 cudaMemcpy(current_messages_previous[k], graph->edges_messages_previous, sizeof(float) * graph->current_num_edges,
@@ -4099,7 +4118,7 @@ int loopy_propagate_until_cuda_edge_multiple_devices(Graph_t graph, float conver
         thread_data[i].work_queue_scratch = work_queue_scratch[i];
 
         thread_data[i].current_edge_messages = current_messages[i];
-        thread_data[i].current_edge_messages_size = current_messages_size[i];
+        thread_data[i].current_edge_messages_size = current_messages_size;
         thread_data[i].current_edge_messages_previous = current_messages_previous[i];
         thread_data[i].current_edge_messages_current = current_messages_current[i];
 
@@ -4117,7 +4136,7 @@ int loopy_propagate_until_cuda_edge_multiple_devices(Graph_t graph, float conver
         node_thread_data[i].stream = streams[i];
 
         node_thread_data[i].node_messages = node_states[i];
-        node_thread_data[i].node_messages_size = node_states_size[i];
+        node_thread_data[i].node_messages_size = node_states_size;
 
         node_thread_data[i].current_edge_messages = current_messages[i];
         node_thread_data[i].current_edge_messages_current = current_messages_current[i];
@@ -4137,7 +4156,7 @@ int loopy_propagate_until_cuda_edge_multiple_devices(Graph_t graph, float conver
         node_thread_data[i].buffers = NULL;
     }
 
-    for(i = 0; i < max_iterations; i+= BATCH_SIZE_EDGE){
+    for(i = BATCH_SIZE_EDGE; i <= max_iterations; i+= BATCH_SIZE_EDGE){
         for(j = 0; j < BATCH_SIZE_EDGE; ++j) {
             for(k = 0; k < num_devices; ++k) {
                 CUDA_CHECK_RETURN(cudaSetDevice(k));
@@ -4257,7 +4276,12 @@ int loopy_propagate_until_cuda_edge_multiple_devices(Graph_t graph, float conver
         if(host_delta < convergence || fabs(host_delta - previous_delta) < convergence){
             break;
         }
-        previous_delta = host_delta;
+        if(i < max_iterations - BATCH_SIZE_EDGE) {
+            previous_delta = host_delta;
+        }
+        if(i >= max_iterations){
+            printf("No Convergence: previous: %f vs current: %f\n", previous_delta, host_delta);
+        }
     }
 
     for(k = 0; k < num_devices; ++k) {
@@ -4271,15 +4295,12 @@ int loopy_propagate_until_cuda_edge_multiple_devices(Graph_t graph, float conver
                                      cudaMemcpyDeviceToHost));
 
         CUDA_CHECK_RETURN(cudaFree(current_messages[k]));
-        CUDA_CHECK_RETURN(cudaFree(current_messages_size[k]));
         CUDA_CHECK_RETURN(cudaFree(current_messages_previous[k]));
         CUDA_CHECK_RETURN(cudaFree(current_messages_current[k]));
 
         CUDA_CHECK_RETURN(cudaFree(node_states[k]));
-        CUDA_CHECK_RETURN(cudaFree(node_states_size[k]));
 
         CUDA_CHECK_RETURN(cudaFreeHost(h_current_messages[k]));
-        CUDA_CHECK_RETURN(cudaFreeHost(h_current_messages_size[k]));
         CUDA_CHECK_RETURN(cudaFreeHost(h_current_messages_previous[k]));
         CUDA_CHECK_RETURN(cudaFreeHost(h_current_messages_current[k]));
 
@@ -4294,7 +4315,6 @@ int loopy_propagate_until_cuda_edge_multiple_devices(Graph_t graph, float conver
         CUDA_CHECK_RETURN(cudaFree(num_work_items[k]));
 
         CUDA_CHECK_RETURN(cudaFreeHost(h_node_states[k]));
-        CUDA_CHECK_RETURN(cudaFreeHost(h_node_states_size[k]));
     }
 
     CUDA_CHECK_RETURN(cudaFree(delta));
@@ -4302,14 +4322,11 @@ int loopy_propagate_until_cuda_edge_multiple_devices(Graph_t graph, float conver
 
 
     free(current_messages);
-    free(current_messages_size);
     free(current_messages_previous);
     free(current_messages_current);
 
 
     free(node_states);
-    free(node_states_size);
-
 
     free(edges_src_index);
     free(edges_dest_index);
@@ -4322,10 +4339,8 @@ int loopy_propagate_until_cuda_edge_multiple_devices(Graph_t graph, float conver
     free(h_current_messages);
     free(h_current_messages_current);
     free(h_current_messages_previous);
-    free(h_current_messages_size);
 
     free(h_node_states);
-    free(h_node_states_size);
 
     CUDA_CHECK_RETURN(cudaHostUnregister(graph->edges_messages));
 
@@ -4353,10 +4368,10 @@ int loopy_propagate_until_cuda_edge_multiple_devices(Graph_t graph, float conver
  * @param max_iterations The maximum number of iterations to run for
  * @return The actual number of iterations ran
  */
-int loopy_propagate_until_cuda_edge_openmpi(Graph_t graph, float convergence, int max_iterations, int my_rank,
+int loopy_propagate_until_cuda_edge_openmpi(Graph_t graph, const float convergence, const int max_iterations, const int my_rank,
         int num_ranks, int num_devices){
     int num_iter;
-    size_t i, j, k, l, num_vertices, num_edges, edge_joint_probability_dim_x, edge_joint_probability_dim_y;
+    size_t i, j, k, l;
     float *delta;
     float *delta_array;
     float previous_delta, host_delta;
@@ -4366,26 +4381,20 @@ int loopy_propagate_until_cuda_edge_openmpi(Graph_t graph, float convergence, in
     struct belief ** current_messages;
     float ** current_messages_previous;
     float ** current_messages_current;
-    size_t ** current_messages_size;
 
     struct belief * recv_current_messages;
     float * recv_current_messages_previous;
     float * recv_current_messages_current;
-    size_t * recv_current_messages_size;
 
     struct belief ** h_current_messages;
     float ** h_current_messages_previous;
     float ** h_current_messages_current;
-    size_t ** h_current_messages_size;
 
     struct belief ** node_states;
-    size_t ** node_states_size;
 
     struct belief ** h_node_states;
-    size_t ** h_node_states_size;
 
     struct belief * recv_node_states;
-//    size_t ** h_recv_node_states_size;
 
     size_t ** edges_src_index;
     size_t ** edges_dest_index;
@@ -4408,8 +4417,6 @@ int loopy_propagate_until_cuda_edge_openmpi(Graph_t graph, float convergence, in
 
     current_messages = (struct belief **)malloc(num_devices * sizeof(struct belief *));
     assert(current_messages);
-    current_messages_size = (size_t **)malloc(num_devices * sizeof(size_t *));
-    assert(current_messages_size);
     current_messages_previous = (float **)malloc(num_devices * sizeof(float *));
     assert(current_messages_previous);
     current_messages_current = (float **)malloc(num_devices * sizeof(float *));
@@ -4417,8 +4424,6 @@ int loopy_propagate_until_cuda_edge_openmpi(Graph_t graph, float convergence, in
 
     h_current_messages = (struct belief **)malloc(num_devices * sizeof(struct belief *));
     assert(h_current_messages);
-    h_current_messages_size = (size_t **)malloc(num_devices * sizeof(size_t *));
-    assert(h_current_messages_size);
     h_current_messages_previous = (float **)malloc(num_devices * sizeof(float *));
     assert(h_current_messages_previous);
     h_current_messages_current = (float **)malloc(num_devices * sizeof(float *));
@@ -4426,18 +4431,12 @@ int loopy_propagate_until_cuda_edge_openmpi(Graph_t graph, float convergence, in
 
     node_states = (struct belief **)malloc(num_devices * sizeof(struct belief *));
     assert(node_states);
-    node_states_size = (size_t **)malloc(num_devices * sizeof(size_t *));
-    assert(node_states_size);
 
     h_node_states = (struct belief **)malloc(num_devices * sizeof(struct belief *));
     assert(h_node_states);
-    h_node_states_size = (size_t **)malloc(num_devices * sizeof(size_t *));
-    assert(h_node_states_size);
 
     recv_current_messages = (struct belief *)malloc(num_ranks * graph->current_num_edges * sizeof(struct belief));
     assert(recv_current_messages);
-    recv_current_messages_size = (size_t *)malloc(num_ranks * graph->current_num_edges * sizeof(size_t));
-    assert(recv_current_messages_size);
     recv_current_messages_previous = (float *)malloc(num_ranks * graph->current_num_edges * sizeof(float));
     assert(recv_current_messages_previous);
     recv_current_messages_current = (float *)malloc(num_ranks * graph->current_num_edges * sizeof(float));
@@ -4475,10 +4474,13 @@ int loopy_propagate_until_cuda_edge_openmpi(Graph_t graph, float convergence, in
 
     //struct cudaChannelFormatDesc channel_desc_unsigned_int = cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindUnsigned);
 
-    num_vertices = graph->current_num_vertices;
-    num_edges = graph->current_num_edges;
-    edge_joint_probability_dim_x = graph->edge_joint_probability_dim_x;
-    edge_joint_probability_dim_y = graph->edge_joint_probability_dim_y;
+    const size_t num_vertices = graph->current_num_vertices;
+    const size_t num_edges = graph->current_num_edges;
+    const size_t edge_joint_probability_dim_x = graph->edge_joint_probability_dim_x;
+    const size_t edge_joint_probability_dim_y = graph->edge_joint_probability_dim_y;
+    const size_t current_messages_size = graph->edges_messages_size;
+    const size_t node_states_size = graph->node_states_size;
+
 
     /*printf("Before=====");
     print_edges(graph);
@@ -4507,10 +4509,8 @@ int loopy_propagate_until_cuda_edge_openmpi(Graph_t graph, float convergence, in
         CUDA_CHECK_RETURN(cudaMalloc((void **) &edges_dest_index[k], sizeof(size_t) * graph->current_num_edges));
 
         CUDA_CHECK_RETURN(cudaMalloc((void **) &node_states[k], sizeof(struct belief) * graph->current_num_vertices));
-        CUDA_CHECK_RETURN(cudaMalloc((void **) &node_states_size[k], sizeof(size_t) * graph->current_num_vertices));
 
         CUDA_CHECK_RETURN(cudaMalloc((void **) &current_messages[k], sizeof(struct belief) * graph->current_num_edges));
-        CUDA_CHECK_RETURN(cudaMalloc((void **) &current_messages_size[k], sizeof(size_t) * graph->current_num_edges));
         CUDA_CHECK_RETURN(cudaMalloc((void **) &current_messages_previous[k], sizeof(float) * graph->current_num_edges));
         CUDA_CHECK_RETURN(cudaMalloc((void **) &current_messages_current[k], sizeof(float) * graph->current_num_edges));
 
@@ -4522,10 +4522,8 @@ int loopy_propagate_until_cuda_edge_openmpi(Graph_t graph, float convergence, in
         CUDA_CHECK_RETURN(cudaMalloc((void **) &num_work_items[k], sizeof(unsigned long long int)));
 
         CUDA_CHECK_RETURN(cudaHostAlloc((void **) &h_node_states[k], sizeof(struct belief) * num_vertices, cudaHostAllocDefault));
-        CUDA_CHECK_RETURN(cudaHostAlloc((void **) &h_node_states_size[k], sizeof(size_t) * num_vertices, cudaHostAllocDefault));
 
         CUDA_CHECK_RETURN(cudaHostAlloc((void **) &h_current_messages[k], sizeof(struct belief) * num_edges, cudaHostAllocDefault));
-        CUDA_CHECK_RETURN(cudaHostAlloc((void **) &h_current_messages_size[k], sizeof(size_t) * num_edges, cudaHostAllocDefault));
         CUDA_CHECK_RETURN(cudaHostAlloc((void **) &h_current_messages_previous[k], sizeof(float) * num_edges, cudaHostAllocDefault));
         CUDA_CHECK_RETURN(cudaHostAlloc((void **) &h_current_messages_current[k], sizeof(float) * num_edges, cudaHostAllocDefault));
 
@@ -4536,14 +4534,9 @@ int loopy_propagate_until_cuda_edge_openmpi(Graph_t graph, float convergence, in
         CUDA_CHECK_RETURN(
                 cudaMemcpy(node_states[k], graph->node_states, sizeof(struct belief) * graph->current_num_vertices,
                            cudaMemcpyHostToDevice));
-        CUDA_CHECK_RETURN(
-                cudaMemcpy(node_states[k], graph->node_states_size, sizeof(size_t) * graph->current_num_vertices,
-                           cudaMemcpyHostToDevice));
+
         CUDA_CHECK_RETURN(
                 cudaMemcpy(current_messages[k], graph->edges_messages, sizeof(struct belief) * graph->current_num_edges,
-                           cudaMemcpyHostToDevice));
-        CUDA_CHECK_RETURN(
-                cudaMemcpy(current_messages_size[k], graph->edges_messages_size, sizeof(size_t) * graph->current_num_edges,
                            cudaMemcpyHostToDevice));
         CUDA_CHECK_RETURN(
                 cudaMemcpy(current_messages_previous[k], graph->edges_messages_previous, sizeof(float) * graph->current_num_edges,
@@ -4615,7 +4608,7 @@ int loopy_propagate_until_cuda_edge_openmpi(Graph_t graph, float convergence, in
         thread_data[i].work_queue_scratch = work_queue_scratch[i];
 
         thread_data[i].current_edge_messages = current_messages[i];
-        thread_data[i].current_edge_messages_size = current_messages_size[i];
+        thread_data[i].current_edge_messages_size = current_messages_size;
         thread_data[i].current_edge_messages_previous = current_messages_previous[i];
         thread_data[i].current_edge_messages_current = current_messages_current[i];
 
@@ -4633,7 +4626,7 @@ int loopy_propagate_until_cuda_edge_openmpi(Graph_t graph, float convergence, in
         node_thread_data[i].stream = streams[i];
 
         node_thread_data[i].node_messages = node_states[i];
-        node_thread_data[i].node_messages_size = node_states_size[i];
+        node_thread_data[i].node_messages_size = node_states_size;
 
         node_thread_data[i].current_edge_messages = current_messages[i];
         node_thread_data[i].current_edge_messages_current = current_messages_current[i];
@@ -4653,7 +4646,7 @@ int loopy_propagate_until_cuda_edge_openmpi(Graph_t graph, float convergence, in
         node_thread_data[i].buffers = NULL;
     }
 
-    for(i = 0; i < max_iterations; i+= BATCH_SIZE_EDGE){
+    for(i = BATCH_SIZE_EDGE; i <= max_iterations; i+= BATCH_SIZE_EDGE){
         for(j = 0; j < BATCH_SIZE_EDGE; ++j) {
             for(k = 0; k < num_devices; ++k) {
                 CUDA_CHECK_RETURN(cudaSetDevice(k));
@@ -4810,7 +4803,7 @@ int loopy_propagate_until_cuda_edge_openmpi(Graph_t graph, float convergence, in
             for(l = 0; l < graph->current_num_vertices; ++l) {
                 node_difference = 0.0f;
                 for(k = 0; k < num_ranks && node_difference < NODE_DIFFERENCE_THRESHOLD; ++k) {
-                    node_difference = difference(&(graph->node_states[l]), graph->node_states_size[l], &(recv_node_states[k * graph->current_num_vertices + l]), graph->node_states_size[l]);
+                    node_difference = difference(&(graph->node_states[l]), graph->node_states_size, &(recv_node_states[k * graph->current_num_vertices + l]), graph->node_states_size);
                     if(node_difference >= NODE_DIFFERENCE_THRESHOLD) {
                         memcpy(&(graph->node_states[l]), &(recv_node_states[k * graph->current_num_vertices + l]), sizeof(struct belief));
                     }
@@ -4844,7 +4837,12 @@ int loopy_propagate_until_cuda_edge_openmpi(Graph_t graph, float convergence, in
         if(host_delta < convergence || fabs(host_delta - previous_delta) < convergence){
             break;
         }
-        previous_delta = host_delta;
+        if(i < max_iterations - BATCH_SIZE_EDGE) {
+            previous_delta = host_delta;
+        }
+        if(i >= max_iterations){
+            printf("No Convergence: previous: %f vs current: %f\n", previous_delta, host_delta);
+        }
     }
 
     for(k = 0; k < num_devices; ++k) {
@@ -4858,15 +4856,12 @@ int loopy_propagate_until_cuda_edge_openmpi(Graph_t graph, float convergence, in
                                      cudaMemcpyDeviceToHost));
 
         CUDA_CHECK_RETURN(cudaFree(current_messages[k]));
-        CUDA_CHECK_RETURN(cudaFree(current_messages_size[k]));
         CUDA_CHECK_RETURN(cudaFree(current_messages_previous[k]));
         CUDA_CHECK_RETURN(cudaFree(current_messages_current[k]));
 
         CUDA_CHECK_RETURN(cudaFree(node_states[k]));
-        CUDA_CHECK_RETURN(cudaFree(node_states_size[k]));
 
         CUDA_CHECK_RETURN(cudaFreeHost(h_current_messages[k]));
-        CUDA_CHECK_RETURN(cudaFreeHost(h_current_messages_size[k]));
         CUDA_CHECK_RETURN(cudaFreeHost(h_current_messages_previous[k]));
         CUDA_CHECK_RETURN(cudaFreeHost(h_current_messages_current[k]));
 
@@ -4881,7 +4876,6 @@ int loopy_propagate_until_cuda_edge_openmpi(Graph_t graph, float convergence, in
         CUDA_CHECK_RETURN(cudaFree(num_work_items[k]));
 
         CUDA_CHECK_RETURN(cudaFreeHost(h_node_states[k]));
-        CUDA_CHECK_RETURN(cudaFreeHost(h_node_states_size[k]));
     }
 
     if(my_rank == 0) {
@@ -4894,13 +4888,11 @@ int loopy_propagate_until_cuda_edge_openmpi(Graph_t graph, float convergence, in
 
 
     free(current_messages);
-    free(current_messages_size);
     free(current_messages_previous);
     free(current_messages_current);
 
 
     free(node_states);
-    free(node_states_size);
 
 
     free(edges_src_index);
@@ -4914,17 +4906,14 @@ int loopy_propagate_until_cuda_edge_openmpi(Graph_t graph, float convergence, in
     free(recv_current_messages);
     free(recv_current_messages_previous);
     free(recv_current_messages_current);
-    free(recv_current_messages_size);
 
     free(recv_node_states);
 
     free(h_current_messages);
     free(h_current_messages_current);
     free(h_current_messages_previous);
-    free(h_current_messages_size);
 
     free(h_node_states);
-    free(h_node_states_size);
 
     CUDA_CHECK_RETURN(cudaHostUnregister(graph->edges_messages));
 
@@ -4953,21 +4942,19 @@ int loopy_propagate_until_cuda_edge_openmpi(Graph_t graph, float convergence, in
  * @param max_iterations The maximum number of iterations to run for
  * @return The actual number of iterations ran
  */
-int page_rank_until_cuda_edge(Graph_t graph, float convergence, int max_iterations){
+int page_rank_until_cuda_edge(Graph_t graph, const float convergence, const int max_iterations){
     int num_iter;
-    size_t i, j, num_vertices, num_edges, edge_joint_probability_dim_x, edge_joint_probability_dim_y;
+    size_t i, j;
     float * delta;
     float * delta_array;
     float previous_delta, host_delta;
     char is_pow_2;
 
     struct belief * current_messages;
-    size_t * current_messages_size;
     float * current_messages_previous;
     float * current_messages_current;
 
     struct belief * node_states;
-    size_t * node_states_size;
 
     size_t * edges_src_index;
     size_t * edges_dest_index;
@@ -4979,10 +4966,12 @@ int page_rank_until_cuda_edge(Graph_t graph, float convergence, int max_iteratio
 
     //struct cudaChannelFormatDesc channel_desc_unsigned_int = cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindUnsigned);
 
-    num_vertices = graph->current_num_vertices;
-    num_edges = graph->current_num_edges;
-    edge_joint_probability_dim_x = graph->edge_joint_probability_dim_x;
-    edge_joint_probability_dim_y = graph->edge_joint_probability_dim_y;
+    const size_t num_vertices = graph->current_num_vertices;
+    const size_t num_edges = graph->current_num_edges;
+    const size_t edge_joint_probability_dim_x = graph->edge_joint_probability_dim_x;
+    const size_t edge_joint_probability_dim_y = graph->edge_joint_probability_dim_y;
+    const size_t current_messages_size = graph->edges_messages_size;
+    const size_t node_states_size = graph->node_states_size;
 
     /*printf("Before=====");
     print_edges(graph);
@@ -4996,10 +4985,8 @@ int page_rank_until_cuda_edge(Graph_t graph, float convergence, int max_iteratio
     CUDA_CHECK_RETURN(cudaMalloc((void **)&edges_dest_index, sizeof(size_t) * graph->current_num_edges));
 
     CUDA_CHECK_RETURN(cudaMalloc((void **)&node_states, sizeof(struct belief) * graph->current_num_vertices));
-    CUDA_CHECK_RETURN(cudaMalloc((void **)&node_states_size, sizeof(size_t) * graph->current_num_vertices));
 
     CUDA_CHECK_RETURN(cudaMalloc((void **)&current_messages, sizeof(struct belief) * graph->current_num_edges));
-    CUDA_CHECK_RETURN(cudaMalloc((void **)&current_messages_size, sizeof(size_t) * graph->current_num_edges));
     CUDA_CHECK_RETURN(cudaMalloc((void **)&current_messages_previous, sizeof(float) * graph->current_num_edges));
     CUDA_CHECK_RETURN(cudaMalloc((void **)&current_messages_current, sizeof(float) * graph->current_num_edges));
 
@@ -5014,10 +5001,8 @@ int page_rank_until_cuda_edge(Graph_t graph, float convergence, int max_iteratio
     CUDA_CHECK_RETURN(cudaMemcpyToSymbol(edge_joint_probability, &(graph->edge_joint_probability), sizeof(struct joint_probability)));
 
     CUDA_CHECK_RETURN(cudaMemcpy(node_states, graph->node_states, sizeof(struct belief) * graph->current_num_vertices, cudaMemcpyHostToDevice));
-    CUDA_CHECK_RETURN(cudaMemcpy(node_states_size, graph->node_states_size, sizeof(size_t) * graph->current_num_vertices, cudaMemcpyHostToDevice));
 
     CUDA_CHECK_RETURN(cudaMemcpy(current_messages, graph->edges_messages, sizeof(struct belief) * graph->current_num_edges, cudaMemcpyHostToDevice));
-    CUDA_CHECK_RETURN(cudaMemcpy(current_messages_size, graph->edges_messages_size, sizeof(size_t) * graph->current_num_edges, cudaMemcpyHostToDevice));
     CUDA_CHECK_RETURN(cudaMemcpy(current_messages_previous, graph->edges_messages_previous, sizeof(float) * graph->current_num_edges, cudaMemcpyHostToDevice));
     CUDA_CHECK_RETURN(cudaMemcpy(current_messages_current, graph->edges_messages_current, sizeof(float) * graph->current_num_edges, cudaMemcpyHostToDevice));
 
@@ -5035,7 +5020,7 @@ int page_rank_until_cuda_edge(Graph_t graph, float convergence, int max_iteratio
     dim3 dimReduceGrid(edgeCount, 1, 1);
     int reduceSmemSize = (BLOCK_SIZE <= 32) ? 2 * BLOCK_SIZE * sizeof(float) : BLOCK_SIZE * sizeof(float);
 
-    for(i = 0; i < max_iterations; i+= BATCH_SIZE_EDGE){
+    for(i = BATCH_SIZE_EDGE; i <= max_iterations; i+= BATCH_SIZE_EDGE){
         for(j = 0; j < BATCH_SIZE_EDGE; ++j) {
             send_message_for_edge_iteration_cuda_kernel<<<edgeCount, BLOCK_SIZE >>>(num_edges, edges_src_index,
                     node_states,
@@ -5062,7 +5047,12 @@ int page_rank_until_cuda_edge(Graph_t graph, float convergence, int max_iteratio
         if(host_delta < convergence || fabs(host_delta - previous_delta) < convergence){
             break;
         }
-        previous_delta = host_delta;
+        if(i < max_iterations - BATCH_SIZE_EDGE) {
+            previous_delta = host_delta;
+        }
+        if(i >= max_iterations){
+            printf("No Convergence: previous: %f vs current: %f\n", previous_delta, host_delta);
+        }
     }
 
     // copy data back
@@ -5070,12 +5060,10 @@ int page_rank_until_cuda_edge(Graph_t graph, float convergence, int max_iteratio
     CUDA_CHECK_RETURN(cudaMemcpy(graph->edges_messages, current_messages, sizeof(struct belief) * num_edges, cudaMemcpyDeviceToHost));
 
     CUDA_CHECK_RETURN(cudaFree(current_messages));
-    CUDA_CHECK_RETURN(cudaFree(current_messages_size));
     CUDA_CHECK_RETURN(cudaFree(current_messages_previous));
     CUDA_CHECK_RETURN(cudaFree(current_messages_current));
 
     CUDA_CHECK_RETURN(cudaFree(node_states));
-    CUDA_CHECK_RETURN(cudaFree(node_states_size));
 
     CUDA_CHECK_RETURN(cudaFree(edges_src_index));
     CUDA_CHECK_RETURN(cudaFree(edges_dest_index));
@@ -5101,21 +5089,19 @@ int page_rank_until_cuda_edge(Graph_t graph, float convergence, int max_iteratio
  * @param max_iterations The maximum number of iterations to run for
  * @return The actual number of iterations ran
  */
-int viterbi_until_cuda_edge(Graph_t graph, float convergence, int max_iterations){
+int viterbi_until_cuda_edge(Graph_t graph, const float convergence, const int max_iterations){
     int num_iter;
-    size_t i, j, num_vertices, num_edges, edge_joint_probability_dim_x, edge_joint_probability_dim_y;
+    size_t i, j;
     float * delta;
     float * delta_array;
     float previous_delta, host_delta;
     char is_pow_2;
 
     struct belief * current_messages;
-    size_t * current_messages_size;
     float * current_messages_previous;
     float * current_messages_current;
 
     struct belief * node_states;
-    size_t * node_states_size;
 
     size_t * edges_src_index;
     size_t * edges_dest_index;
@@ -5127,10 +5113,12 @@ int viterbi_until_cuda_edge(Graph_t graph, float convergence, int max_iterations
 
     //struct cudaChannelFormatDesc channel_desc_unsigned_int = cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindUnsigned);
 
-    num_vertices = graph->current_num_vertices;
-    num_edges = graph->current_num_edges;
-    edge_joint_probability_dim_x = graph->edge_joint_probability_dim_x;
-    edge_joint_probability_dim_y = graph->edge_joint_probability_dim_y;
+    const size_t num_vertices = graph->current_num_vertices;
+    const size_t num_edges = graph->current_num_edges;
+    const size_t edge_joint_probability_dim_x = graph->edge_joint_probability_dim_x;
+    const size_t edge_joint_probability_dim_y = graph->edge_joint_probability_dim_y;
+    const size_t current_messages_size = graph->edges_messages_size;
+    const size_t node_states_size = graph->node_states_size;
 
     /*printf("Before=====");
     print_edges(graph);
@@ -5144,10 +5132,8 @@ int viterbi_until_cuda_edge(Graph_t graph, float convergence, int max_iterations
     CUDA_CHECK_RETURN(cudaMalloc((void **)&edges_dest_index, sizeof(size_t) * graph->current_num_edges));
 
     CUDA_CHECK_RETURN(cudaMalloc((void **)&node_states, sizeof(struct belief) * graph->current_num_vertices));
-    CUDA_CHECK_RETURN(cudaMalloc((void **)&node_states_size, sizeof(size_t) * graph->current_num_vertices));
 
     CUDA_CHECK_RETURN(cudaMalloc((void **)&current_messages, sizeof(struct belief) * graph->current_num_edges));
-    CUDA_CHECK_RETURN(cudaMalloc((void **)&current_messages_size, sizeof(size_t) * graph->current_num_edges));
     CUDA_CHECK_RETURN(cudaMalloc((void **)&current_messages_previous, sizeof(float) * graph->current_num_edges));
     CUDA_CHECK_RETURN(cudaMalloc((void **)&current_messages_current, sizeof(float) * graph->current_num_edges));
 
@@ -5162,10 +5148,8 @@ int viterbi_until_cuda_edge(Graph_t graph, float convergence, int max_iterations
     CUDA_CHECK_RETURN(cudaMemcpyToSymbol(edge_joint_probability, &(graph->edge_joint_probability), sizeof(struct joint_probability)));
 
     CUDA_CHECK_RETURN(cudaMemcpy(node_states, graph->node_states, sizeof(struct belief) * graph->current_num_vertices, cudaMemcpyHostToDevice));
-    CUDA_CHECK_RETURN(cudaMemcpy(node_states, graph->node_states_size, sizeof(size_t) * graph->current_num_vertices, cudaMemcpyHostToDevice));
 
     CUDA_CHECK_RETURN(cudaMemcpy(current_messages, graph->edges_messages, sizeof(struct belief) * graph->current_num_edges, cudaMemcpyHostToDevice));
-    CUDA_CHECK_RETURN(cudaMemcpy(current_messages_size, graph->edges_messages_size, sizeof(size_t) * graph->current_num_edges, cudaMemcpyHostToDevice));
     CUDA_CHECK_RETURN(cudaMemcpy(current_messages_previous, graph->edges_messages_previous, sizeof(float) * graph->current_num_edges, cudaMemcpyHostToDevice));
     CUDA_CHECK_RETURN(cudaMemcpy(current_messages_current, graph->edges_messages_current, sizeof(float) * graph->current_num_edges, cudaMemcpyHostToDevice));
 
@@ -5183,7 +5167,7 @@ int viterbi_until_cuda_edge(Graph_t graph, float convergence, int max_iterations
     dim3 dimReduceGrid(edgeCount, 1, 1);
     int reduceSmemSize = (BLOCK_SIZE <= 32) ? 2 * BLOCK_SIZE * sizeof(float) : BLOCK_SIZE * sizeof(float);
 
-    for(i = 0; i < max_iterations; i+= BATCH_SIZE_EDGE){
+    for(i = BATCH_SIZE_EDGE; i <= max_iterations; i+= BATCH_SIZE_EDGE){
         for(j = 0; j < BATCH_SIZE_EDGE; ++j) {
             send_message_for_edge_iteration_cuda_kernel<<<edgeCount, BLOCK_SIZE >>>(num_edges, edges_src_index,
                     node_states,
@@ -5210,7 +5194,12 @@ int viterbi_until_cuda_edge(Graph_t graph, float convergence, int max_iterations
             marginalize_viterbi_beliefs<<<nodeCount, BLOCK_SIZE >>>(node_states, node_states_size, num_vertices);
             break;
         }
-        previous_delta = host_delta;
+        if(i < max_iterations - BATCH_SIZE_EDGE) {
+            previous_delta = host_delta;
+        }
+        if(i >= max_iterations){
+            printf("No Convergence: previous: %f vs current: %f\n", previous_delta, host_delta);
+        }
     }
 
     // copy data back
@@ -5220,10 +5209,8 @@ int viterbi_until_cuda_edge(Graph_t graph, float convergence, int max_iterations
     CUDA_CHECK_RETURN(cudaFree(current_messages));
     CUDA_CHECK_RETURN(cudaFree(current_messages_current));
     CUDA_CHECK_RETURN(cudaFree(current_messages_previous));
-    CUDA_CHECK_RETURN(cudaFree(current_messages_size));
 
     CUDA_CHECK_RETURN(cudaFree(node_states));
-    CUDA_CHECK_RETURN(cudaFree(node_states_size));
 
     CUDA_CHECK_RETURN(cudaFree(edges_src_index));
     CUDA_CHECK_RETURN(cudaFree(edges_dest_index));
@@ -5249,9 +5236,11 @@ int viterbi_until_cuda_edge(Graph_t graph, float convergence, int max_iterations
  */
 void run_test_loopy_belief_propagation_cuda(struct expression * expression, const char * file_name, FILE * out){
     Graph_t graph;
-    clock_t start, end;
-    double time_elapsed;
+    clock_t begin, start, end;
+    double time_elapsed, total_time_elapsed;
     int num_iterations;
+
+    begin = clock();
 
     graph = build_graph(expression);
     assert(graph != NULL);
@@ -5262,15 +5251,16 @@ void run_test_loopy_belief_propagation_cuda(struct expression * expression, cons
     set_up_dest_nodes_to_edges(graph);
     //calculate_diameter(graph);
 
-    start = clock();
     init_previous_edge(graph);
 
+    start = clock();
     num_iterations = loopy_propagate_until_cuda(graph, PRECISION, NUM_ITERATIONS);
     end = clock();
 
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
+    total_time_elapsed = (double)(end - begin) / CLOCKS_PER_SEC;
     //print_nodes(graph);
-    fprintf(out, "%s,loopy,%ld,%ld,%d,%d,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
+    fprintf(out, "%s,loopy,%ld,%ld,%d,%d,%lf,%lf,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed, time_elapsed/num_iterations, total_time_elapsed);
     fflush(out);
 
     graph_destroy(graph);
@@ -5283,9 +5273,11 @@ void run_test_loopy_belief_propagation_cuda(struct expression * expression, cons
  */
 void run_test_loopy_belief_propagation_xml_file_cuda(const char * file_name, FILE * out){
     Graph_t graph;
-    clock_t start, end;
-    double time_elapsed;
+    clock_t begin, start, end;
+    double time_elapsed, total_time_elapsed;
     int num_iterations;
+
+    begin = clock();
 
     graph = parse_xml_file(file_name);
     assert(graph != NULL);
@@ -5296,15 +5288,16 @@ void run_test_loopy_belief_propagation_xml_file_cuda(const char * file_name, FIL
     set_up_dest_nodes_to_edges(graph);
     //calculate_diameter(graph);
 
-    start = clock();
     init_previous_edge(graph);
 
+    start = clock();
     num_iterations = loopy_propagate_until_cuda(graph, PRECISION, NUM_ITERATIONS);
     end = clock();
 
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
+    total_time_elapsed = (double)(end - begin) / CLOCKS_PER_SEC;
     //print_nodes(graph);
-    fprintf(out, "%s,loopy,%ld,%ld,%d,%d,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
+    fprintf(out, "%s,loopy,%ld,%ld,%d,%d,%lf,%lf,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed, time_elapsed/num_iterations, total_time_elapsed);
     fflush(out);
 
     graph_destroy(graph);
@@ -5317,9 +5310,11 @@ void run_test_loopy_belief_propagation_xml_file_cuda(const char * file_name, FIL
  */
 void run_test_loopy_belief_propagation_xml_file_cuda_streaming(const char * file_name, FILE * out){
     Graph_t graph;
-    clock_t start, end;
-    double time_elapsed;
+    clock_t begin, start, end;
+    double time_elapsed, total_time_elapsed;
     int num_iterations;
+
+    begin = clock();
 
     graph = parse_xml_file(file_name);
     assert(graph != NULL);
@@ -5330,15 +5325,16 @@ void run_test_loopy_belief_propagation_xml_file_cuda_streaming(const char * file
     set_up_dest_nodes_to_edges(graph);
     //calculate_diameter(graph);
 
-    start = clock();
     init_previous_edge(graph);
 
+    start = clock();
     num_iterations = loopy_propagate_until_cuda_streaming(graph, PRECISION, NUM_ITERATIONS);
     end = clock();
 
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
+    total_time_elapsed = (double)(end - begin)/CLOCKS_PER_SEC;
     //print_nodes(graph);
-    fprintf(out, "%s,loopy-streaming,%ld,%ld,%d,%d,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
+    fprintf(out, "%s,loopy-streaming,%ld,%ld,%d,%d,%lf,%lf,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed, time_elapsed/num_iterations, total_time_elapsed);
     fflush(out);
 
     graph_destroy(graph);
@@ -5351,9 +5347,11 @@ void run_test_loopy_belief_propagation_xml_file_cuda_streaming(const char * file
  */
 void run_test_loopy_belief_propagation_xml_file_edge_cuda(const char * file_name, FILE * out){
     Graph_t graph;
-    clock_t start, end;
-    double time_elapsed;
+    clock_t begin, start, end;
+    double time_elapsed, total_time_elapsed;
     int num_iterations;
+
+    begin = clock();
 
     graph = parse_xml_file(file_name);
     assert(graph != NULL);
@@ -5364,15 +5362,16 @@ void run_test_loopy_belief_propagation_xml_file_edge_cuda(const char * file_name
     set_up_dest_nodes_to_edges(graph);
     //calculate_diameter(graph);
 
-    start = clock();
     init_previous_edge(graph);
 
+    start = clock();
     num_iterations = loopy_propagate_until_cuda_edge(graph, PRECISION, NUM_ITERATIONS);
     end = clock();
 
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
+    total_time_elapsed = (double)(end - begin)/CLOCKS_PER_SEC;
     //print_nodes(graph);
-    fprintf(out, "%s,loopy-edge,%ld,%ld,%d,%d,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
+    fprintf(out, "%s,loopy-edge,%ld,%ld,%d,%d,%lf,%lf,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed, time_elapsed/num_iterations, total_time_elapsed);
     fflush(out);
 
     graph_destroy(graph);
@@ -5385,9 +5384,11 @@ void run_test_loopy_belief_propagation_xml_file_edge_cuda(const char * file_name
  */
 void run_test_loopy_belief_propagation_xml_file_edge_cuda_streaming(const char * file_name, FILE * out){
     Graph_t graph;
-    clock_t start, end;
-    double time_elapsed;
+    clock_t begin, start, end;
+    double time_elapsed, total_time_elapsed;
     int num_iterations;
+
+    begin = clock();
 
     graph = parse_xml_file(file_name);
     assert(graph != NULL);
@@ -5398,15 +5399,16 @@ void run_test_loopy_belief_propagation_xml_file_edge_cuda_streaming(const char *
     set_up_dest_nodes_to_edges(graph);
     //calculate_diameter(graph);
 
-    start = clock();
     init_previous_edge(graph);
 
+    start = clock();
     num_iterations = loopy_propagate_until_cuda_edge_streaming(graph, PRECISION, NUM_ITERATIONS);
     end = clock();
 
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
+    total_time_elapsed = (double)(end - begin)/CLOCKS_PER_SEC;
     //print_nodes(graph);
-    fprintf(out, "%s,loopy-edge-streaming,%ld,%ld,%d,%d,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
+    fprintf(out, "%s,loopy-edge-streaming,%ld,%ld,%d,%d,%lf,%lf,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed, time_elapsed/num_iterations, total_time_elapsed);
     fflush(out);
 
     graph_destroy(graph);
@@ -5422,9 +5424,11 @@ void run_test_loopy_belief_propagation_xml_file_edge_cuda_streaming(const char *
  */
 void run_test_loopy_belief_propagation_snap_file_cuda(const char * edge_file_name, const char * node_file_name, FILE * out){
     Graph_t graph;
-    clock_t start, end;
-    double time_elapsed;
+    clock_t begin, start, end;
+    double time_elapsed, total_time_elapsed;
     int num_iterations;
+
+    begin = clock();
 
     graph = parse_graph_from_snap_files(edge_file_name, node_file_name);
     assert(graph != NULL);
@@ -5435,15 +5439,16 @@ void run_test_loopy_belief_propagation_snap_file_cuda(const char * edge_file_nam
     set_up_dest_nodes_to_edges(graph);
     //calculate_diameter(graph);
 
-    start = clock();
     init_previous_edge(graph);
 
+    start = clock();
     num_iterations = loopy_propagate_until_cuda(graph, PRECISION, NUM_ITERATIONS);
     end = clock();
 
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
+    total_time_elapsed = (double)(end - begin)/CLOCKS_PER_SEC;
     //print_nodes(graph);
-    fprintf(out, "%s-%s,loopy,%ld,%ld,%d,%d,%lf\n", edge_file_name, node_file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
+    fprintf(out, "%s-%s,loopy,%ld,%ld,%d,%d,%lf,%lf,%lf\n", edge_file_name, node_file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed, time_elapsed/num_iterations, total_time_elapsed);
     fflush(out);
 
     graph_destroy(graph);
@@ -5457,9 +5462,11 @@ void run_test_loopy_belief_propagation_snap_file_cuda(const char * edge_file_nam
  */
 void run_test_loopy_belief_propagation_snap_file_edge_cuda(const char * edge_file_name, const char * node_file_name, FILE * out){
     Graph_t graph;
-    clock_t start, end;
-    double time_elapsed;
+    clock_t begin, start, end;
+    double time_elapsed, total_time_elapsed;
     int num_iterations;
+
+    begin = clock();
 
     graph = parse_graph_from_snap_files(edge_file_name, node_file_name);
     assert(graph != NULL);
@@ -5470,15 +5477,16 @@ void run_test_loopy_belief_propagation_snap_file_edge_cuda(const char * edge_fil
     set_up_dest_nodes_to_edges(graph);
     //calculate_diameter(graph);
 
-    start = clock();
     init_previous_edge(graph);
 
+    start = clock();
     num_iterations = loopy_propagate_until_cuda_edge(graph, PRECISION, NUM_ITERATIONS);
     end = clock();
 
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
+    total_time_elapsed = (double)(end - begin)/CLOCKS_PER_SEC;
     //print_nodes(graph);
-    fprintf(out, "%s-%s,loopy-edge,%ld,%ld,%d,%d,%lf\n", edge_file_name, node_file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
+    fprintf(out, "%s-%s,loopy-edge,%ld,%ld,%d,%d,%lf,%lf,%lf\n", edge_file_name, node_file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed, time_elapsed/num_iterations, total_time_elapsed);
     fflush(out);
 
     graph_destroy(graph);
@@ -5486,9 +5494,11 @@ void run_test_loopy_belief_propagation_snap_file_edge_cuda(const char * edge_fil
 
 void run_test_loopy_belief_propagation_mtx_files_cuda(const char * edge_mtx, const char *node_mtx, const struct joint_probability * edge_prob, size_t num_src, size_t num_dest, FILE * out){
     Graph_t graph;
-    clock_t start, end;
-    double time_elapsed;
+    clock_t begin, start, end;
+    double time_elapsed, total_time_elapsed;
     int num_iterations;
+
+    begin = clock();
 
     graph = build_graph_from_mtx(edge_mtx, node_mtx, edge_prob, num_src, num_dest);
     assert(graph != NULL);
@@ -5499,15 +5509,16 @@ void run_test_loopy_belief_propagation_mtx_files_cuda(const char * edge_mtx, con
     set_up_dest_nodes_to_edges_no_hsearch(graph);
     //calculate_diameter(graph);
 
-    start = clock();
     init_previous_edge(graph);
 
+    start = clock();
     num_iterations = loopy_propagate_until_cuda(graph, PRECISION, NUM_ITERATIONS);
     end = clock();
 
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
+    total_time_elapsed = (double)(end - begin)/CLOCKS_PER_SEC;
     //print_nodes(graph);
-    fprintf(out, "%s-%s,loopy,%ld,%ld,%d,%d,%lf,%d,%lf,%d,%lf\n", edge_mtx, node_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, graph->max_in_degree, graph->avg_in_degree, graph->max_out_degree, graph->avg_out_degree, num_iterations+1, time_elapsed);
+    fprintf(out, "%s-%s,loopy,%ld,%ld,%d,%d,%lf,%d,%lf,%d,%lf,%lf,%lf\n", edge_mtx, node_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, graph->max_in_degree, graph->avg_in_degree, graph->max_out_degree, graph->avg_out_degree, num_iterations, time_elapsed, time_elapsed/num_iterations,  total_time_elapsed);
     fflush(out);
 
     graph_destroy(graph);
@@ -5515,9 +5526,11 @@ void run_test_loopy_belief_propagation_mtx_files_cuda(const char * edge_mtx, con
 
 void run_test_loopy_belief_propagation_mtx_files_cuda_streaming(const char * edge_mtx, const char *node_mtx, const struct joint_probability * edge_prob, size_t num_src, size_t num_dest, FILE * out){
     Graph_t graph;
-    clock_t start, end;
-    double time_elapsed;
+    clock_t begin, start, end;
+    double time_elapsed, total_time_elapsed;
     int num_iterations;
+
+    begin = clock();
 
     graph = build_graph_from_mtx(edge_mtx, node_mtx, edge_prob, num_src, num_dest);
     assert(graph != NULL);
@@ -5528,15 +5541,16 @@ void run_test_loopy_belief_propagation_mtx_files_cuda_streaming(const char * edg
     set_up_dest_nodes_to_edges_no_hsearch(graph);
     //calculate_diameter(graph);
 
-    start = clock();
     init_previous_edge(graph);
 
+    start = clock();
     num_iterations = loopy_propagate_until_cuda_streaming(graph, PRECISION, NUM_ITERATIONS);
     end = clock();
 
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
+    total_time_elapsed = (double)(end - begin)/CLOCKS_PER_SEC;
     //print_nodes(graph);
-    fprintf(out, "%s-%s,loopy-streaming,%ld,%ld,%d,%d,%lf,%d,%lf,%d,%lf\n", edge_mtx, node_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, graph->max_in_degree, graph->avg_in_degree, graph->max_out_degree, graph->avg_out_degree, num_iterations+1, time_elapsed);
+    fprintf(out, "%s-%s,loopy-streaming,%ld,%ld,%d,%d,%lf,%d,%lf,%d,%lf,%lf,%lf\n", edge_mtx, node_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, graph->max_in_degree, graph->avg_in_degree, graph->max_out_degree, graph->avg_out_degree, num_iterations, time_elapsed, time_elapsed/num_iterations, total_time_elapsed);
     fflush(out);
 
     graph_destroy(graph);
@@ -5544,9 +5558,11 @@ void run_test_loopy_belief_propagation_mtx_files_cuda_streaming(const char * edg
 
 void run_test_loopy_belief_propagation_mtx_files_cuda_multiple_devices(const char * edge_mtx, const char *node_mtx, const struct joint_probability * edge_prob, size_t num_src, size_t num_dest, FILE * out){
     Graph_t graph;
-    clock_t start, end;
-    double time_elapsed;
+    clock_t begin, start, end;
+    double time_elapsed, total_time_elapsed;
     int num_iterations;
+
+    begin = clock();
 
     graph = build_graph_from_mtx(edge_mtx, node_mtx, edge_prob, num_src, num_dest);
     assert(graph != NULL);
@@ -5557,15 +5573,17 @@ void run_test_loopy_belief_propagation_mtx_files_cuda_multiple_devices(const cha
     set_up_dest_nodes_to_edges_no_hsearch(graph);
     //calculate_diameter(graph);
 
-    start = clock();
+
     init_previous_edge(graph);
 
+    start = clock();
     num_iterations = loopy_propagate_until_cuda_multiple_devices(graph, PRECISION, NUM_ITERATIONS);
     end = clock();
 
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
+    total_time_elapsed = (double)(end - begin)/CLOCKS_PER_SEC;
     //print_nodes(graph);
-    fprintf(out, "%s-%s,loopy-multiple-devices,%ld,%ld,%d,%d,%lf,%d,%lf,%d,%lf\n", edge_mtx, node_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, graph->max_in_degree, graph->avg_in_degree, graph->max_out_degree, graph->avg_out_degree, num_iterations+1, time_elapsed);
+    fprintf(out, "%s-%s,loopy-multiple-devices,%ld,%ld,%d,%d,%lf,%d,%lf,%d,%lf,%lf,%lf\n", edge_mtx, node_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, graph->max_in_degree, graph->avg_in_degree, graph->max_out_degree, graph->avg_out_degree, num_iterations, time_elapsed, time_elapsed/num_iterations, total_time_elapsed);
     fflush(out);
 
     graph_destroy(graph);
@@ -5573,9 +5591,11 @@ void run_test_loopy_belief_propagation_mtx_files_cuda_multiple_devices(const cha
 
 void run_test_loopy_belief_propagation_mtx_files_edge_cuda(const char * edge_mtx, const char * node_mtx, const struct joint_probability * edge_prob, size_t num_src, size_t num_dest, FILE * out){
     Graph_t graph;
-    clock_t start, end;
-    double time_elapsed;
+    clock_t begin, start, end;
+    double time_elapsed, total_time_elapsed;
     int num_iterations;
+
+    begin = clock();
 
     graph = build_graph_from_mtx(edge_mtx, node_mtx, edge_prob, num_src, num_dest);
     assert(graph != NULL);
@@ -5586,15 +5606,16 @@ void run_test_loopy_belief_propagation_mtx_files_edge_cuda(const char * edge_mtx
     set_up_dest_nodes_to_edges_no_hsearch(graph);
     //calculate_diameter(graph);
 
-    start = clock();
     init_previous_edge(graph);
 
+    start = clock();
     num_iterations = loopy_propagate_until_cuda_edge(graph, PRECISION, NUM_ITERATIONS);
     end = clock();
 
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
+    total_time_elapsed = (double)(end - begin)/CLOCKS_PER_SEC;
     //print_nodes(graph);
-    fprintf(out, "%s-%s,loopy-edge,%ld,%ld,%d,%d,%lf,%d,%lf,%d,%lf\n", edge_mtx, node_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, graph->max_in_degree, graph->avg_in_degree, graph->max_out_degree, graph->avg_out_degree, num_iterations+1, time_elapsed);
+    fprintf(out, "%s-%s,loopy-edge,%ld,%ld,%d,%d,%lf,%d,%lf,%d,%lf,%lf,%lf\n", edge_mtx, node_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, graph->max_in_degree, graph->avg_in_degree, graph->max_out_degree, graph->avg_out_degree, num_iterations, time_elapsed, time_elapsed/num_iterations, total_time_elapsed);
     fflush(out);
 
     graph_destroy(graph);
@@ -5602,9 +5623,11 @@ void run_test_loopy_belief_propagation_mtx_files_edge_cuda(const char * edge_mtx
 
 void run_test_loopy_belief_propagation_mtx_files_edge_cuda_streaming(const char * edge_mtx, const char * node_mtx, const struct joint_probability * edge_prob, size_t num_src, size_t num_dest, FILE * out){
     Graph_t graph;
-    clock_t start, end;
-    double time_elapsed;
+    clock_t begin, start, end;
+    double time_elapsed, total_time_elapsed;
     int num_iterations;
+
+    begin = clock();
 
     graph = build_graph_from_mtx(edge_mtx, node_mtx, edge_prob, num_src, num_dest);
     assert(graph != NULL);
@@ -5615,15 +5638,16 @@ void run_test_loopy_belief_propagation_mtx_files_edge_cuda_streaming(const char 
     set_up_dest_nodes_to_edges_no_hsearch(graph);
     //calculate_diameter(graph);
 
-    start = clock();
     init_previous_edge(graph);
 
+    start = clock();
     num_iterations = loopy_propagate_until_cuda_edge_streaming(graph, PRECISION, NUM_ITERATIONS);
     end = clock();
 
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
+    total_time_elapsed = (double)(end - begin)/CLOCKS_PER_SEC;
     //print_nodes(graph);
-    fprintf(out, "%s-%s,loopy-edge-streaming,%ld,%ld,%d,%d,%lf,%d,%lf,%d,%lf\n", edge_mtx, node_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, graph->max_in_degree, graph->avg_in_degree, graph->max_out_degree, graph->avg_out_degree, num_iterations+1, time_elapsed);
+    fprintf(out, "%s-%s,loopy-edge-streaming,%ld,%ld,%d,%d,%lf,%d,%lf,%d,%lf,%lf,%lf\n", edge_mtx, node_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, graph->max_in_degree, graph->avg_in_degree, graph->max_out_degree, graph->avg_out_degree, num_iterations, time_elapsed, time_elapsed/num_iterations, total_time_elapsed);
     fflush(out);
 
     graph_destroy(graph);
@@ -5631,9 +5655,11 @@ void run_test_loopy_belief_propagation_mtx_files_edge_cuda_streaming(const char 
 
 void run_test_loopy_belief_propagation_mtx_files_edge_cuda_multiple_devices(const char * edge_mtx, const char * node_mtx, const struct joint_probability * edge_prob, size_t num_src, size_t num_dest, FILE * out){
     Graph_t graph;
-    clock_t start, end;
-    double time_elapsed;
+    clock_t begin, start, end;
+    double time_elapsed, total_time_elapsed;
     int num_iterations;
+
+    begin = clock();
 
     graph = build_graph_from_mtx(edge_mtx, node_mtx, edge_prob, num_src, num_dest);
     assert(graph != NULL);
@@ -5644,15 +5670,16 @@ void run_test_loopy_belief_propagation_mtx_files_edge_cuda_multiple_devices(cons
     set_up_dest_nodes_to_edges_no_hsearch(graph);
     //calculate_diameter(graph);
 
-    start = clock();
     init_previous_edge(graph);
 
+    start = clock();
     num_iterations = loopy_propagate_until_cuda_edge_multiple_devices(graph, PRECISION, NUM_ITERATIONS);
     end = clock();
 
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
+    total_time_elapsed = (double)(end - begin)/CLOCKS_PER_SEC;
     //print_nodes(graph);
-    fprintf(out, "%s-%s,loopy-edge-multiple-devices,%ld,%ld,%d,%d,%lf,%d,%lf,%d,%lf\n", edge_mtx, node_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, graph->max_in_degree, graph->avg_in_degree, graph->max_out_degree, graph->avg_out_degree, num_iterations+1, time_elapsed);
+    fprintf(out, "%s-%s,loopy-edge-multiple-devices,%ld,%ld,%d,%d,%lf,%d,%lf,%d,%lf,%lf,%lf\n", edge_mtx, node_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, graph->max_in_degree, graph->avg_in_degree, graph->max_out_degree, graph->avg_out_degree, num_iterations, time_elapsed, time_elapsed/num_iterations, total_time_elapsed);
     fflush(out);
 
     graph_destroy(graph);
@@ -5677,11 +5704,14 @@ void run_test_loopy_belief_propagation_mtx_files_cuda_openmpi(const char * edge_
     Graph_t graph = NULL;
     clock_t start;
     clock_t end;
-    double time_elapsed;
+    clock_t begin;
+    double time_elapsed, total_time_elapsed;
     int num_iterations;
     size_t num_vertices, num_edges;
     num_vertices = 0;
     num_edges = 0;
+
+    begin = clock();
 
     // set up structs
     register_belief();
@@ -5694,9 +5724,9 @@ void run_test_loopy_belief_propagation_mtx_files_cuda_openmpi(const char * edge_
         num_edges = graph->current_num_edges;
         set_up_src_nodes_to_edges_no_hsearch(graph);
         set_up_dest_nodes_to_edges_no_hsearch(graph);
-        start = clock();
         init_previous_edge(graph);
     }
+    start = clock();
 
     MPICHECK(MPI_Bcast(&num_vertices, 1, MPI_INT, 0, MPI_COMM_WORLD));
     MPICHECK(MPI_Bcast(&num_edges, 1, MPI_INT, 0, MPI_COMM_WORLD));
@@ -5717,12 +5747,12 @@ void run_test_loopy_belief_propagation_mtx_files_cuda_openmpi(const char * edge_
     MPICHECK(MPI_Bcast(&(graph->edges_dest_index), num_edges, MPI_INT, 0, MPI_COMM_WORLD));
 
     MPICHECK(MPI_Bcast(&(graph->edges_messages), num_edges, belief_struct, 0, MPI_COMM_WORLD));
-    MPICHECK(MPI_Bcast(&(graph->edges_messages_size), num_edges, MPI_INT, 0, MPI_COMM_WORLD));
+    MPICHECK(MPI_Bcast(&(graph->edges_messages_size), 1, MPI_INT, 0, MPI_COMM_WORLD));
     MPICHECK(MPI_Bcast(&(graph->edges_messages_previous), num_edges, MPI_FLOAT, 0, MPI_COMM_WORLD));
     MPICHECK(MPI_Bcast(&(graph->edges_messages_current), num_edges, MPI_FLOAT, 0, MPI_COMM_WORLD));
 
     MPICHECK(MPI_Bcast(&(graph->node_states), num_vertices, belief_struct, 0, MPI_COMM_WORLD));
-    MPICHECK(MPI_Bcast(&(graph->node_states_size), num_vertices, MPI_INT, 0, MPI_COMM_WORLD));
+    MPICHECK(MPI_Bcast(&(graph->node_states_size), 1, MPI_INT, 0, MPI_COMM_WORLD));
     MPICHECK(MPI_Bcast(&(graph->node_states_previous), num_vertices, MPI_FLOAT, 0, MPI_COMM_WORLD));
     MPICHECK(MPI_Bcast(&(graph->node_states_current), num_vertices, MPI_FLOAT, 0, MPI_COMM_WORLD));
 
@@ -5739,10 +5769,11 @@ void run_test_loopy_belief_propagation_mtx_files_cuda_openmpi(const char * edge_
     if(my_rank == 0) {
         end = clock();
         time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
+        total_time_elapsed = (double)(end - begin)/CLOCKS_PER_SEC;
 
-        fprintf(out, "%s-%s,loopy-openmpi,%ld,%ld,%d,%d,%lf,%d,%lf,%d,%lf\n", edge_mtx, node_mtx,
+        fprintf(out, "%s-%s,loopy-openmpi,%ld,%ld,%d,%d,%lf,%d,%lf,%d,%lf,%lf,%lf\n", edge_mtx, node_mtx,
                 graph->current_num_vertices, graph->current_num_edges, graph->diameter, graph->max_in_degree,
-                graph->avg_in_degree, graph->max_out_degree, graph->avg_out_degree, num_iterations+1, time_elapsed);
+                graph->avg_in_degree, graph->max_out_degree, graph->avg_out_degree, num_iterations, time_elapsed, time_elapsed/num_iterations, total_time_elapsed);
         fflush(out);
     }
 
@@ -5758,11 +5789,14 @@ void run_test_loopy_belief_propagation_mtx_files_edge_cuda_openmpi(const char *e
     Graph_t graph = NULL;
     clock_t start;
     clock_t end;
-    double time_elapsed;
+    clock_t begin;
+    double time_elapsed, total_time_elapsed;
     int num_iterations;
     size_t num_vertices, num_edges;
     num_vertices = 0;
     num_edges = 0;
+
+    begin = clock();
 
     // set up structs
     register_belief();
@@ -5775,9 +5809,9 @@ void run_test_loopy_belief_propagation_mtx_files_edge_cuda_openmpi(const char *e
         num_edges = graph->current_num_edges;
         set_up_src_nodes_to_edges_no_hsearch(graph);
         set_up_dest_nodes_to_edges_no_hsearch(graph);
-        start = clock();
         init_previous_edge(graph);
     }
+    start = clock();
 
     MPICHECK(MPI_Bcast(&num_vertices, 1, MPI_INT, 0, MPI_COMM_WORLD));
     MPICHECK(MPI_Bcast(&num_edges, 1, MPI_INT, 0, MPI_COMM_WORLD));
@@ -5798,12 +5832,12 @@ void run_test_loopy_belief_propagation_mtx_files_edge_cuda_openmpi(const char *e
     MPICHECK(MPI_Bcast(&(graph->edges_dest_index), num_edges, MPI_INT, 0, MPI_COMM_WORLD));
 
     MPICHECK(MPI_Bcast(&(graph->edges_messages), num_edges, belief_struct, 0, MPI_COMM_WORLD));
-    MPICHECK(MPI_Bcast(&(graph->edges_messages_size), num_edges, MPI_INT, 0, MPI_COMM_WORLD));
+    MPICHECK(MPI_Bcast(&(graph->edges_messages_size), 1, MPI_INT, 0, MPI_COMM_WORLD));
     MPICHECK(MPI_Bcast(&(graph->edges_messages_previous), num_edges, MPI_FLOAT, 0, MPI_COMM_WORLD));
     MPICHECK(MPI_Bcast(&(graph->edges_messages_current), num_edges, MPI_FLOAT, 0, MPI_COMM_WORLD));
 
     MPICHECK(MPI_Bcast(&(graph->node_states), num_vertices, belief_struct, 0, MPI_COMM_WORLD));
-    MPICHECK(MPI_Bcast(&(graph->node_states_size), num_vertices, MPI_INT, 0, MPI_COMM_WORLD));
+    MPICHECK(MPI_Bcast(&(graph->node_states_size), 1, MPI_INT, 0, MPI_COMM_WORLD));
     MPICHECK(MPI_Bcast(&(graph->node_states_previous), num_vertices, MPI_FLOAT, 0, MPI_COMM_WORLD));
     MPICHECK(MPI_Bcast(&(graph->node_states_current), num_vertices, MPI_FLOAT, 0, MPI_COMM_WORLD));
 
@@ -5820,8 +5854,9 @@ void run_test_loopy_belief_propagation_mtx_files_edge_cuda_openmpi(const char *e
     if(my_rank == 0) {
         end = clock();
         time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
+        total_time_elapsed = (double)(end - begin)/CLOCKS_PER_SEC;
 
-        fprintf(out, "%s-%s,loopy-edge-openmpi,%ld,%ld,%d,%d,%lf,%d,%lf,%d,%lf\n", edge_file_name, node_file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, graph->max_in_degree, graph->avg_in_degree, graph->max_out_degree, graph->avg_out_degree, num_iterations+1, time_elapsed);
+        fprintf(out, "%s-%s,loopy-edge-openmpi,%ld,%ld,%d,%d,%lf,%d,%lf,%d,%lf,%lf,%lf\n", edge_file_name, node_file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, graph->max_in_degree, graph->avg_in_degree, graph->max_out_degree, graph->avg_out_degree, num_iterations, time_elapsed, time_elapsed/num_iterations, total_time_elapsed);
         fflush(out);
     }
 
