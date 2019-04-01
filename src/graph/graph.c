@@ -1869,6 +1869,66 @@ void loopy_propagate_one_iteration(Graph_t graph){
 	update_work_queue_nodes(graph, PRECISION_ITERATION);
 }
 
+/**
+ * Performs one iteration of loopy BP on the graph
+ * @param graph The graph
+ */
+void loopy_propagate_one_iteration_no_work_queue(Graph_t graph){
+    size_t i;
+    size_t current_index;
+    struct belief *node_states;
+
+    struct belief *current_edge_messages;
+    float *edges_messages_current;
+    float *edges_messages_previous;
+
+    current_edge_messages = graph->edges_messages;
+    edges_messages_current = graph->edges_messages_current;
+    edges_messages_previous = graph->edges_messages_previous;
+
+    const struct joint_probability* edge_joint_probability = &(graph->edge_joint_probability);
+    const size_t edge_joint_probability_dim_x = graph->edge_joint_probability_dim_x;
+    const size_t edge_joint_probability_dim_y = graph->edge_joint_probability_dim_y;
+
+    struct belief buffer;
+
+    const size_t num_vertices = graph->current_num_vertices;
+    const size_t* dest_node_to_edges_nodes = graph->dest_nodes_to_edges_node_list;
+    const size_t* dest_node_to_edges_edges = graph->dest_nodes_to_edges_edge_list;
+    const size_t* src_node_to_edges_nodes = graph->src_nodes_to_edges_node_list;
+    const size_t* src_node_to_edges_edges = graph->src_nodes_to_edges_edge_list;
+    const size_t num_edges = graph->current_num_edges;
+    node_states = graph->node_states;
+    const size_t num_variables = graph->node_states_size;
+
+
+#pragma omp parallel for default(none) shared(node_states, dest_node_to_edges_nodes, dest_node_to_edges_edges, src_node_to_edges_nodes, src_node_to_edges_edges, current_edge_messages, edge_joint_probability, edges_messages_current, edges_messages_previous) private(buffer, i, current_index) //schedule(dynamic, 16)
+    for(i = 0; i < num_vertices; ++i){
+        current_index = i;
+
+        initialize_message_buffer(&buffer, node_states, current_index, num_variables);
+
+        //read incoming messages
+        read_incoming_messages(&buffer, dest_node_to_edges_nodes, dest_node_to_edges_edges, current_edge_messages, num_edges, num_vertices, num_variables, current_index);
+
+/*
+		printf("Message at node\n");
+		print_node(graph, i);
+		printf("[\t");
+		for(j = 0; j < num_variables; ++j){
+			printf("%.6lf\t", message_buffer[j]);
+		}
+		printf("\t]\n");*/
+
+
+        //send belief
+        send_message_for_node(src_node_to_edges_nodes, src_node_to_edges_edges, &buffer, num_edges, edge_joint_probability, edge_joint_probability_dim_x, edge_joint_probability_dim_y, current_edge_messages, edges_messages_previous, edges_messages_current, num_vertices, current_index);
+
+    }
+
+    marginalize_loopy_nodes(graph, current_edge_messages, num_vertices);
+}
+
 
 /**
  * Performs one iteration of edge-optimized loopy BP
@@ -1930,6 +1990,63 @@ void loopy_propagate_edge_one_iteration(Graph_t graph){
 	}*/
 	marginalize_loopy_nodes(graph, current_edge_messages, num_nodes);
 	update_work_queue_edges(graph, PRECISION_ITERATION);
+}
+
+/**
+ * Performs one iteration of edge-optimized loopy BP
+ * @param graph The graph
+ */
+void loopy_propagate_edge_one_iteration_no_work_queue(Graph_t graph){
+    size_t i;
+    size_t src_node_index, dest_node_index, current_index;
+    struct belief *node_states;
+
+    struct belief *current_edge_messages;
+    float *edges_messages_previous;
+    float *edges_messages_current;
+
+
+    current_edge_messages = graph->edges_messages;
+    edges_messages_previous = graph->edges_messages_previous;
+    edges_messages_current = graph->edges_messages_current;
+
+    const struct joint_probability* edge_joint_probability = &(graph->edge_joint_probability);
+    const size_t edge_joint_probability_dim_x = graph->edge_joint_probability_dim_x;
+    const size_t edge_joint_probability_dim_y = graph->edge_joint_probability_dim_y;
+
+    const size_t num_edges = graph->current_num_edges;
+    const size_t num_nodes = graph->current_num_vertices;
+    node_states = graph->node_states;
+    const size_t node_states_size = graph->node_states_size;
+    const size_t* edges_src_index = graph->edges_src_index;
+    const size_t*edges_dest_index = graph->edges_dest_index;
+
+#pragma omp parallel default(none) shared(node_states, edge_joint_probability, current_edge_messages, edges_messages_previous, edges_messages_current, edges_src_index, edges_dest_index) private(src_node_index, dest_node_index, i, current_index)
+    {
+#pragma omp for
+        for (i = 0; i < num_edges; ++i) {
+            current_index = i;
+
+            src_node_index = edges_src_index[current_index];
+            send_message_for_edge_iteration(node_states, src_node_index, current_index, edge_joint_probability,
+                                            edge_joint_probability_dim_x, edge_joint_probability_dim_y,
+                                            current_edge_messages, edges_messages_previous, edges_messages_current);
+        }
+
+#pragma omp for
+        for (i = 0; i < num_edges; ++i) {
+            current_index = i;
+
+            dest_node_index = edges_dest_index[current_index];
+            combine_loopy_edge(current_index, current_edge_messages, dest_node_index, node_states, node_states_size);
+        }
+    }
+    /*
+#pragma omp parallel for default(none) shared(node_states, num_vars, num_nodes) private(i)
+    for(i = 0; i < num_nodes; ++i){
+        marginalize_loopy_node_edge(node_states, num_vars[i]);
+    }*/
+    marginalize_loopy_nodes(graph, current_edge_messages, num_nodes);
 }
 
 /**
@@ -2222,6 +2339,87 @@ int loopy_propagate_until_edge(Graph_t graph, float convergence, int max_iterati
 
 
 /**
+ * Runs edge-optimized loopy BP until convergence or max iterations reached
+ * @param graph The graph
+ * @param convergence The convergence threshold below which processing will stop
+ * @param max_iterations The maximum number of iterations to run for
+ * @return The actual number of iterations executed
+ */
+int loopy_propagate_until_edge_no_work_queue(Graph_t graph, float convergence, int max_iterations){
+    size_t j, k;
+    int i;
+    float delta, diff, previous_delta, sum;
+    struct belief *states;
+    float *edge_messages_current;
+    float *edge_messages_previous;
+
+    edge_messages_current = graph->edges_messages_current;
+    edge_messages_previous = graph->edges_messages_previous;
+
+    const size_t num_edges = graph->current_num_edges;
+    const size_t num_nodes = graph->current_num_vertices;
+
+    previous_delta = -1.0f;
+    delta = 0.0f;
+
+    //init_work_queue_edges(graph);
+
+    for(i = 1; i <= max_iterations; ++i){
+        //printf("Current iteration: %d\n", i+1);
+        loopy_propagate_edge_one_iteration_no_work_queue(graph);
+
+        delta = 0.0f;
+
+#pragma omp parallel for default(none) shared(edge_messages_previous, edge_messages_current)  private(j, diff) reduction(+:delta)
+        for(j = 0; j < num_edges; ++j){
+            diff = edge_messages_previous[j] - edge_messages_current[j];
+            //printf("Previous: %f\n", previous_edge_messages[j].data[k]);
+            //printf("Current : %f\n", current_edge_messages[j].data[k]);
+            if(diff != diff){
+                diff = 0.0f;
+            }
+            delta += fabsf(diff);
+        }
+
+        //printf("Current delta: %.6lf\n", delta);
+        //printf("Previous delta: %.6lf\n", previous_delta);
+        if(delta < convergence || fabsf(delta - previous_delta) < convergence){
+            break;
+        }
+        if(i < max_iterations - 1) {
+            previous_delta = delta;
+        }
+    }
+    if(i >= max_iterations){
+        printf("No Convergence: previous: %f vs current: %f\n", previous_delta, delta);
+    }
+
+    states = graph->node_states;
+    const size_t num_variables = graph->node_states_size;
+
+#pragma omp parallel for default(none) shared(states) private(sum, k)
+    for(j = 0; j < num_nodes; ++j){
+        sum = 0.0;
+#pragma omp simd safelen(AVG_STATES)
+#pragma simd vectorlength(AVG_STATES)
+        for (k = 0; k < num_variables; ++k) {
+            sum += states[j].data[k];
+        }
+        if (sum <= 0.0) {
+            sum = 1.0;
+        }
+
+#pragma omp simd safelen(AVG_STATES)
+#pragma simd vectorlength(AVG_STATES)
+        for (k = 0; k < num_variables; ++k) {
+            states[j].data[k] /= sum;
+        }
+    }
+    return i;
+}
+
+
+/**
  * Runs edge-optimized PageRank until convergence or max iterations reached
  * @param graph The graph
  * @param convergence The convergence threshold below which processing will stop
@@ -2328,6 +2526,59 @@ int loopy_propagate_until(Graph_t graph, float convergence, int max_iterations){
 	}
 //	assert(i > 0);
 	return i;
+}
+
+/**
+ * Runs node-optimized BP until either convergence threshold met or max iterations
+ * @param graph The graph
+ * @param convergence The covergence threshold below which the graph will cease processing
+ * @param max_iterations The maximum number of iterations
+ * @return The actual number of iterations executed
+ */
+int loopy_progagate_until_no_work_queue(Graph_t graph, float convergence, int max_iterations){
+    size_t j;
+    int i;
+    float delta, diff, previous_delta;
+    float *edges_messages_current;
+    float *edges_messages_previous;
+
+    edges_messages_current = graph->edges_messages_current;
+    edges_messages_previous = graph->edges_messages_previous;
+
+    const size_t num_edges = graph->current_num_edges;
+
+    previous_delta = -1.0f;
+    delta = 0.0;
+
+    for(i = 1; i <= max_iterations; ++i){
+        //printf("Current iteration: %d\n", i+1);
+        loopy_propagate_one_iteration_no_work_queue(graph);
+
+        delta = 0.0;
+
+#pragma omp parallel for default(none) shared(edges_messages_previous, edges_messages_current)  private(j, diff) reduction(+:delta)
+        for(j = 0; j < num_edges; ++j){
+            diff = edges_messages_previous[j] - edges_messages_current[j];
+            //printf("Previous Edge[%d][%d]: %f\n", j, k, previous_edge_messages[j].data[k]);
+            //printf("Current Edge[%d][%d]: %f\n", j, k, current_edge_messages[j].data[k]);
+            if(diff != diff){
+                diff = 0.0;
+            }
+            delta += fabsf(diff);
+        }
+
+        if(delta < convergence || fabsf(delta - previous_delta) < convergence){
+            break;
+        }
+        if(i < max_iterations - 1) {
+            previous_delta = delta;
+        }
+    }
+    if(i >= max_iterations){
+        printf("No Convergence: previous: %f vs current: %f\n", previous_delta, delta);
+    }
+//	assert(i > 0);
+    return i;
 }
 
 /**

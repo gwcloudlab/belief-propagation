@@ -10,7 +10,7 @@ find_package(OpenACC REQUIRED)
 set(CMAKE_VERBOSE_MAKEFILE on)
 set(CMAKE_C_COMPILER /opt/pgi/linux86-64/18.10/bin/pgcc)
 #set(CMAKE_C_COMPILER ${HOME}/pgi/linux86-64/18.4/bin/pgcc)
-set(CMAKE_C_FLAGS_RELEASE "-O3 -acc -ta=tesla:cc60,cuda10.0")
+set(CMAKE_C_FLAGS_RELEASE "-acc -ta=tesla:cc60,cuda10.0 -Msafeptr")
 set(CMAKE_C_FLAGS_DEBUG  "-g -acc -Minfo=accel -ta=tesla:cc60,time,cuda10.0 -Msafeptr")
 SET(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS)
 
