@@ -2,7 +2,7 @@
 #include "../csr-parser/csr-wrapper.h"
 
 int main(void) {
-    FILE * out = fopen("c_benchmark_loopy_node.csv", "w");
+    FILE * out = fopen("c_benchmark_loopy_node_no_work_queue.csv", "w");
     fprintf(out, "File Name,Propagation Type,Number of Nodes,Number of Edges,Diameter,Max In-degree,Avg In-degree,Max Out-degree,Avg Out-degree,Number of Iterations,BP Run Time(s),BP Run Time Per Iteration (s),Total Run Time(s)\n");
     fflush(out);
 

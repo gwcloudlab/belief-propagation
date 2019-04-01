@@ -1,7 +1,7 @@
 #include "belief-propagation.hpp"
 
 int main(void) {
-    FILE * out = fopen("cuda_benchmark_loopy_edge.csv", "w");
+    FILE * out = fopen("cuda_benchmark_loopy_edge_no_work_queue.csv", "w");
     fprintf(out, "File Name,Propagation Type,Number of Nodes,Number of Edges,Diameter,Max In-degree,Avg In-degree,Max Out-degree,Avg Out-degree,Number of Iterations,BP Run Time(s),BP Run Time Per Iteration (s),Total Run Time(s)\n");
     fflush(out);
 
