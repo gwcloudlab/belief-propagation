@@ -83,7 +83,7 @@ void test_parse_file(char * file_name){
     Graph_t graph;
     clock_t start, end;
     double time_elapsed;
-    int i;
+    size_t i;
 
     assert(yylex_init(&scanner) == 0);
 
@@ -129,7 +129,7 @@ void test_parse_file(char * file_name){
     // print time data
 
     time_elapsed = (double)(end - start) / CLOCKS_PER_SEC;
-    printf("%s,regular,%d,%d,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, time_elapsed);
+    printf("%s,regular,%ld,%ld,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, time_elapsed);
 
     //print_nodes(graph);
 
@@ -190,7 +190,7 @@ void test_loopy_belief_propagation(char * file_name){
 
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
     //print_nodes(graph);
-    printf("%s,loopy,%d,%d,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, time_elapsed);
+    printf("%s,loopy,%ld,%ld,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, time_elapsed);
 
     delete_expression(expression);
 
@@ -236,7 +236,7 @@ void run_test_belief_propagation(struct expression * expression, const char * fi
     Graph_t graph;
     clock_t start, end;
     double time_elapsed;
-    int i;
+    size_t i;
 
     // set up data
 
@@ -270,7 +270,7 @@ void run_test_belief_propagation(struct expression * expression, const char * fi
     // print timing data
 
     time_elapsed = (double)(end - start) / CLOCKS_PER_SEC;
-    printf("%s,regular,%d,%d,%d,2,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, time_elapsed);
+    printf("%s,regular,%ld,%ld,%d,2,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, time_elapsed);
 
     //print_nodes(graph);
 
@@ -309,7 +309,7 @@ void run_test_loopy_belief_propagation(struct expression * expression, const cha
 
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
 
-    printf("%s,loopy,%d,%d,%d,%d,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
+    printf("%s,loopy,%ld,%ld,%d,%d,%lf\n", file_name, graph->current_num_vertices, graph->current_num_edges, graph->diameter, num_iterations, time_elapsed);
     //print_nodes(graph);
 
     graph_destroy(graph);

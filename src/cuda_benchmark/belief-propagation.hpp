@@ -26,57 +26,61 @@ extern "C" {
 }
 
 struct node_stream_data {
-    int begin_index;
-    int end_index;
-    int streamNodeCount;
+    size_t begin_index;
+    size_t end_index;
+    size_t streamNodeCount;
     cudaStream_t stream;
 
-    int num_vertices;
-    int num_edges;
+    size_t num_vertices;
+    size_t num_edges;
     struct belief *buffers;
     struct belief *node_messages;
-    int * node_messages_size;
-    int edge_joint_probability_dim_x;
-    int edge_joint_probability_dim_y;
+    float *node_previous_states;
+    float *node_current_states;
+    size_t node_messages_size;
+    size_t edge_joint_probability_dim_x;
+    size_t edge_joint_probability_dim_y;
     struct belief *current_edge_messages;
     float *current_edge_messages_previous;
     float *current_edge_messages_current;
-    int *work_queue_nodes;
-    int *num_work_items;
-    int *work_queue_scratch;
-    int * src_nodes_to_edges_nodes;
-    int * src_nodes_to_edges_edges;
-    int * dest_nodes_to_edges_nodes;
-    int * dest_nodes_to_edges_edges;
+    size_t *work_queue_nodes;
+    unsigned long long int *num_work_items;
+    size_t *work_queue_scratch;
+    size_t * src_nodes_to_edges_nodes;
+    size_t * src_nodes_to_edges_edges;
+    size_t * dest_nodes_to_edges_nodes;
+    size_t * dest_nodes_to_edges_edges;
 };
 
 struct edge_stream_data {
-    int begin_index;
-    int end_index;
+    size_t begin_index;
+    size_t end_index;
 
-    int streamEdgeCount;
+    size_t streamEdgeCount;
     cudaStream_t stream;
 
-    int num_vertices;
-    int num_edges;
+    size_t num_vertices;
+    size_t num_edges;
 
     struct belief *node_states;
+    float *node_previous_states;
+    float *node_current_states;
 
-    int edge_joint_probability_dim_x;
-    int edge_joint_probability_dim_y;
+    size_t edge_joint_probability_dim_x;
+    size_t edge_joint_probability_dim_y;
 
     struct belief *current_edge_messages;
     float *current_edge_messages_previous;
     float *current_edge_messages_current;
-    int *current_edge_messages_size;
+    size_t current_edge_messages_size;
 
-    int *work_queue_edges;
-    int *num_work_items;
-    int *work_queue_scratch;
-    int * dest_nodes_to_edges_nodes;
-    int * dest_nodes_to_edges_edges;
-    int * edges_src_index;
-    int * edges_dest_index;
+    size_t *work_queue_edges;
+    unsigned long long int *num_work_items;
+    size_t *work_queue_scratch;
+    size_t * dest_nodes_to_edges_nodes;
+    size_t * dest_nodes_to_edges_edges;
+    size_t * edges_src_index;
+    size_t * edges_dest_index;
 };
 
 void CheckCudaErrorAux (const char *, int, const char *, cudaError_t);
@@ -92,217 +96,234 @@ void CheckCudaErrorAux (const char *, int, const char *, cudaError_t);
 } while(0)
 
 __device__
-int atomic_add_inc(int *);
+size_t atomic_add_inc(size_t *);
 
 __device__
-void update_work_queue_nodes_cuda(int *, int *, int *, const float *, const float *, int, float);
+void update_work_queue_nodes_cuda(size_t *, unsigned long long int *, size_t *, const float *, const float *, unsigned long long int, float);
 
 __device__
-void update_work_queue_edges_cuda(int *, int *, int *, const float *, const float *, int, float);
+void update_work_queue_edges_cuda(size_t *, unsigned long long int *, size_t *, const float *, const float *, unsigned long long int, float);
 
 __device__
-void init_message_buffer_cuda(struct belief *, const struct belief *, int, int);
+void init_message_buffer_cuda(struct belief *, const struct belief *, size_t, size_t);
 
 __global__
-void init_and_read_message_buffer_cuda_streaming(int, int, struct belief *, const struct belief *, const int *,
-        const struct belief *, const int *, const int *, int, int, const int *, const int*);
+void init_and_read_message_buffer_cuda_streaming(size_t, size_t, struct belief *, const struct belief *, const size_t *,
+        const struct belief *, const size_t *, const size_t *, size_t, size_t, const size_t *, const unsigned long long int*);
 
 __device__
-void combine_message_cuda(struct belief *, const struct belief *, int, int);
+void combine_message_cuda(struct belief *, const struct belief *, size_t, size_t);
 
 __device__
-void combine_message_cuda_node_streaming(struct belief *, const struct belief *, int, int);
+void combine_message_cuda_node_streaming(struct belief *, const struct belief *, size_t, size_t);
 
 __device__
-void combine_message_cuda_edge_streaming(struct belief *, const struct belief *, int, int);
+void combine_message_cuda_edge_streaming(struct belief *, const struct belief *, size_t, size_t);
 
 __device__
-void combine_page_rank_message_cuda(struct belief *, const struct belief *, int, int);
+void combine_page_rank_message_cuda(struct belief *, const struct belief *, size_t, size_t);
 
 __device__
-void combine_viterbi_message_cuda(struct belief *, const struct belief *, int, int);
+void combine_viterbi_message_cuda(struct belief *, const struct belief *, size_t, size_t);
 
 __device__
 void read_incoming_messages_cuda(struct belief *, const struct belief *,
-                                 const int *, const int *, int, int,
-                                 int, int);
+                                 const size_t *, const size_t *, size_t, size_t,
+                                 size_t, size_t);
 
 __device__
-void send_message_for_edge_cuda(const struct belief *, int, const struct joint_probability *, const int *, const int *,
+void send_message_for_edge_cuda(const struct belief *, size_t, const struct joint_probability *, const size_t *, const size_t *,
                                 struct belief *, float *, float *);
 
 __device__
-void send_message_for_edge_cuda_streaming(const struct belief *, int, const struct joint_probability *, const int *, const int *,
+void send_message_for_edge_cuda_streaming(const struct belief *, size_t, const struct joint_probability *, const size_t *, const size_t *,
                                 struct belief *, float *, float *);
 __device__
-void send_message_for_node_cuda(const struct belief *, int, const struct joint_probability *, const int *, const int*,
-                                struct belief *, float *, float *, const int *, const int *,
-                                int, int);
+void send_message_for_node_cuda(const struct belief *, size_t, const struct joint_probability *, const size_t *, const size_t*,
+                                struct belief *, float *, float *, const size_t *, const size_t *,
+                                size_t, size_t);
 
 __device__
-void send_message_for_node_cuda_streaming(const struct belief *, int, const struct joint_probability *, const int *,
-                                const int *, struct belief *, float *, float *, const int *, const int *,
-                                int, int);
+void send_message_for_node_cuda_streaming(const struct belief *, size_t, const struct joint_probability *, const size_t *,
+                                const size_t *, struct belief *, float *, float *, const size_t *, const size_t *,
+                                size_t, size_t);
 
 __device__
-void marginalize_node(struct belief *, int *, int,
+void marginalize_node(struct belief *, float *, float *,size_t *, size_t,
                       const struct belief *,
-                      const int *, const int *,
-                      int, int);
+                      const size_t *, const size_t *,
+                      size_t, size_t);
 
 __device__
-void marginalize_node_node_streaming(struct belief *, int *, int,
+void marginalize_node_node_streaming(struct belief *, size_t *, size_t,
                       const struct belief *,
-                      const int *, const int *,
-                      int, int);
+                      const size_t *, const size_t *,
+                      size_t, size_t);
 
 __device__
-void marginalize_node_edge_streaming(struct belief *, int *, int,
+void marginalize_node_edge_streaming(struct belief *, size_t *, size_t,
                       const struct belief *,
-                      const int *, const int *,
-                      int, int);
+                      const size_t *, const size_t *,
+                      size_t, size_t);
 
 __device__
-void marginalize_page_rank_node(struct belief *, int *, int,
+void marginalize_page_rank_node(struct belief *, size_t *, size_t,
                       const struct belief *,
-                      const int *, const int *,
-                      int, int);
+                      const size_t *, const size_t *,
+                      size_t, size_t);
 
 __device__
-void argmax_node(struct belief *, int *, int,
+void argmax_node(struct belief *, size_t *, size_t,
                  const struct belief *,
-                 const int *, const int *,
-                 int, int);
+                 const size_t *, const size_t *,
+                 size_t, size_t);
 
 __global__
-void marginalize_nodes(struct belief *, int *, const struct belief *,
-                       const int *, const int *,
-                       int, int);
+void marginalize_nodes(struct belief *,
+        float *, float *,
+        size_t *, const struct belief *,
+                       const size_t *, const size_t *,
+                       size_t, size_t);
 
 __global__
-void marginalize_nodes_streaming(int, int,
-                        struct belief *, int *, const struct belief *,
-                       const int *, const int *,
-                       int, int);
+void marginalize_nodes_streaming(size_t, size_t,
+                        struct belief *,
+                                float *, float *,
+                                size_t *, const struct belief *,
+                       const size_t *, const size_t *,
+                       size_t, size_t);
 
 __global__
-void marginalize_page_rank_nodes(struct belief *, int *, const struct belief *,
-                       const int *, const int *,
-                       int, int);
+void marginalize_page_rank_nodes(struct belief *, size_t *, const struct belief *,
+                       const size_t *, const size_t *,
+                       size_t, size_t);
 
 __global__
-void argmax_nodes(struct belief *, int *, const struct belief *,
-                                 const int *, const int *,
-                                 int, int);
+void argmax_nodes(struct belief *, size_t *, const struct belief *,
+                                 const size_t *, const size_t *,
+                                 size_t, size_t);
 
 __global__
-void loopy_propagate_main_loop(int, int,
+void loopy_propagate_main_loop(size_t, size_t,
                                struct belief *,
-                               int *,
+                               size_t *,
                                float *, float *,
                                const struct joint_probability *,
-                               const int *, const int *,
+                               const size_t *, const size_t *,
                                struct belief *,
                                float *, float *,
-                               int *, int *,
-                               int *,
-                               const int *, const int *,
-                               const int *, const int *);
+                               size_t *, size_t *,
+                               size_t *,
+                               const size_t *, const size_t *,
+                               const size_t *, const size_t *);
 
 __global__
-void loopy_propagate_init_read_buffer(struct belief *, int *, int, int);
+void loopy_propagate_main_loop_no_work_queue(size_t, size_t,
+                            struct belief *,
+                            size_t *,
+                            float *, float *,
+                            const struct joint_probability *,
+                            const size_t *, const size_t *,
+                            struct belief *,
+                            float *, float *,
+                            const size_t *, const size_t *,
+                            const size_t *, const size_t *);
+
+__global__
+void loopy_propagate_init_read_buffer(struct belief *, size_t *, size_t, size_t);
 
 __global__
 void __launch_bounds__(BLOCK_SIZE_NODE_STREAMING, MIN_BLOCKS_PER_MP)
-send_message_for_node_cuda_streaming_kernel(int, int,
-                                          const int *, const int *,
-                                          const struct belief *, int,
+send_message_for_node_cuda_streaming_kernel(size_t, size_t,
+                                          const size_t *, const size_t *,
+                                          const struct belief *, size_t,
                                           const struct joint_probability *,
-                                          const int *, const int *,
+                                          const size_t *, const size_t *,
                                           struct belief *,
                                           float *, float *,
-                                          const int *, const int *,
-                                          int);
+                                          const size_t *, const size_t *,
+                                          size_t);
 
 __global__
-void marginalize_node_cuda_streaming( int, int,
-                                      const int *, const int *,
+void marginalize_node_cuda_streaming( size_t, size_t,
+                                      const size_t *, const size_t *,
                                       struct belief *,
-                                      int *,
+                                      float *, float *,
+                                      size_t *,
                                       const struct belief *,
-                                      const int *, const int *,
-                                      int, int);
+                                      const size_t *, const size_t *,
+                                      size_t, size_t);
 
 __global__
-void page_rank_main_loop(int, int,
+void page_rank_main_loop(size_t, size_t,
                                struct belief *,
-                               int *,
+                               size_t *,
                                float *, float *,
                                const struct joint_probability *,
-                               const int *, const int *,
+                               const size_t *, const size_t *,
                                struct belief *,
                                float *, float *,
-                               const int *, const int *,
-                               const int *, const int *);
+                               const size_t *, const size_t *,
+                               const size_t *, const size_t *);
 
 __global__
-void viterbi_main_loop(int, int,
+void viterbi_main_loop(size_t, size_t,
                          struct belief *,
-                         int *,
+                         size_t *,
                          float *, float *,
                          const struct joint_probability *,
-                         const int *, const int *,
+                         const size_t *, const size_t *,
                          struct belief *,
                          float *, float *,
-                         const int *, const int *,
-                         const int *, const int *);
+                         const size_t *, const size_t *,
+                         const size_t *, const size_t *);
 
 __device__
-void send_message_for_edge_iteration_cuda(const struct belief *, int, int,
-                                                 int, int,
+void send_message_for_edge_iteration_cuda(const struct belief *, size_t, size_t,
+                                                 size_t, size_t,
                                                          struct belief *, float *, float *);
 
 __global__
-void send_message_for_edge_iteration_cuda_kernel(int, const int *,
-                                                 const struct belief *, int, int,
+void send_message_for_edge_iteration_cuda_kernel(size_t, const size_t *,
+                                                 const struct belief *, size_t, size_t,
                                                  struct belief *, float *, float *);
 
 __global__
-void send_message_for_edge_iteration_cuda_work_queue_kernel(int, const int *,
-                                                            int, int,
+void send_message_for_edge_iteration_cuda_work_queue_kernel(size_t, const size_t *,
+                                                            size_t, size_t,
                                                             struct belief *,
                                                             float *, float *,
-                                                            int *, int *);
+                                                            size_t *, size_t *);
 
 __global__
 void send_message_for_edge_iteration_cuda_work_queue_kernel_streaming(
-        int, int,
-        const int *,
+        size_t, size_t,
+        const size_t *,
         const struct belief *,
-        int, int,
+        size_t, size_t,
         struct belief *,
         float *, float *,
-        const int *, const int *);
+        const size_t *, const size_t *);
 
 __device__
-void combine_loopy_edge_cuda(int, const struct belief *, const int *, int, struct belief *);
+void combine_loopy_edge_cuda(size_t, const struct belief *, const size_t *, size_t, struct belief *);
 
 __global__
-void combine_loopy_edge_cuda_kernel(int, const int *, const struct belief *, const int *, struct belief *);
+void combine_loopy_edge_cuda_kernel(size_t, const size_t *, const struct belief *, const size_t *, struct belief *);
 
 __global__
-void combine_loopy_edge_cuda_work_queue_kernel(int, const int *, const struct belief *, const float *, const float *, const int *, struct belief *,
-                                               int *, int *, int *);
+void combine_loopy_edge_cuda_work_queue_kernel(size_t, const size_t *, const struct belief *, const float *, const float *, const size_t *, struct belief *,
+                                               size_t *, size_t *, size_t *);
 
 __global__
-void combine_loopy_edge_cuda_work_queue_kernel_streaming(int, int, const int *, const struct belief *, const int *, struct belief *,
-                                               const int *, const int *, const int *);
+void combine_loopy_edge_cuda_work_queue_kernel_streaming(size_t, size_t, const size_t *, const struct belief *, const size_t *, struct belief *,
+                                               const size_t *, const size_t *, const size_t *);
 
 __global__
-void marginalize_loop_node_edge_kernel(struct belief *, const int *, int);
+void marginalize_loop_node_edge_kernel(struct belief *, const size_t *, size_t);
 
 __global__
-void marginalize_viterbi_beliefs(struct belief *, int *, int);
+void marginalize_viterbi_beliefs(struct belief *, size_t *, size_t);
 
 __device__
 float calculate_local_delta(int, const float *, const float *);
@@ -319,18 +340,22 @@ void calculate_delta_simple(const float *, const float *, float *, float *,
                             int);
 
 __global__
-void update_work_queue_cuda_kernel(int *, int *, int*,
-                                   float *, float *, int);
+void update_work_queue_cuda_kernel(size_t *, unsigned long long int *, size_t*,
+                                   float *, float *, size_t);
 __global__
-void update_work_queue_edges_cuda_kernel(int *, int *, int *, float *, float *, int);
+void update_work_queue_edges_cuda_kernel(size_t *, unsigned long long int *, size_t *, float *, float *, size_t);
 
 void test_error();
 
+int loopy_propagate_until_cuda_multiple_devices(Graph_t, float, int);
 int loopy_propagate_until_cuda_streaming(Graph_t, float, int);
 int loopy_propagate_until_cuda_openmpi(Graph_t, float, int, int, int, int);
+int loopy_propagate_until_cuda_no_work_queue(Graph_t, float, int);
 int loopy_propagate_until_cuda(Graph_t, float, int);
 int loopy_propagate_until_cuda_edge(Graph_t, float, int);
+int loopy_propagate_until_cuda_edge_no_work_queue(Graph_t, float, int);
 int loopy_propagate_until_cuda_edge_streaming(Graph_t, float, int);
+int loopy_propagate_until_cuda_edge_multiple_devices(Graph_t, float, int);
 int loopy_propagate_until_cuda_edge_openmpi(Graph_t, float, int, int, int, int);
 
 
@@ -349,13 +374,17 @@ void run_test_loopy_belief_propagation_xml_file_edge_cuda_streaming(const char *
 void run_test_loopy_belief_propagation_snap_file_cuda(const char *, const char *, FILE *);
 void run_test_loopy_belief_propagation_snap_file_edge_cuda(const char *, const char *, FILE *);
 
-void run_test_loopy_belief_propagation_mtx_files_cuda(const char *, const char *, const struct joint_probability *, int, int, FILE *);
-void run_test_loopy_belief_propagation_mtx_files_cuda_streaming(const char *, const char *, const struct joint_probability *, int, int, FILE *);
-void run_test_loopy_belief_propagation_mtx_files_cuda_openmpi(const char *, const char *, const struct joint_probability *, int, int, FILE *,
+void run_test_loopy_belief_propagation_mtx_files_cuda(const char *, const char *, const struct joint_probability *, size_t, size_t, FILE *);
+void run_test_loopy_belief_propagation_mtx_files_cuda_no_work_queue(const char *, const char *, const struct joint_probability *, size_t, size_t, FILE *);
+void run_test_loopy_belief_propagation_mtx_files_cuda_streaming(const char *, const char *, const struct joint_probability *, size_t, size_t, FILE *);
+void run_test_loopy_belief_propagation_mtx_files_cuda_multiple_devices(const char *, const char *, const struct joint_probability *, size_t, size_t, FILE *);
+void run_test_loopy_belief_propagation_mtx_files_cuda_openmpi(const char *, const char *, const struct joint_probability *, size_t, size_t, FILE *,
         int, int, int);
-void run_test_loopy_belief_propagation_mtx_files_edge_cuda(const char *, const char *, const struct joint_probability *, int, int, FILE *);
-void run_test_loopy_belief_propagation_mtx_files_edge_cuda_streaming(const char *, const char *, const struct joint_probability *, int, int, FILE *);
-void run_test_loopy_belief_propagation_mtx_files_edge_cuda_openmpi(const char *, const char *, const struct joint_probability *, int, int,
+void run_test_loopy_belief_propagation_mtx_files_edge_cuda(const char *, const char *, const struct joint_probability *, size_t, size_t, FILE *);
+void run_test_loopy_belief_propagation_mtx_files_edge_cuda_no_work_queue(const char *, const char *, const struct joint_probability *, size_t, size_t, FILE *);
+void run_test_loopy_belief_propagation_mtx_files_edge_cuda_streaming(const char *, const char *, const struct joint_probability *, size_t, size_t, FILE *);
+void run_test_loopy_belief_propagation_mtx_files_edge_cuda_multiple_devices(const char *, const char *, const struct joint_probability *, size_t, size_t, FILE *);
+void run_test_loopy_belief_propagation_mtx_files_edge_cuda_openmpi(const char *, const char *, const struct joint_probability *, size_t, size_t,
                                                                    FILE *, int , int , int );
 
 

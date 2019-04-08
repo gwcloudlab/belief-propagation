@@ -5,22 +5,25 @@
 #ifndef CONSTANTS_H_
 #define CONSTANTS_H_
 
+#include <stdint.h>
 
 #define CHAR_BUFFER_SIZE 50
 
-//#define AVG_STATES 2
 #define AVG_STATES 2
+//#define AVG_STATES 3
 
 #define NODE_DIFFERENCE_THRESHOLD 0.001f
 
-//#define MAX_STATES 2
 #define MAX_STATES 2
+//#define MAX_STATES 3
 
 #define DEFAULT_STATE 1.0f
 
-#define WEIGHT_INFINITY 99999
+#define WEIGHT_INFINITY SIZE_MAX / 2
 
 #define BATCH_SIZE 10
+
+#define BATCH_SIZE_EDGE 1
 
 #define NUM_ITERATIONS 200
 
@@ -60,7 +63,7 @@
 
 #define MAX_DEGREE 4096
 
-#define CHARS_IN_KEY 20
+#define CHARS_IN_KEY 64
 
 #define READ_SNAP_BUFFER_SIZE 256
 
