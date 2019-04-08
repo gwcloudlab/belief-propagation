@@ -120,23 +120,8 @@ def write_observed_nodes(mtx, args):
             mtx.write("\n")
 
 
-def write_edge(mtx, src, dest, num_states):
-    beliefs = []
-    for i in range(num_states):
-        probs = []
-        sum = 0.0
-        for j in range(num_states):
-            prob = random.random()
-            sum += prob
-            probs.append(prob)
-        for j in range(num_states):
-            probs[j] = probs[j] / sum
-            beliefs.append("{:f}".format(probs[j]))
-
-    assert len(beliefs) == num_states * num_states
-
+def write_edge(mtx, src, dest):
     mtx.write("{:d}\t{:d}\t".format(src + 1, dest + 1))
-    mtx.write("\t".join(beliefs))
     mtx.write("\n")
 
 
@@ -159,7 +144,7 @@ def write_and_build_tree(mtx, args):
         temp = node_2
         node_1 = node_2
         node_2 = temp
-    write_edge(mtx, node_1, node_2, args.num_beliefs)
+    write_edge(mtx, node_1, node_2)
 
     for i in range(2, args.nodes):
         connected_node = random.choice(parents.keys())
@@ -203,7 +188,7 @@ def write_edges(mtx, args):
                 dest = node_2
             # assert src != dest
             if src not in parents[dest]:
-                write_edge(mtx, src, dest, args.num_beliefs)
+                write_edge(mtx, src, dest)
                 num_arcs_written += 1
                 parents[dest].append(src)
                 new_edge = True

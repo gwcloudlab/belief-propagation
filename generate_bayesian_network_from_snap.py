@@ -35,7 +35,7 @@ def read_snap_file(read_path, write_edges_path, write_observed_nodes_path, num_b
                         print "Num nodes: %d; Num edges: %d" % (num_nodes, num_edges)
                         replacement_line = TEMPLATE_DATA.substitute(num_nodes=num_nodes, num_edges=num_edges, num_beliefs=num_beliefs, num_belief_states=num_belief_states)
                         write_fp.write(replacement_line + '\n')
-                        write_fp.write('{}\t{}\t{}'.format(num_nodes, num_nodes, num_edges))
+                        write_fp.write('{}\t{}\t{}\n'.format(num_nodes, num_nodes, num_edges))
                 else:
                     edge_match = REGEX_EDGE.match(line)
                     if edge_match is None:
@@ -47,10 +47,7 @@ def read_snap_file(read_path, write_edges_path, write_observed_nodes_path, num_b
                         dest = edge_match.group('dest')
                         read_nodes.add(src)
                         read_nodes.add(dest)
-                        joint_probabilities = []
-                        for i in range(num_belief_states):
-                            joint_probabilities += generate_prob_list(num_belief_states)
-                        new_line_data = [src, dest] + joint_probabilities
+                        new_line_data = [src, dest]
                         write_fp.write('\t'.join(new_line_data) + '\n')
     num_observed_nodes = pct_of_observed * num_nodes
     observed_nodes = set(random.sample(read_nodes, int(num_observed_nodes)))
