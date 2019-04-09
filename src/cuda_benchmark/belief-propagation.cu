@@ -2004,7 +2004,7 @@ int loopy_propagate_until_cuda_multiple_devices(Graph_t graph, const float conve
 
 
     for(k = 0; k < num_devices; ++k) {
-        cudaSetDevice(k);
+        CUDA_CHECK_RETURN(cudaSetDevice(k));
 
         // allocate data
         CUDA_CHECK_RETURN(cudaMalloc((void **) &(dest_node_to_edges_nodes[k]), sizeof(size_t) * graph->current_num_vertices));
@@ -2353,7 +2353,7 @@ int loopy_propagate_until_cuda_multiple_devices(Graph_t graph, const float conve
 
     }
 
-    cudaSetDevice(0);
+    CUDA_CHECK_RETURN(cudaSetDevice(0));
 
     CUDA_CHECK_RETURN(cudaFree(delta));
     CUDA_CHECK_RETURN(cudaFree(delta_array));
@@ -2839,7 +2839,7 @@ int loopy_propagate_until_cuda_openmpi(Graph_t graph, const float convergence, c
 
 
     for(k = 0; k < num_devices; ++k) {
-        cudaSetDevice(k);
+        CUDA_CHECK_RETURN(cudaSetDevice(k));
 
         // allocate data
         CUDA_CHECK_RETURN(cudaMalloc((void **) &(dest_node_to_edges_nodes[k]), sizeof(size_t) * graph->current_num_vertices));
@@ -2873,7 +2873,7 @@ int loopy_propagate_until_cuda_openmpi(Graph_t graph, const float convergence, c
     }
 
     if(my_rank == 0) {
-        cudaSetDevice(0);
+        CUDA_CHECK_RETURN(cudaSetDevice(0));
 
         CUDA_CHECK_RETURN(cudaMalloc((void **) &delta, sizeof(float)));
         CUDA_CHECK_RETURN(cudaMalloc((void **) &delta_array, sizeof(float) * num_edges));
@@ -3218,7 +3218,7 @@ int loopy_propagate_until_cuda_openmpi(Graph_t graph, const float convergence, c
     }
 
     if(my_rank == 0) {
-        cudaSetDevice(0);
+        CUDA_CHECK_RETURN(cudaSetDevice(0));
 
         CUDA_CHECK_RETURN(cudaFree(delta));
         CUDA_CHECK_RETURN(cudaFree(delta_array));
@@ -4272,26 +4272,26 @@ int loopy_propagate_until_cuda_edge_multiple_devices(Graph_t graph, float conver
     float previous_delta, host_delta;
     char is_pow_2;
 
-    struct belief ** current_messages;
-    float ** current_messages_previous;
-    float ** current_messages_current;
+    struct belief * current_messages[MAX_GPU_COUNT];
+    float * current_messages_previous[MAX_GPU_COUNT];
+    float * current_messages_current[MAX_GPU_COUNT];
 
-    struct belief ** h_current_messages;
-    float ** h_current_messages_previous;
-    float ** h_current_messages_current;
+    struct belief * h_current_messages[MAX_GPU_COUNT];
+    float * h_current_messages_previous[MAX_GPU_COUNT];
+    float * h_current_messages_current[MAX_GPU_COUNT];
 
-    struct belief ** node_states;
+    struct belief * node_states[MAX_GPU_COUNT];
 
-    struct belief ** h_node_states;
+    struct belief * h_node_states[MAX_GPU_COUNT];
 
-    size_t ** edges_src_index;
-    size_t ** edges_dest_index;
-    size_t ** dest_nodes_to_edges_nodes;
-    size_t ** dest_nodes_to_edges_edges;
+    size_t * edges_src_index[MAX_GPU_COUNT];
+    size_t * edges_dest_index[MAX_GPU_COUNT];
+    size_t * dest_nodes_to_edges_nodes[MAX_GPU_COUNT];
+    size_t * dest_nodes_to_edges_edges[MAX_GPU_COUNT];
 
-    size_t ** work_queue_edges;
-    size_t ** work_queue_scratch;
-    unsigned long long int ** num_work_items;
+    size_t * work_queue_edges[MAX_GPU_COUNT];
+    size_t * work_queue_scratch[MAX_GPU_COUNT];
+    unsigned long long int * num_work_items[MAX_GPU_COUNT];
 
     int retval;
 
@@ -4300,45 +4300,11 @@ int loopy_propagate_until_cuda_edge_multiple_devices(Graph_t graph, float conver
     int num_devices = -1;
     cudaGetDeviceCount(&num_devices);
     assert(num_devices >= 1);
+    if(num_devices > MAX_GPU_COUNT) {
+        num_devices = MAX_GPU_COUNT;
+    }
 
     // allocate device arrays
-
-
-    current_messages = (struct belief **)malloc(num_devices * sizeof(struct belief *));
-    assert(current_messages);
-    current_messages_previous = (float **)malloc(num_devices * sizeof(float *));
-    assert(current_messages_previous);
-    current_messages_current = (float **)malloc(num_devices * sizeof(float *));
-    assert(current_messages_current);
-
-    h_current_messages = (struct belief **)malloc(num_devices * sizeof(struct belief *));
-    assert(h_current_messages);
-    h_current_messages_previous = (float **)malloc(num_devices * sizeof(float *));
-    assert(h_current_messages_previous);
-    h_current_messages_current = (float **)malloc(num_devices * sizeof(float *));
-    assert(h_current_messages_current);
-
-    node_states = (struct belief **)malloc(num_devices * sizeof(struct belief *));
-    assert(node_states);
-
-    h_node_states = (struct belief **)malloc(num_devices * sizeof(struct belief *));
-    assert(h_node_states);
-
-    edges_src_index = (size_t **)malloc(num_devices * sizeof(size_t *));
-    assert(edges_src_index);
-    edges_dest_index = (size_t **)malloc(num_devices * sizeof(size_t *));
-    assert(edges_dest_index);
-    dest_nodes_to_edges_nodes = (size_t **)malloc(num_devices * sizeof(size_t *));
-    assert(dest_nodes_to_edges_nodes);
-    dest_nodes_to_edges_edges = (size_t **)malloc(num_devices * sizeof(size_t *));
-    assert(dest_nodes_to_edges_edges);
-
-    work_queue_edges = (size_t **)malloc(num_devices * sizeof(size_t *));
-    assert(work_queue_edges);
-    work_queue_scratch = (size_t **)malloc(num_devices * sizeof(size_t *));
-    assert(work_queue_scratch);
-    num_work_items = (unsigned long long int **)malloc(num_devices * sizeof(unsigned long long int *));
-    assert(num_work_items);
 
 
     unsigned long long int h_num_work_items = (unsigned long long int)graph->num_work_items_edges;
@@ -4367,19 +4333,19 @@ int loopy_propagate_until_cuda_edge_multiple_devices(Graph_t graph, float conver
 
     is_pow_2 = num_vertices % 2 == 0;
 
-    pthread_t *threads = (pthread_t *)malloc(sizeof(pthread_t) * num_devices);
-    cudaStream_t *streams = (cudaStream_t *)malloc(sizeof(cudaStream_t) * num_devices);
-    struct edge_stream_data *thread_data = (struct edge_stream_data *)malloc(sizeof(struct edge_stream_data) * num_devices);
-    struct node_stream_data *node_thread_data = (struct node_stream_data *)malloc(sizeof(struct node_stream_data) * num_devices);
+    pthread_t threads[MAX_GPU_COUNT];
+    cudaStream_t streams[MAX_GPU_COUNT];
+    struct edge_stream_data thread_data[MAX_GPU_COUNT];
+    struct node_stream_data node_thread_data[MAX_GPU_COUNT];
 
-    cudaSetDevice(0);
+    CUDA_CHECK_RETURN(cudaSetDevice(0));
 
     CUDA_CHECK_RETURN(cudaMalloc((void **) &delta, sizeof(float)));
     CUDA_CHECK_RETURN(cudaMalloc((void **) &delta_array, sizeof(float) * num_edges));
 
 
     for(k = 0; k < num_devices; ++k) {
-        cudaSetDevice(k);
+        CUDA_CHECK_RETURN(cudaSetDevice(k));
         // allocate data
         CUDA_CHECK_RETURN(cudaMalloc((void **) &edges_src_index[k], sizeof(size_t) * graph->current_num_edges));
         CUDA_CHECK_RETURN(cudaMalloc((void **) &edges_dest_index[k], sizeof(size_t) * graph->current_num_edges));
@@ -4628,7 +4594,7 @@ int loopy_propagate_until_cuda_edge_multiple_devices(Graph_t graph, float conver
             }
             num_iter++;
         }
-        cudaSetDevice(0);
+        CUDA_CHECK_RETURN(cudaSetDevice(0));
         calculate_delta_6 << < dimReduceGrid, dimReduceBlock, reduceSmemSize >> >
                                                               (current_messages_previous[0], current_messages_current[0], delta, delta_array, num_edges, is_pow_2, WARP_SIZE);
         //calculate_delta<<<dimReduceGrid, dimReduceBlock, reduceSmemSize>>>(current_messages, delta, delta_array, num_edges);
@@ -4683,39 +4649,12 @@ int loopy_propagate_until_cuda_edge_multiple_devices(Graph_t graph, float conver
     CUDA_CHECK_RETURN(cudaFree(delta));
     CUDA_CHECK_RETURN(cudaFree(delta_array));
 
-
-    free(current_messages);
-    free(current_messages_previous);
-    free(current_messages_current);
-
-
-    free(node_states);
-
-    free(edges_src_index);
-    free(edges_dest_index);
-    free(dest_nodes_to_edges_nodes);
-    free(dest_nodes_to_edges_edges);
-    free(work_queue_edges);
-    free(work_queue_scratch);
-    free(num_work_items);
-
-    free(h_current_messages);
-    free(h_current_messages_current);
-    free(h_current_messages_previous);
-
-    free(h_node_states);
-
     CUDA_CHECK_RETURN(cudaHostUnregister(graph->edges_messages));
 
     CUDA_CHECK_RETURN(cudaHostUnregister(graph->node_states));
 
     CUDA_CHECK_RETURN(cudaHostUnregister(&h_num_work_items));
     CUDA_CHECK_RETURN(cudaHostUnregister(graph->work_queue_edges));
-
-    free(threads);
-    free(streams);
-    free(thread_data);
-    free(node_thread_data);
 
     /*printf("After=====");
     print_nodes(graph);
@@ -4858,7 +4797,7 @@ int loopy_propagate_until_cuda_edge_openmpi(Graph_t graph, const float convergen
     struct node_stream_data *node_thread_data = (struct node_stream_data *)malloc(sizeof(struct node_stream_data) * num_devices);
 
     if(my_rank == 0) {
-        cudaSetDevice(0);
+        CUDA_CHECK_RETURN(cudaSetDevice(0));
 
         CUDA_CHECK_RETURN(cudaMalloc((void **) &delta, sizeof(float)));
         CUDA_CHECK_RETURN(cudaMalloc((void **) &delta_array, sizeof(float) * num_edges));
@@ -4866,7 +4805,7 @@ int loopy_propagate_until_cuda_edge_openmpi(Graph_t graph, const float convergen
     }
 
     for(k = 0; k < num_devices; ++k) {
-        cudaSetDevice(k);
+        CUDA_CHECK_RETURN(cudaSetDevice(k));
         // allocate data
         CUDA_CHECK_RETURN(cudaMalloc((void **) &edges_src_index[k], sizeof(size_t) * graph->current_num_edges));
         CUDA_CHECK_RETURN(cudaMalloc((void **) &edges_dest_index[k], sizeof(size_t) * graph->current_num_edges));
@@ -5187,7 +5126,7 @@ int loopy_propagate_until_cuda_edge_openmpi(Graph_t graph, const float convergen
             num_iter++;
         }
         if(my_rank == 0) {
-            cudaSetDevice(0);
+            CUDA_CHECK_RETURN(cudaSetDevice(0));
             calculate_delta_6 << < dimReduceGrid, dimReduceBlock, reduceSmemSize >> >
                                                                   (current_messages_previous[0], current_messages_current[0], delta, delta_array, num_edges, is_pow_2, WARP_SIZE);
             //calculate_delta<<<dimReduceGrid, dimReduceBlock, reduceSmemSize>>>(current_messages, delta, delta_array, num_edges);
