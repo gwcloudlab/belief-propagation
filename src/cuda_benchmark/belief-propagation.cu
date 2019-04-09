@@ -4346,6 +4346,7 @@ int loopy_propagate_until_cuda_edge_multiple_devices(Graph_t graph, float conver
 
     for(k = 0; k < num_devices; ++k) {
         CUDA_CHECK_RETURN(cudaSetDevice(k));
+        CUDA_CHECK_RETURN(cudaStreamCreateWithFlags(&streams[k], cudaStreamNonBlocking));
         // allocate data
         CUDA_CHECK_RETURN(cudaMalloc((void **) &edges_src_index[k], sizeof(size_t) * graph->current_num_edges));
         CUDA_CHECK_RETURN(cudaMalloc((void **) &edges_dest_index[k], sizeof(size_t) * graph->current_num_edges));
@@ -4353,53 +4354,66 @@ int loopy_propagate_until_cuda_edge_multiple_devices(Graph_t graph, float conver
         CUDA_CHECK_RETURN(cudaMalloc((void **) &node_states[k], sizeof(struct belief) * graph->current_num_vertices));
 
         CUDA_CHECK_RETURN(cudaMalloc((void **) &current_messages[k], sizeof(struct belief) * graph->current_num_edges));
-        CUDA_CHECK_RETURN(cudaMalloc((void **) &current_messages_previous[k], sizeof(float) * graph->current_num_edges));
+        CUDA_CHECK_RETURN(
+                cudaMalloc((void **) &current_messages_previous[k], sizeof(float) * graph->current_num_edges));
         CUDA_CHECK_RETURN(cudaMalloc((void **) &current_messages_current[k], sizeof(float) * graph->current_num_edges));
 
-        CUDA_CHECK_RETURN(cudaMalloc((void **) &dest_nodes_to_edges_nodes[k], sizeof(size_t) * graph->current_num_vertices));
-        CUDA_CHECK_RETURN(cudaMalloc((void **) &dest_nodes_to_edges_edges[k], sizeof(size_t) * graph->current_num_edges));
+        CUDA_CHECK_RETURN(
+                cudaMalloc((void **) &dest_nodes_to_edges_nodes[k], sizeof(size_t) * graph->current_num_vertices));
+        CUDA_CHECK_RETURN(
+                cudaMalloc((void **) &dest_nodes_to_edges_edges[k], sizeof(size_t) * graph->current_num_edges));
 
         CUDA_CHECK_RETURN(cudaMalloc((void **) &work_queue_edges[k], sizeof(size_t) * num_edges));
         CUDA_CHECK_RETURN(cudaMalloc((void **) &work_queue_scratch[k], sizeof(size_t) * num_edges));
         CUDA_CHECK_RETURN(cudaMalloc((void **) &num_work_items[k], sizeof(unsigned long long int)));
 
-        CUDA_CHECK_RETURN(cudaHostAlloc((void **) &h_node_states[k], sizeof(struct belief) * num_vertices, cudaHostAllocDefault));
+        CUDA_CHECK_RETURN(
+                cudaHostAlloc((void **) &h_node_states[k], sizeof(struct belief) * num_vertices, cudaHostAllocDefault));
 
-        CUDA_CHECK_RETURN(cudaHostAlloc((void **) &h_current_messages[k], sizeof(struct belief) * num_edges, cudaHostAllocDefault));
-        CUDA_CHECK_RETURN(cudaHostAlloc((void **) &h_current_messages_previous[k], sizeof(float) * num_edges, cudaHostAllocDefault));
-        CUDA_CHECK_RETURN(cudaHostAlloc((void **) &h_current_messages_current[k], sizeof(float) * num_edges, cudaHostAllocDefault));
+        CUDA_CHECK_RETURN(cudaHostAlloc((void **) &h_current_messages[k], sizeof(struct belief) * num_edges,
+                                        cudaHostAllocDefault));
+        CUDA_CHECK_RETURN(cudaHostAlloc((void **) &h_current_messages_previous[k], sizeof(float) * num_edges,
+                                        cudaHostAllocDefault));
+        CUDA_CHECK_RETURN(cudaHostAlloc((void **) &h_current_messages_current[k], sizeof(float) * num_edges,
+                                        cudaHostAllocDefault));
+    }
 
-
+    for(k = 0; k < num_devices; ++k) {
+        CUDA_CHECK_RETURN(cudaSetDevice(k));
         // copy data
-        CUDA_CHECK_RETURN(cudaMemcpyToSymbol(edge_joint_probability, &(graph->edge_joint_probability), sizeof(struct joint_probability)));
+        CUDA_CHECK_RETURN(cudaMemcpyToSymbolAsync(edge_joint_probability, &(graph->edge_joint_probability), sizeof(struct joint_probability), 0, cudaMemcpyHostToDevice, streams[k]));
 
         CUDA_CHECK_RETURN(
-                cudaMemcpy(node_states[k], graph->node_states, sizeof(struct belief) * graph->current_num_vertices,
-                           cudaMemcpyHostToDevice));
+                cudaMemcpyAsync(node_states[k], graph->node_states, sizeof(struct belief) * graph->current_num_vertices,
+                           cudaMemcpyHostToDevice, streams[k]));
         CUDA_CHECK_RETURN(
-                cudaMemcpy(current_messages[k], graph->edges_messages, sizeof(struct belief) * graph->current_num_edges,
-                           cudaMemcpyHostToDevice));
+                cudaMemcpyAsync(current_messages[k], graph->edges_messages, sizeof(struct belief) * graph->current_num_edges,
+                           cudaMemcpyHostToDevice, streams[k]));
         CUDA_CHECK_RETURN(
-                cudaMemcpy(current_messages_previous[k], graph->edges_messages_previous, sizeof(float) * graph->current_num_edges,
-                           cudaMemcpyHostToDevice));
+                cudaMemcpyAsync(current_messages_previous[k], graph->edges_messages_previous, sizeof(float) * graph->current_num_edges,
+                           cudaMemcpyHostToDevice, streams[k]));
         CUDA_CHECK_RETURN(
-                cudaMemcpy(current_messages_current[k], graph->edges_messages_current, sizeof(float) * graph->current_num_edges,
-                           cudaMemcpyHostToDevice));
+                cudaMemcpyAsync(current_messages_current[k], graph->edges_messages_current, sizeof(float) * graph->current_num_edges,
+                           cudaMemcpyHostToDevice, streams[k]));
 
-        CUDA_CHECK_RETURN(cudaMemcpy(edges_src_index[k], graph->edges_src_index, sizeof(size_t) * graph->current_num_edges,
-                                     cudaMemcpyHostToDevice));
-        CUDA_CHECK_RETURN(cudaMemcpy(edges_dest_index[k], graph->edges_dest_index, sizeof(size_t) * graph->current_num_edges,
-                                     cudaMemcpyHostToDevice));
+        CUDA_CHECK_RETURN(cudaMemcpyAsync(edges_src_index[k], graph->edges_src_index, sizeof(size_t) * graph->current_num_edges,
+                                     cudaMemcpyHostToDevice, streams[k]));
+        CUDA_CHECK_RETURN(cudaMemcpyAsync(edges_dest_index[k], graph->edges_dest_index, sizeof(size_t) * graph->current_num_edges,
+                                     cudaMemcpyHostToDevice, streams[k]));
 
-        CUDA_CHECK_RETURN(cudaMemcpy(dest_nodes_to_edges_nodes[k], graph->dest_nodes_to_edges_node_list,
-                                     sizeof(size_t) * graph->current_num_vertices, cudaMemcpyHostToDevice));
-        CUDA_CHECK_RETURN(cudaMemcpy(dest_nodes_to_edges_edges[k], graph->dest_nodes_to_edges_edge_list,
-                                     sizeof(size_t) * graph->current_num_edges, cudaMemcpyHostToDevice));
+        CUDA_CHECK_RETURN(cudaMemcpyAsync(dest_nodes_to_edges_nodes[k], graph->dest_nodes_to_edges_node_list,
+                                     sizeof(size_t) * graph->current_num_vertices, cudaMemcpyHostToDevice, streams[k]));
+        CUDA_CHECK_RETURN(cudaMemcpyAsync(dest_nodes_to_edges_edges[k], graph->dest_nodes_to_edges_edge_list,
+                                     sizeof(size_t) * graph->current_num_edges, cudaMemcpyHostToDevice, streams[k]));
 
         CUDA_CHECK_RETURN(
-                cudaMemcpy(work_queue_edges[k], graph->work_queue_edges, sizeof(size_t) * num_edges, cudaMemcpyHostToDevice));
-        CUDA_CHECK_RETURN(cudaMemcpy(num_work_items[k], &h_num_work_items, sizeof(unsigned long long int), cudaMemcpyHostToDevice));
+                cudaMemcpyAsync(work_queue_edges[k], graph->work_queue_edges, sizeof(size_t) * num_edges, cudaMemcpyHostToDevice, streams[k]));
+        CUDA_CHECK_RETURN(cudaMemcpyAsync(num_work_items[k], &h_num_work_items, sizeof(unsigned long long int), cudaMemcpyHostToDevice, streams[k]));
 
+    }
+
+    for(k = 0; k < num_devices; ++k) {
+        CUDA_CHECK_RETURN(cudaStreamSynchronize(streams[k]));
     }
 
     const size_t edgeCount = (num_edges + BLOCK_SIZE_EDGE_STREAMING - 1)/ BLOCK_SIZE_EDGE_STREAMING;
@@ -4422,7 +4436,6 @@ int loopy_propagate_until_cuda_edge_multiple_devices(Graph_t graph, float conver
     size_t curr_node_index = 0;
     // init streams + data
     for(i = 0; i < num_devices; ++i) {
-        cudaStreamCreateWithFlags(&streams[i], cudaStreamNonBlocking);
 
         thread_data[i].streamEdgeCount = edgePartitionCount;
         thread_data[i].begin_index = curr_index;
@@ -4595,7 +4608,7 @@ int loopy_propagate_until_cuda_edge_multiple_devices(Graph_t graph, float conver
             num_iter++;
         }
         CUDA_CHECK_RETURN(cudaSetDevice(0));
-        calculate_delta_6 << < dimReduceGrid, dimReduceBlock, reduceSmemSize >> >
+        calculate_delta_6 << < dimReduceGrid, dimReduceBlock, reduceSmemSize, 0 >> >
                                                               (current_messages_previous[0], current_messages_current[0], delta, delta_array, num_edges, is_pow_2, WARP_SIZE);
         //calculate_delta<<<dimReduceGrid, dimReduceBlock, reduceSmemSize>>>(current_messages, delta, delta_array, num_edges);
         //calculate_delta_simple<<<dimReduceGrid, dimReduceBlock, reduceSmemSize>>>(current_messages, delta, delta_array, num_edges);
