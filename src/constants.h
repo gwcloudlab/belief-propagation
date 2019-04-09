@@ -17,6 +17,8 @@
 #define MAX_STATES 2
 //#define MAX_STATES 3
 
+#define MAX_GPU_COUNT 32
+
 #define DEFAULT_STATE 1.0f
 
 #define WEIGHT_INFINITY SIZE_MAX / 2
