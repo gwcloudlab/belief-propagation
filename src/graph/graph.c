@@ -503,7 +503,6 @@ static void set_up_nodes_to_edges_no_hsearch(const size_t *edges_index, size_t *
 		    curr_max_degree = (int)current_degree;
 		}
 		sum += current_degree;
-
 	}
 	*avg_degree = sum / graph->current_num_vertices;
 	*max_degree = curr_max_degree;
@@ -2726,7 +2725,7 @@ static void update_work_queue_nodes_acc(size_t * __restrict__ num_work_items_nod
 #pragma omp parallel for default(none) shared(current_index, num_work_items_nodes, work_queue_scratch, convergence, work_queue_nodes, node_states, node_states_previous, node_states_current) private(i)
 #pragma acc kernels copyin(work_queue_nodes[0:num_vertices], node_states[0:num_vertices], node_states_current[0:num_vertices], node_states_previous[0:num_vertices]) copyout(work_queue_scratch[0:num_vertices])
 	for(i = 0; i < *num_work_items_nodes; ++i) {
-		if(fabsf(node_states_current[work_queue_nodes[i]] - node_states_previous[work_queue_nodes[i]]) >= convergence) {
+		if(fabs(node_states_current[work_queue_nodes[i]] - node_states_previous[work_queue_nodes[i]]) >= convergence) {
 #pragma omp critical
 #pragma acc atomic capture
 			{
@@ -3199,7 +3198,7 @@ static void update_work_queue_edges_acc(size_t * __restrict__ num_work_items_edg
 #pragma omp parallel for default(none) shared(current_index, num_work_items_edges, work_queue_scratch, convergence, work_queue_edges, current_state, previous_state) private(i)
 #pragma acc kernels copyin(work_queue_edges[0:num_edges], previous_state[0:num_edges], current_state[0:num_edges]) copyout(work_queue_scratch[0:num_edges])
 	for(i = 0; i < *num_work_items_edges; ++i) {
-		if(fabsf(current_state[work_queue_edges[i]] - previous_state[work_queue_edges[i]]) >= convergence) {
+		if(fabs(current_state[work_queue_edges[i]] - previous_state[work_queue_edges[i]]) >= convergence) {
 #pragma omp critical
 #pragma acc atomic capture
 			{
@@ -3772,7 +3771,7 @@ void update_work_queue_nodes(Graph_t graph, float convergence) {
 #pragma omp parallel for default(none) shared(current_index, num_work_items_nodes, work_queue_scratch, convergence, work_queue_nodes, current_states, previous_states) private(i)
 #pragma acc parallel private(i) copyin(work_queue_nodes[0:num_vertices], current_states[0:num_vertices], previous_states[0:num_vertices]) copyout(work_queue_scratch[0:num_vertices])
     for(i = 0; i < num_work_items_nodes; ++i) {
-		if(fabsf(current_states[work_queue_nodes[i]] - previous_states[work_queue_nodes[i]]) >= convergence) {
+		if(fabs(current_states[work_queue_nodes[i]] - previous_states[work_queue_nodes[i]]) >= convergence) {
 			#pragma omp critical
 #pragma acc atomic capture
             {
@@ -3803,7 +3802,7 @@ void update_work_queue_edges(Graph_t graph, float convergence) {
 #pragma omp parallel for default(none) shared(current_index, num_work_items_edges, work_queue_scratch, convergence, work_queue_edges, current_states, previous_states) private(i)
 #pragma acc parallel private(i) copyin(work_queue_edges[0:num_edges], current_states[0:num_edges], previous_states[0:num_edges]) copyout(work_queue_scratch[0:num_edges])
     for(i = 0; i < num_work_items_edges; ++i) {
-		if(fabsf(current_states[work_queue_edges[i]] - previous_states[work_queue_edges[i]]) >= convergence) {
+		if(fabs(current_states[work_queue_edges[i]] - previous_states[work_queue_edges[i]]) >= convergence) {
 #pragma omp critical
 #pragma acc atomic capture
 			{
