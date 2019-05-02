@@ -12,8 +12,8 @@ echo "Running C Loopy Node $(date)"
 ./c_loopy_node_benchmark || true
 echo "Running C Loopy Node No Work Queues: $(date)"
 ./c_loopy_node_benchmark_no_work_queue
-echo "Running C Non Loopy $(date)"
-./c_non_loopy_benchmark || true
+#echo "Running C Non Loopy $(date)"
+#./c_non_loopy_benchmark || true
 
 # openmp benchmark
 cd "$ROOT_SRC_DIR/cmake-build-release/src/openmp_benchmark"
