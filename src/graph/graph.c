@@ -268,8 +268,8 @@ void graph_add_edge(Graph_t graph, size_t src_index, size_t dest_index, size_t d
 	sprintf(src_key, "%ld", src_index);
     src_e.key = src_key;
 	src_e.data = NULL;
-    hsearch_r(src_e, FIND, &src_ep, graph->src_node_to_edge_table);
-    if(src_ep == NULL){
+    res = hsearch_r(src_e, FIND, &src_ep, graph->src_node_to_edge_table);
+    if(res == 0 && src_ep == NULL){
         src_entry = (struct htable_entry *)calloc(sizeof(struct htable_entry), 1);
         TAILQ_INIT(&(src_entry->indices));
         src_entry->count = 0;
@@ -288,7 +288,7 @@ void graph_add_edge(Graph_t graph, size_t src_index, size_t dest_index, size_t d
 	sprintf(dest_key, "%ld", dest_index);
     dest_e.key = dest_key;
 	dest_e.data = NULL;
-    hsearch_r(dest_e, FIND, &dest_ep, graph->dest_node_to_edge_table);
+    res = hsearch_r(dest_e, FIND, &dest_ep, graph->dest_node_to_edge_table);
     if(dest_ep == NULL){
         dest_entry = (struct htable_entry *)calloc(sizeof(struct htable_entry), 1);
         TAILQ_INIT(&(dest_entry->indices));
@@ -304,8 +304,10 @@ void graph_add_edge(Graph_t graph, size_t src_index, size_t dest_index, size_t d
     dest_e.data = dest_entry;
 
 
-    assert( hsearch_r(src_e, ENTER, &src_ep, graph->src_node_to_edge_table) != 0);
-    assert( hsearch_r(dest_e, ENTER, &dest_ep, graph->dest_node_to_edge_table) != 0);
+    res = hsearch_r(src_e, ENTER, &src_ep, graph->src_node_to_edge_table);
+    assert( res != 0);
+    res = hsearch_r(dest_e, ENTER, &dest_ep, graph->dest_node_to_edge_table);
+    assert( res != 0);
 
 	graph->current_num_edges += 1;
 }
@@ -535,8 +537,8 @@ void set_up_dest_nodes_to_edges_no_hsearch(Graph_t graph){
 }
 
 void graph_destroy_htables(Graph_t g) {
-    size_t i;
     ENTRY src_e, dest_e, *src_ep, *dest_ep;
+    int ret_val;
     src_ep = NULL;
     dest_ep = NULL;
     if(g->node_hash_table_created != 0){
@@ -544,11 +546,12 @@ void graph_destroy_htables(Graph_t g) {
         free(g->node_hash_table);
     }
     if(g->edge_tables_created != 0){
-        for(i = 0; i < g->current_num_vertices; ++i){
+        for(size_t i = 0; i < g->current_num_vertices; ++i){
             sprintf(src_key, "%ld", i);
             src_e.key = src_key;
             src_e.data = NULL;
-            if(hsearch_r(src_e, FIND, &src_ep, g->src_node_to_edge_table) != 0) {
+            ret_val = hsearch_r(src_e, FIND, &src_ep, g->src_node_to_edge_table);
+            if (ret_val != 0) {
                 if (src_ep != NULL && src_ep->data != NULL) {
                     struct htable_entry * metadata = (struct htable_entry *)src_ep->data;
                     delete_indices(metadata);
@@ -561,7 +564,8 @@ void graph_destroy_htables(Graph_t g) {
             sprintf(dest_key, "%ld", i);
             dest_e.key = dest_key;
             dest_e.data = NULL;
-            if(hsearch_r(dest_e, FIND, &dest_ep, g->dest_node_to_edge_table) != 0) {
+            ret_val = hsearch_r(dest_e, FIND, &dest_ep, g->dest_node_to_edge_table);
+            if( ret_val != 0) {
                 if(dest_ep != NULL && dest_ep->data != NULL){
                     struct htable_entry * metadata = (struct htable_entry *)dest_ep->data;
                     delete_indices(metadata);
