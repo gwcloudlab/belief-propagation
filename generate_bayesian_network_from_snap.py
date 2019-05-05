@@ -14,12 +14,16 @@ DEFAULT_STATE = 1.0
 
 TEMPLATE_DATA = Template('% Nodes: $num_nodes Edges: $num_edges Beliefs: $num_beliefs Belief States: $num_belief_states')
 
-def read_snap_file(read_path, write_edges_path, write_observed_nodes_path, num_beliefs, num_belief_states, seed, pct_of_observed):
+def read_snap_file(read_path, write_edges_path, write_observed_nodes_path, num_beliefs, num_belief_states, seed, pct_of_observed, renumber):
     random.seed(seed)
+
+    next_id = 1
+    ids = {}
 
     num_nodes = None
     num_edges = None
     read_nodes = set()
+    edges = []
     with open(read_path, 'r') as read_fp:
         with open(write_edges_path, 'w') as write_fp:
             for line in read_fp:
@@ -32,29 +36,49 @@ def read_snap_file(read_path, write_edges_path, write_observed_nodes_path, num_b
                     else:
                         num_nodes = int(match.group('num_nodes'))
                         num_edges = int(match.group('num_edges'))
-                        print "Num nodes: %d; Num edges: %d" % (num_nodes, num_edges)
+                        print("Num nodes: %d; Num edges: %d" % (num_nodes, num_edges))
                         replacement_line = TEMPLATE_DATA.substitute(num_nodes=num_nodes, num_edges=num_edges, num_beliefs=num_beliefs, num_belief_states=num_belief_states)
                         write_fp.write(replacement_line + '\n')
                         write_fp.write('{}\t{}\t{}\n'.format(num_nodes, num_nodes, num_edges))
                 else:
                     edge_match = REGEX_EDGE.match(line)
                     if edge_match is None:
+                        print('No match: {}'.format(line))
                         write_fp.write(line)
                     else:
                         assert num_nodes is not None, "Number of nodes is None still; invalid file"
                         assert num_edges is not None, "Number of edges is None still; invalid file"
-                        src = edge_match.group('src')
-                        dest = edge_match.group('dest')
+                        src_str = edge_match.group('src')
+                        dest_str = edge_match.group('dest')
+                        if renumber:
+                            if src_str in ids:
+                                src = ids[src_str]
+                            else:
+                                src = str(next_id)
+                                ids[src_str] = src
+                                next_id += 1
+                            if dest_str in ids:
+                                dest = ids[dest_str]
+                            else:
+                                dest = str(next_id)
+                                ids[dest_str] = dest
+                                next_id += 1
+                        else:
+                            src = src_str
+                            dest = dest_str
+                        # print("{} to {}".format(src, dest))
                         read_nodes.add(src)
                         read_nodes.add(dest)
-                        new_line_data = [src, dest]
-                        write_fp.write('\t'.join(new_line_data) + '\n')
+                        edges.append((src, dest))
+            for tup in sorted(edges, key=lambda t: (int(t[0]), int(t[1]))):
+                new_line_data = [tup[0], tup[1]]
+                write_fp.write('\t'.join(new_line_data) + '\n')
     num_observed_nodes = pct_of_observed * num_nodes
     observed_nodes = set(random.sample(read_nodes, int(num_observed_nodes)))
     with open(write_observed_nodes_path, 'w') as write_node_fp:
         write_node_fp.write('% Belief network generated from mtx file: {}\n'.format(read_path))
         write_node_fp.write('{}\t{}\t{}\n'.format(num_nodes, num_nodes, num_edges))
-        for node in read_nodes:
+        for node in sorted(read_nodes, key=lambda i: int(i)):
             if node in observed_nodes:
                 prob_list = generate_prob_list(num_belief_states)
             else:
@@ -64,15 +88,12 @@ def read_snap_file(read_path, write_edges_path, write_observed_nodes_path, num_b
 
 
 def generate_prob_list(num_belief_states):
-    max_prob = 1.0
     sum = 0.0
-    probabilities = []
-    for i in range(num_belief_states - 1):
-        new_prob = random.random() * max_prob
-        probabilities.append(str(new_prob))
-        max_prob *= new_prob
-        sum += new_prob
-    probabilities.append(str(1.0 - sum))
+    probabilities = [random.random() for i in range(num_belief_states)]
+    for prob in probabilities:
+        sum += prob
+    for i in range(len(probabilities)):
+        probabilities[i] = str(probabilities[i] / sum)
     return probabilities
 
 
@@ -85,6 +106,7 @@ def parse_args():
     parser.add_argument('-nb', '--num-beliefs', required=False, type=int, default=2, help='The number of beliefs in the graph; defaults to 2')
     parser.add_argument('-ns', '--num-states', required=False, type=int, default=2, help='The number of states per belief; defaults to 2')
     parser.add_argument('-p', '--pct-observed', required=False, type=float, default=0.3, help='The percentage of nodes which are observed')
+    parser.add_argument('-r', '--renumber', action='store_true', default=False, help='Whether to renumber the ids')
 
     args = parser.parse_args()
 
@@ -110,7 +132,7 @@ def parse_args():
 
 def main():
     args = parse_args()
-    read_snap_file(args.input, args.output_edges, args.output_nodes, args.num_beliefs, args.num_states, args.seed, args.pct_observed)
+    read_snap_file(args.input, args.output_edges, args.output_nodes, args.num_beliefs, args.num_states, args.seed, args.pct_observed, args.renumber)
 
 if __name__ == '__main__':
     main()
