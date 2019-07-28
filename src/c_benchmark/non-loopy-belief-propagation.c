@@ -11,7 +11,7 @@ int main(void) {
     size_t dim_x, dim_y;
     set_joint_probability_yahoo_web(&edge_joint_probability, &dim_x, &dim_y);
 
-
+/*
     run_test_belief_propagation_mtx_files("/home/mjt5v/Desktop/belief-network-const-joint-probability/10_nodes_40_edges_2_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/10_nodes_40_edges_2_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
     run_test_belief_propagation_mtx_files("/home/mjt5v/Desktop/belief-network-const-joint-probability/100_nodes_400_edges_2_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/100_nodes_400_edges_2_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
     run_test_belief_propagation_mtx_files("/home/mjt5v/Desktop/belief-network-const-joint-probability/1000_nodes_4000_edges_2_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/1000_nodes_4000_edges_2_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
@@ -23,7 +23,22 @@ int main(void) {
     run_test_belief_propagation_mtx_files("/home/mjt5v/Desktop/belief-network-const-joint-probability/800000_nodes_3200000_edges_2_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/800000_nodes_3200000_edges_2_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
     run_test_belief_propagation_mtx_files("/home/mjt5v/Desktop/belief-network-const-joint-probability/1000000_nodes_4000000_edges_2_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/1000000_nodes_4000000_edges_2_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
     run_test_belief_propagation_mtx_files("/home/mjt5v/Desktop/belief-network-const-joint-probability/2000000_nodes_8000000_edges_2_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/2000000_nodes_8000000_edges_2_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
+*/
+    run_test_belief_propagation_mtx_files("/home/mjt5v/Desktop/belief-network-const-joint-probability/hollywood-2009_2_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/hollywood-2009_2_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
+    run_test_belief_propagation_mtx_files("/home/mjt5v/Desktop/belief-network-const-joint-probability/soc-pokec-relationships_2_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/soc-pokec-relationships_2_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
+    run_test_belief_propagation_mtx_files("/home/mjt5v/Desktop/belief-network-const-joint-probability/kron_g500-logn16_2_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/kron_g500-logn16_2_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
+    run_test_belief_propagation_mtx_files("/home/mjt5v/Desktop/belief-network-const-joint-probability/kron_g500-logn19_2_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/kron_g500-logn19_2_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
+    run_test_belief_propagation_mtx_files("/home/mjt5v/Desktop/belief-network-const-joint-probability/kron_g500-logn20_2_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/kron_g500-logn20_2_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
+    run_test_belief_propagation_mtx_files("/home/mjt5v/Desktop/belief-network-const-joint-probability/kron_g500-logn21_2_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/kron_g500-logn21_2_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
+    run_test_belief_propagation_mtx_files("/home/mjt5v/Desktop/belief-network-const-joint-probability/wiki-Talk_2_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/wiki-Talk_2_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
+    run_test_belief_propagation_mtx_files("/home/mjt5v/Desktop/belief-network-const-joint-probability/soc-LiveJournal1_2_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/soc-LiveJournal1_2_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
+    run_test_belief_propagation_mtx_files("/home/mjt5v/Desktop/belief-network-const-joint-probability/loc-gowalla_2_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/loc-gowalla_2_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
+    run_test_belief_propagation_mtx_files("/home/mjt5v/Desktop/belief-network-const-joint-probability/com-youtube_2_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/com-youtube_2_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
+    run_test_belief_propagation_mtx_files("/home/mjt5v/Desktop/belief-network-const-joint-probability/wikipedia_link_en_2_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/wikipedia_link_en_2_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
+    run_test_belief_propagation_mtx_files("/home/mjt5v/Desktop/belief-network-const-joint-probability/friendster_2_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/friendster_2_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
 
+
+/*
     run_test_belief_propagation_mtx_files("/home/mjt5v/Desktop/belief-network-const-joint-probability/web-it-2004_2_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/web-it-2004_2_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
     run_test_belief_propagation_mtx_files("/home/mjt5v/Desktop/belief-network-const-joint-probability/soc-delicious_2.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/soc-delicious_2.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
     //run_test_belief_propagation_mtx_files("/home/mjt5v/Desktop/belief-network-const-joint-probability/web-Stanford_2.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/web-Stanford_2.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
@@ -37,7 +52,7 @@ int main(void) {
     //run_test_belief_propagation_mtx_files("/home/mjt5v/Desktop/belief-network-const-joint-probability/soc-twitter-2010_2.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/soc-twitter-2010_2.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
     //run_test_belief_propagation_mtx_files("/home/mjt5v/Desktop/belief-network-const-joint-probability/soc-orkut_2_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/soc-orkut_2_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
     //run_test_belief_propagation_mtx_files("/home/mjt5v/Desktop/belief-network-const-joint-probability/soc-orkut_2_beliefs_red.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/soc-orkut_2_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
-
+*/
 
     fclose(out);
     return 0;
