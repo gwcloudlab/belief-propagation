@@ -12,8 +12,8 @@ add_subdirectory(src/c_benchmark)
 add_subdirectory(src/openmp_benchmark)
 add_subdirectory(src/cuda_benchmark)
 add_subdirectory(src/cuda_benchmark_kernels)
-add_subdirectory(src/openacc_benchmark)
-add_subdirectory(src/sample_openmpi_with_cuda)
+# add_subdirectory(src/openacc_benchmark)
+# add_subdirectory(src/sample_openmpi_with_cuda)
 
 #add_subdirectory(test)
 

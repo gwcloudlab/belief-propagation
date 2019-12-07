@@ -22,7 +22,6 @@ int main(void) {
     run_test_loopy_belief_propagation_mtx_files("/home/mjt5v/Desktop/belief-network-const-joint-probability/1000000_nodes_4000000_edges_2_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/1000000_nodes_4000000_edges_2_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
     run_test_loopy_belief_propagation_mtx_files("/home/mjt5v/Desktop/belief-network-const-joint-probability/2000000_nodes_8000000_edges_2_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/2000000_nodes_8000000_edges_2_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
 */
-
     run_test_loopy_belief_propagation_mtx_files("/home/mjt5v/Desktop/belief-network-const-joint-probability/hollywood-2009_2_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/hollywood-2009_2_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
     run_test_loopy_belief_propagation_mtx_files("/home/mjt5v/Desktop/belief-network-const-joint-probability/soc-pokec-relationships_2_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/soc-pokec-relationships_2_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
     run_test_loopy_belief_propagation_mtx_files("/home/mjt5v/Desktop/belief-network-const-joint-probability/kron_g500-logn16_2_beliefs.edges.mtx", "/home/mjt5v/Desktop/belief-network-const-joint-probability/kron_g500-logn16_2_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);

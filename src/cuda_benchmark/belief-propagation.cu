@@ -1478,7 +1478,7 @@ void test_error(){
  * @param max_iterations The number of executions to stop at
  * @return The actual number of iterations ran
  */
-int loopy_propagate_until_cuda(Graph_t graph, const float convergence, const int max_iterations){
+int loopy_propagate_until_cuda(Graph_t graph, const float convergence, const int max_iterations, double * transfer_from, double * transfer_to){
     int num_iter;
     size_t i, j;
     float * delta;
@@ -1524,6 +1524,8 @@ int loopy_propagate_until_cuda(Graph_t graph, const float convergence, const int
 
     is_pow_2 = num_vertices % 2 == 0;
 
+    clock_t start = clock();
+
     // allocate data
     CUDA_CHECK_RETURN(cudaMalloc((void **)&dest_node_to_edges_nodes, sizeof(size_t) * graph->current_num_vertices));
     CUDA_CHECK_RETURN(cudaMalloc((void **)&dest_node_to_edges_edges, sizeof(size_t) * graph->current_num_edges));
@@ -1568,6 +1570,8 @@ int loopy_propagate_until_cuda(Graph_t graph, const float convergence, const int
     CUDA_CHECK_RETURN(cudaMemcpy(work_queue_nodes, graph->work_queue_nodes, sizeof(size_t) * num_vertices, cudaMemcpyHostToDevice));
     CUDA_CHECK_RETURN(cudaMemcpy(num_work_items, &h_num_work_items, sizeof(unsigned long long int), cudaMemcpyHostToDevice));
 
+    *transfer_to = (double)(clock() - start)/CLOCKS_PER_SEC;
+
     const int edgeCount = (num_edges + BLOCK_SIZE - 1)/ BLOCK_SIZE;
     const int nodeCount = (num_vertices + BLOCK_SIZE - 1) / BLOCK_SIZE;
     num_iter = 0;
@@ -1611,6 +1615,8 @@ int loopy_propagate_until_cuda(Graph_t graph, const float convergence, const int
         }
     }
 
+    start = clock();
+
     // copy data back
     CUDA_CHECK_RETURN(cudaMemcpy(graph->node_states, node_states, sizeof(struct belief) * num_vertices, cudaMemcpyDeviceToHost));
     CUDA_CHECK_RETURN(cudaMemcpy(graph->edges_messages, current_messages, sizeof(struct belief) * num_edges, cudaMemcpyDeviceToHost));
@@ -1634,6 +1640,8 @@ int loopy_propagate_until_cuda(Graph_t graph, const float convergence, const int
     CUDA_CHECK_RETURN(cudaFree(work_queue_nodes));
     CUDA_CHECK_RETURN(cudaFree(work_queue_scratch));
     CUDA_CHECK_RETURN(cudaFree(num_work_items));
+
+    *transfer_from = (double)(clock() - start)/CLOCKS_PER_SEC;
 
     //CUDA_CHECK_RETURN(cudaHostUnregister(graph->node_states));
     //CUDA_CHECK_RETURN(cudaHostUnregister(graph->edges_messages));
@@ -3582,7 +3590,7 @@ int viterbi_until_cuda(Graph_t graph, const float convergence, const int max_ite
  * @param max_iterations The maximum number of iterations to run for
  * @return The actual number of iterations ran
  */
-int loopy_propagate_until_cuda_edge(Graph_t graph, const float convergence, const int max_iterations){
+int loopy_propagate_until_cuda_edge(Graph_t graph, const float convergence, const int max_iterations, double * transfer_to, double * transfer_from){
     int num_iter;
     size_t i, j;
     float * delta;
@@ -3628,6 +3636,8 @@ int loopy_propagate_until_cuda_edge(Graph_t graph, const float convergence, cons
 
     is_pow_2 = num_vertices % 2 == 0;
 
+    clock_t start = clock();
+
     // allocate data
     CUDA_CHECK_RETURN(cudaMalloc((void **)&edges_src_index, sizeof(size_t) * graph->current_num_edges));
     CUDA_CHECK_RETURN(cudaMalloc((void **)&edges_dest_index, sizeof(size_t) * graph->current_num_edges));
@@ -3672,6 +3682,7 @@ int loopy_propagate_until_cuda_edge(Graph_t graph, const float convergence, cons
     CUDA_CHECK_RETURN(cudaMemcpy(work_queue_edges, graph->work_queue_edges, sizeof(size_t) * num_edges, cudaMemcpyHostToDevice));
     CUDA_CHECK_RETURN(cudaMemcpy(num_work_items, &h_num_work_items, sizeof(unsigned long long int), cudaMemcpyHostToDevice));
 
+    *transfer_to = (double)(clock() - start)/CLOCKS_PER_SEC;
 
     const int edgeCount = (num_edges + BLOCK_SIZE - 1)/ BLOCK_SIZE;
     const int nodeCount = (num_vertices + BLOCK_SIZE - 1) / BLOCK_SIZE;
@@ -3717,6 +3728,8 @@ int loopy_propagate_until_cuda_edge(Graph_t graph, const float convergence, cons
         }
     }
 
+    start = clock();
+
     // copy data back
     CUDA_CHECK_RETURN(cudaMemcpy(graph->node_states, node_states, sizeof(struct belief) * num_vertices, cudaMemcpyDeviceToHost));
     CUDA_CHECK_RETURN(cudaMemcpy(graph->edges_messages, current_messages, sizeof(struct belief) * num_edges, cudaMemcpyDeviceToHost));
@@ -3741,6 +3754,8 @@ int loopy_propagate_until_cuda_edge(Graph_t graph, const float convergence, cons
     CUDA_CHECK_RETURN(cudaFree(work_queue_edges));
     CUDA_CHECK_RETURN(cudaFree(work_queue_scratch));
     CUDA_CHECK_RETURN(cudaFree(num_work_items));
+
+    *transfer_from = (double)(clock() - start)/CLOCKS_PER_SEC;
 
     /*printf("After=====");
     print_nodes(graph);
@@ -5617,7 +5632,7 @@ void run_test_loopy_belief_propagation_cuda(struct expression * expression, cons
     init_previous_edge(graph);
 
     start = clock();
-    num_iterations = loopy_propagate_until_cuda(graph, PRECISION, NUM_ITERATIONS);
+    num_iterations = 1;//loopy_propagate_until_cuda(graph, PRECISION, NUM_ITERATIONS, 0.0, 0.0);
     end = clock();
 
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
@@ -5654,7 +5669,7 @@ void run_test_loopy_belief_propagation_xml_file_cuda(const char * file_name, FIL
     init_previous_edge(graph);
 
     start = clock();
-    num_iterations = loopy_propagate_until_cuda(graph, PRECISION, NUM_ITERATIONS);
+    num_iterations = 1;//loopy_propagate_until_cuda(graph, PRECISION, NUM_ITERATIONS, 0.0, 0.0);
     end = clock();
 
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
@@ -5728,7 +5743,7 @@ void run_test_loopy_belief_propagation_xml_file_edge_cuda(const char * file_name
     init_previous_edge(graph);
 
     start = clock();
-    num_iterations = loopy_propagate_until_cuda_edge(graph, PRECISION, NUM_ITERATIONS);
+    num_iterations = 1;//loopy_propagate_until_cuda_edge(graph, PRECISION, NUM_ITERATIONS, 0.0, 0.0);
     end = clock();
 
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
@@ -5805,7 +5820,7 @@ void run_test_loopy_belief_propagation_snap_file_cuda(const char * edge_file_nam
     init_previous_edge(graph);
 
     start = clock();
-    num_iterations = loopy_propagate_until_cuda(graph, PRECISION, NUM_ITERATIONS);
+    num_iterations = 1;//loopy_propagate_until_cuda(graph, PRECISION, NUM_ITERATIONS, 0.0, 0.0);
     end = clock();
 
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
@@ -5843,7 +5858,7 @@ void run_test_loopy_belief_propagation_snap_file_edge_cuda(const char * edge_fil
     init_previous_edge(graph);
 
     start = clock();
-    num_iterations = loopy_propagate_until_cuda_edge(graph, PRECISION, NUM_ITERATIONS);
+    num_iterations = 1;//loopy_propagate_until_cuda_edge(graph, PRECISION, NUM_ITERATIONS);
     end = clock();
 
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
@@ -5874,14 +5889,17 @@ void run_test_loopy_belief_propagation_mtx_files_cuda(const char * edge_mtx, con
 
     init_previous_edge(graph);
 
+    double transfer_to = 0.0;
+    double transfer_from = 0.0;
+
     start = clock();
-    num_iterations = loopy_propagate_until_cuda(graph, PRECISION, NUM_ITERATIONS);
+    num_iterations = loopy_propagate_until_cuda(graph, PRECISION, NUM_ITERATIONS, &transfer_from, &transfer_to);
     end = clock();
 
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
     total_time_elapsed = (double)(end - begin)/CLOCKS_PER_SEC;
     //print_nodes(graph);
-    fprintf(out, "%s-%s,loopy,%ld,%ld,%d,%d,%lf,%d,%lf,%d,%lf,%lf,%lf\n", edge_mtx, node_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, graph->max_in_degree, graph->avg_in_degree, graph->max_out_degree, graph->avg_out_degree, num_iterations, time_elapsed, time_elapsed/num_iterations,  total_time_elapsed);
+    fprintf(out, "%s-%s,loopy,%ld,%ld,%d,%d,%lf,%d,%lf,%d,%lf,%lf,%lf,%lf,%lf\n", edge_mtx, node_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, graph->max_in_degree, graph->avg_in_degree, graph->max_out_degree, graph->avg_out_degree, num_iterations, time_elapsed, time_elapsed/num_iterations, total_time_elapsed, transfer_to, transfer_from);
     fflush(out);
 
     graph_destroy(graph);
@@ -6003,15 +6021,17 @@ void run_test_loopy_belief_propagation_mtx_files_edge_cuda(const char * edge_mtx
 
     init_previous_edge(graph);
 
+    double transfer_to = 0.0;
+    double transfer_from = 0.0;
+
     start = clock();
-    num_iterations = loopy_propagate_until_cuda_edge(graph, PRECISION, NUM_ITERATIONS);
+    num_iterations = loopy_propagate_until_cuda_edge(graph, PRECISION, NUM_ITERATIONS, &transfer_to, &transfer_from);
     end = clock();
 
     time_elapsed = (double)(end - start)/CLOCKS_PER_SEC;
     total_time_elapsed = (double)(end - begin)/CLOCKS_PER_SEC;
     //print_nodes(graph);
-    fprintf(out, "%s-%s,loopy-edge,%ld,%ld,%d,%d,%lf,%d,%lf,%d,%lf,%lf,%lf\n", edge_mtx, node_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, graph->max_in_degree, graph->avg_in_degree, graph->max_out_degree, graph->avg_out_degree, num_iterations, time_elapsed, time_elapsed/num_iterations, total_time_elapsed);
-    fflush(out);
+    fprintf(out, "%s-%s,loopy-edge,%ld,%ld,%d,%d,%lf,%d,%lf,%d,%lf,%lf,%lf,%lf,%lf\n", edge_mtx, node_mtx, graph->current_num_vertices, graph->current_num_edges, graph->diameter, graph->max_in_degree, graph->avg_in_degree, graph->max_out_degree, graph->avg_out_degree, num_iterations, time_elapsed, time_elapsed/num_iterations, total_time_elapsed, transfer_to, transfer_from);
 
     graph_destroy(graph);
 }
