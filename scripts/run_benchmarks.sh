@@ -1,6 +1,6 @@
 #!/bin/sh
 
-ROOT_SRC_DIR=/home/mjt5v/CLionProjects/belief-propagation
+ROOT_SRC_DIR=/home/ubuntu/belief-propagation
 echo "Starting scripts at $(date)"
 # c benchmark
 cd "$ROOT_SRC_DIR/cmake-build-release/src/c_benchmark/"
@@ -27,7 +27,7 @@ echo "Running C Loopy Node $(date)"
 #./openmp_node_benchmark_no_work_queue
 
 # openacc benchmark
-cd "$ROOT_SRC_DIR/cmake-build-release/src/openacc_benchmark"
+#cd "$ROOT_SRC_DIR/cmake-build-release/src/openacc_benchmark"
 # make clean && make
 #echo "Running OpenACC Edge $(date)"
 #./openacc_loopy_edge_benchmark || true
@@ -58,3 +58,7 @@ echo "Running CUDA Node $(date)"
 
 echo "Done $(date)"
 
+sync
+sync
+sync
+poweroff
