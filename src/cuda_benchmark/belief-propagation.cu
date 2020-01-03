@@ -36,7 +36,7 @@ void update_work_queue_nodes_cuda(size_t * __restrict__ work_queue_nodes, unsign
     unsigned long long int orig_num_work_items = *num_work_items;
 
     atomicCAS(num_work_items, orig_num_work_items, 0);
-    __syncthreads();
+    //__syncthreads();
 
     for(i = blockIdx.x * blockDim.x + threadIdx.x; i < *num_work_items && i < num_vertices; i += blockDim.x * gridDim.x){
         index = work_queue_nodes[i];
@@ -60,7 +60,7 @@ void update_work_queue_edges_cuda(size_t * __restrict__ work_queue_edge, unsigne
     unsigned long long int orig_num_work_items = *num_work_items;
 
     atomicCAS(num_work_items, orig_num_work_items, 0);
-    __syncthreads();
+    //__syncthreads();
 
     for(i = blockIdx.x * blockDim.x + threadIdx.x; i < num_edges && *num_work_items < num_edges; i += blockDim.x * gridDim.x){
         index = work_queue_edge[i];
@@ -797,19 +797,19 @@ void loopy_propagate_main_loop(size_t num_vertices, size_t num_edges,
         idx = work_queue_nodes[i];
 
         init_message_buffer_cuda(&new_belief, node_messages, num_variables, idx);
-        __syncthreads();
+        //__syncthreads();
 
         read_incoming_messages_cuda(&new_belief, current_edge_messages, dest_nodes_to_edges_nodes,
                                     dest_nodes_to_edges_edges, num_edges, num_vertices, num_variables, idx);
-        __syncthreads();
+        //__syncthreads();
 
         send_message_for_node_cuda(&new_belief, num_edges, num_src, num_dest, current_edge_messages, edge_messages_previous, edge_messages_current,
                                    src_nodes_to_edges_nodes, src_nodes_to_edges_edges, num_vertices, idx);
-        __syncthreads();
+        //__syncthreads();
         marginalize_node(node_messages,node_messages_previous, node_messages_current, num_variables, idx, current_edge_messages, dest_nodes_to_edges_nodes,
                          dest_nodes_to_edges_edges, num_vertices, num_edges);
 
-        __syncthreads();
+        //__syncthreads();
     }
     update_work_queue_nodes_cuda(work_queue_nodes, num_work_items, work_queue_scratch, node_messages_previous, node_messages_current, num_vertices, PRECISION_ITERATION);
 
@@ -1095,7 +1095,7 @@ void combine_loopy_edge_cuda(const size_t edge_index, const struct belief * __re
             }while(assumed != old);
             belief[dest_node_index].data[i] = current_belief_value[threadIdx.x];
         }
-        __syncthreads();
+        //__syncthreads();
     }
 }
 
