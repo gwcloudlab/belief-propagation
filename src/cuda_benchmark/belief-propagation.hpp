@@ -306,7 +306,8 @@ void send_message_for_edge_iteration_cuda_work_queue_kernel_streaming(
         const size_t *, const size_t *);
 
 __device__
-void combine_loopy_edge_cuda(size_t, const struct belief *, const size_t *, size_t, struct belief *);
+void combine_loopy_edge_cuda(const size_t, const struct belief *, const size_t, const size_t,
+                             struct belief *);
 
 __global__
 void combine_loopy_edge_cuda_kernel(size_t, const size_t *, const struct belief *, const size_t *, struct belief *);
