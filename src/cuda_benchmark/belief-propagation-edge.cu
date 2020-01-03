@@ -9,7 +9,7 @@ int main(void) {
     size_t dim_x, dim_y;
     set_joint_probability_32(&edge_joint_probability, &dim_x, &dim_y);
 
-    /*
+
     run_test_loopy_belief_propagation_mtx_files_edge_cuda("/home/ubuntu/belief-network-const-joint-probability/10_nodes_40_edges_32_beliefs.edges.mtx", "/home/ubuntu/belief-network-const-joint-probability/10_nodes_40_edges_32_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
     run_test_loopy_belief_propagation_mtx_files_edge_cuda("/home/ubuntu/belief-network-const-joint-probability/100_nodes_400_edges_32_beliefs.edges.mtx", "/home/ubuntu/belief-network-const-joint-probability/100_nodes_400_edges_32_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
     run_test_loopy_belief_propagation_mtx_files_edge_cuda("/home/ubuntu/belief-network-const-joint-probability/1000_nodes_4000_edges_32_beliefs.edges.mtx", "/home/ubuntu/belief-network-const-joint-probability/1000_nodes_4000_edges_32_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
@@ -21,7 +21,7 @@ int main(void) {
     run_test_loopy_belief_propagation_mtx_files_edge_cuda("/home/ubuntu/belief-network-const-joint-probability/800000_nodes_3200000_edges_32_beliefs.edges.mtx", "/home/ubuntu/belief-network-const-joint-probability/800000_nodes_3200000_edges_32_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
     run_test_loopy_belief_propagation_mtx_files_edge_cuda("/home/ubuntu/belief-network-const-joint-probability/1000000_nodes_4000000_edges_32_beliefs.edges.mtx", "/home/ubuntu/belief-network-const-joint-probability/1000000_nodes_4000000_edges_32_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
     run_test_loopy_belief_propagation_mtx_files_edge_cuda("/home/ubuntu/belief-network-const-joint-probability/2000000_nodes_8000000_edges_32_beliefs.edges.mtx", "/home/ubuntu/belief-network-const-joint-probability/2000000_nodes_8000000_edges_32_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
-*/
+
     
     run_test_loopy_belief_propagation_mtx_files_edge_cuda("/home/ubuntu/belief-network-const-joint-probability/hollywood-2009_32_beliefs.edges.mtx", "/home/ubuntu/belief-network-const-joint-probability/hollywood-2009_32_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
     run_test_loopy_belief_propagation_mtx_files_edge_cuda("/home/ubuntu/belief-network-const-joint-probability/soc-pokec-relationships_32_beliefs.edges.mtx", "/home/ubuntu/belief-network-const-joint-probability/soc-pokec-relationships_32_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
@@ -36,7 +36,7 @@ int main(void) {
     run_test_loopy_belief_propagation_mtx_files_edge_cuda("/home/ubuntu/belief-network-const-joint-probability/wikipedia_link_en_32_beliefs.edges.mtx", "/home/ubuntu/belief-network-const-joint-probability/wikipedia_link_en_32_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
     run_test_loopy_belief_propagation_mtx_files_edge_cuda("/home/ubuntu/belief-network-const-joint-probability/friendster_32_beliefs.edges.mtx", "/home/ubuntu/belief-network-const-joint-probability/friendster_32_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
 
-/*
+
     run_test_loopy_belief_propagation_mtx_files_edge_cuda("/home/ubuntu/belief-network-const-joint-probability/soc-delicious_32_beliefs.edges.mtx", "/home/ubuntu/belief-network-const-joint-probability/soc-delicious_32_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
     run_test_loopy_belief_propagation_mtx_files_edge_cuda("/home/ubuntu/belief-network-const-joint-probability/soc-twitter-follows-mun_32_beliefs.edges.mtx", "/home/ubuntu/belief-network-const-joint-probability/soc-twitter-follows-mun_32_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
     run_test_loopy_belief_propagation_mtx_files_edge_cuda("/home/ubuntu/belief-network-const-joint-probability/soc-google-plus_32_beliefs.edges.mtx", "/home/ubuntu/belief-network-const-joint-probability/soc-google-plus_32_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
@@ -49,7 +49,7 @@ int main(void) {
     run_test_loopy_belief_propagation_mtx_files_edge_cuda("/home/ubuntu/belief-network-const-joint-probability/kron_g500-logn17_32_beliefs.edges.mtx", "/home/ubuntu/belief-network-const-joint-probability/kron_g500-logn17_32_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
     run_test_loopy_belief_propagation_mtx_files_edge_cuda("/home/ubuntu/belief-network-const-joint-probability/soc-orkut_32_beliefs.edges.mtx", "/home/ubuntu/belief-network-const-joint-probability/soc-orkut_32_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
     run_test_loopy_belief_propagation_mtx_files_edge_cuda("/home/ubuntu/belief-network-const-joint-probability/soc-twitter-2010_32_beliefs_red.edges.mtx", "/home/ubuntu/belief-network-const-joint-probability/soc-twitter-2010_32_beliefs.nodes.mtx", &edge_joint_probability, dim_x, dim_y, out);
-*/
+
 
     fclose(out);
     return 0;
